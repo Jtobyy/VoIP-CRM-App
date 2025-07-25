@@ -25,32 +25,43 @@ const AdminDashboard = ({ navigation }) => {
       name: 'Chioma Okere',
       category: 'message',
       channel: 'instagram',
-      channel_icon: '/assets/instagram.png',
+      channel_icon: require('../../assets/instagram.png'),
       text: 'Hi Chichi! I\'d love to hear more about what...',
       time: 'Yesterday',
-      profile_pic: '/assets/sample1.png'
+      profile_pic: require('../../assets/sample1.png')
     },
     { 
       id: '4',
       name: 'Sade Adu',
       category: 'message',
       channel: 'telegram',
-      channel_icon: '/assets/telegram.png',
+      channel_icon: require('../../assets/telegram.png'),
       text: 'Hi Chichi! I\'d love to hear more about what...',
       time: 'Yesterday',
-      profile_pic: '/assets/sample2.png'
+      profile_pic: require('../../assets/sample2.png')
     },
     { 
       id: '5',
       name: 'Viv Ubochi',
       category: 'call',
       channel: 'facebook',
-      channel_icon: '/assets/facebook.png',
+      channel_icon: require('../../assets/facebook.png'),
       text: 'I\'m Vivian! My first investi...',
       time: 'Yesterday',
-      profile_pic: '/assets/sample3.png'
+      profile_pic: require('../../assets/sample3.png')
     }
   ];
+
+  const handleSeeAllPress = () => {
+    // Get the parent navigator (MainStackNavigator)
+    const parentNavigation = navigation.getParent();
+    if (parentNavigation) {
+      parentNavigation.navigate('RecentActivities');
+    } else {
+      // Fallback - this should work in most cases
+      navigation.navigate('RecentActivities');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -137,7 +148,7 @@ const AdminDashboard = ({ navigation }) => {
             <Text style={typography.heading2}>Recent Activities</Text>
             <TouchableOpacity 
               style={styles.seeAllButton}
-              onPress={() => navigation.navigate('RecentActivities')}>
+              onPress={handleSeeAllPress}>
               <Text style={styles.seeAllText}>See all</Text>
             </TouchableOpacity>
           </View>
@@ -158,7 +169,7 @@ const AdminDashboard = ({ navigation }) => {
 
                   <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                     <Text style={styles.activityName}>{item.name}</Text>
-                    <View style={{flexDirection: 'row', gap: 2}}>
+                    <View style={{flexDirection: 'row', gap: 8}}>
                       <Text style={styles.activityTime}>{item.time}</Text>
                       <Image
                         source={require('../../assets/info.png')} 
@@ -168,7 +179,7 @@ const AdminDashboard = ({ navigation }) => {
                     </View>
                   </View>
                   
-                  <View style={{flexDirection: 'row', gap: 2}}>
+                  <View style={{flexDirection: 'row', gap: 8}}>
                     {item.category == 'call' && item.text == 'Missed call' && 
                       <Image
                           source={require('../../assets/missed.png')} 
@@ -249,8 +260,8 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   infoIcon: {
-    width: 20,
-    height: 20
+    width: 18,
+    height: 18
   },
   statValue: {
     fontSize: typography.heading1.fontSize,

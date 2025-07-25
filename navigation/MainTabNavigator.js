@@ -1,17 +1,19 @@
 // navigation/MainTabNavigator.js
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import AdminDashboard from '../screens/home/Dashboard';
-import ManageCustomers from '../screens/customers/ManageCustomers';
-import MessagesScreen from '../screens/messages/MessageList';
-import AccountManagement from '../screens/account/AccountManagement';
-// import CallLogsScreen from '../screens/calls/CallLogs'; // Add this screen
+import CustomersList from '../screens/customers/CustomersList';
+import MessagesList from '../screens/messages/MessagesList';
 import { colors } from '../styles/global';
+import CallLogs from '../screens/calls/CallLogs';
+import More from '../screens/more/More';
 
 const Tab = createBottomTabNavigator();
 
 const MainTabNavigator = () => {
+  const TAB_ICON_SIZE = 20;
+
   return (
     <Tab.Navigator 
       screenOptions={{ 
@@ -22,8 +24,10 @@ const MainTabNavigator = () => {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#EEEEEE',
-          paddingVertical: 5,
-          height: 60,
+          paddingTop: 10,
+          paddingBottom: 15,
+          paddingHorizontal: 10,
+          height: 80,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -35,44 +39,45 @@ const MainTabNavigator = () => {
         name="Home" 
         component={AdminDashboard}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="house" iconStyle='solid' size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
-      {/* <Tab.Screen 
+      <Tab.Screen 
         name="Call logs" 
-        component={CallLogsScreen}
+        component={CallLogs}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="phone" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="phone" iconStyle='solid' size={TAB_ICON_SIZE} color={color} />
           ),
         }}
-      /> */}
+      />
       <Tab.Screen 
         name="Customers" 
-        component={ManageCustomers}
+        component={CustomersList}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="people-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="users" iconStyle='solid' size={TAB_ICON_SIZE}  color={color} />
+
           ),
         }}
       />
       <Tab.Screen 
         name="Messages" 
-        component={MessagesScreen}
+        component={MessagesList}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="mail-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="comment-dots" size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
       <Tab.Screen 
-        name="Account" 
-        component={AccountManagement}
+        name="More" 
+        component={More}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="person-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="rectangle-list" size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
