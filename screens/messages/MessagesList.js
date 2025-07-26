@@ -94,26 +94,34 @@ const messagesData = [
 const MessagesList = ({ navigation }) => {
   const [showFilterMenu, setShowFilterMenu] = React.useState(false);
   const [activeFilter, setActiveFilter] = React.useState('All messages');
+  const [isEmpty, setIsEmpty] = React.useState(true);
+  const [hasActivatedOnce, setHasActivatedOnce] = React.useState(false);
+
 
   const filteredMessages = messagesData.filter(message => {
     if (activeFilter === 'All messages') return true;
-    
-    const channelMap = {
-      'instagram': 'instagram',
-      'facebook': 'facebook',
-      'whatsapp': 'whatsapp',
-      'sms': 'sms',
-      'livechat': 'livechat'
-    };
-    
-    const channelName = channelMap[activeFilter.toLowerCase()];
+
     return message.channel === channelName;
   });
+
+  const handlePlusPress = () => {
+    if (isEmpty && !hasActivatedOnce) {
+      setIsEmpty(false); // Show dummy messages
+      setHasActivatedOnce(true);
+    } else {
+      navigation.navigate('ConnectChannels');
+    }
+  };
+
+  const dismissKeyboardAndMenu = () => {
+    Keyboard.dismiss();
+    setShowFilterMenu(false);
+  };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.messageItem}
-      onPress={() => navigation.navigate('Chat', { contact: item })}
+      onPress={() => navigation.navigate('ConversationScreen', { conversationId: item.id })}
     >
       <Avatar 
         name={item.name} 
@@ -143,11 +151,6 @@ const MessagesList = ({ navigation }) => {
       </View>
     </TouchableOpacity>
   );
-
-  const dismissKeyboardAndMenu = () => {
-    Keyboard.dismiss();
-    setShowFilterMenu(false);
-  };
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
@@ -230,13 +233,62 @@ const MessagesList = ({ navigation }) => {
         </View>
 
         {/* Messages List */}
-        <FlatList
-          data={filteredMessages}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+        {isEmpty ? (
+          <View style={{ flex: 1, position: 'relative', top: '-30', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
+            <Image
+              source={require('../../assets/empty.png')} // your empty state image
+              style={{ width: 180, height: 180, marginBottom: 10 }}
+              resizeMode="contain"
+            />
+            <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: '#000', marginBottom: 15 }}>
+              You do not have any messages
+            </Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 15, color: '#444' }}>Tap on the</Text>
+              <View style={{ marginHorizontal: 6 }}>
+                <View style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 10,
+                  backgroundColor: colors.primary,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16, lineHeight: 16 }}>+</Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 15, color: '#444' }}>icon to get started</Text>
+            </View>
+
+
+            <TouchableOpacity
+              style={[styles.fab, {bottom: 0}]}
+              onPress={handlePlusPress}
+            >
+              <Icon name="add" size={30} color="#fff" />
+            </TouchableOpacity>
+
+          </View>
+        ) : (
+          <FlatList
+            data={filteredMessages}
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+        {!isEmpty && (
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={handlePlusPress}
+          >
+            <Icon name="add" size={30} color="#fff" />
+          </TouchableOpacity>
+        )}
+
       </View>
     </TouchableWithoutFeedback>
   );
@@ -421,6 +473,20 @@ const styles = StyleSheet.create({
     right: 16,
     top: 14
   },
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    backgroundColor: colors.primary,
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    zIndex: 10, 
+  }
+  
 });
 
 export default MessagesList;

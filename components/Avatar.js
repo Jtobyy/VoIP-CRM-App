@@ -66,6 +66,7 @@ const Avatar = ({
     const bgColor = adjustColor(baseColor, lightenAmount); // Lightened background
     const textColor = adjustColor(baseColor, -darkenAmount); // Darkened text
     
+    
     const badgeIconSize = size * 0.35; // Badge icon is 35% of avatar size
     
     return (

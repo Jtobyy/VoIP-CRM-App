@@ -37,7 +37,7 @@ const More = ({ navigation }) => {
       icon: require('../../assets/ic_link.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('LinkSocialMedia'),
+      onPress: () => navigation.navigate('ConnectChannels'),
     },
     {
       id: 'manage-customers',
@@ -203,7 +203,7 @@ const More = ({ navigation }) => {
         <View style={styles.balanceContent}>
           <View>
             <Text style={styles.balanceLabel}>Acct. Balance</Text>
-            <Text style={typography.heading1}>{userProfile.balance}</Text>
+            <Text style={[typography.heading2, {fontWeight: 'bold'}]}>{userProfile.balance}</Text>
           </View>
           <TouchableOpacity 
             style={styles.addFundsButton}
@@ -316,11 +316,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   balanceCard: {
-    marginHorizontal: 20,
+    marginHorizontal: 17,
     marginTop: -32,
     backgroundColor: '#E7F7E1',
     borderRadius: 15,
-    paddingVertical: 17,
+    paddingVertical: 15,
     paddingHorizontal: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

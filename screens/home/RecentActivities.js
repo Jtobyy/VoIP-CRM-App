@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { act } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   ScrollView,
   StatusBar,
   Image,
+  ImageBackground,
 } from 'react-native';
 import { colors } from '../../styles/global'; // Assuming you have global colors
+import Avatar from '../../components/Avatar';
 
 const RecentActivities = ({ navigation }) => {
   const activities = [
@@ -131,11 +133,11 @@ const RecentActivities = ({ navigation }) => {
   const getCallIcon = (status) => {
     switch (status) {
       case 'missed':
-        return '📞';
+        return require('../../assets/missed.png');
       case 'outgoing':
-        return '📞';
+        return require('../../assets/outgoing.png');
       default:
-        return '📞';
+        return require('../../assets/incoming.png');
     }
   };
 
@@ -192,21 +194,26 @@ const RecentActivities = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
-      
+
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}>
-          <Image
-            source={require('../../assets/backWhite.png')} 
-            style={styles.backButtonIcon}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Recent Activities</Text>
-        <View style={styles.headerRight} />
-      </View>
+      <ImageBackground 
+            source={require('../../assets/header_bg.png')}
+            style={styles.header}
+            resizeMode="cover"
+          >
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Image
+              source={require('../../assets/backWhite.png')} 
+              style={styles.backButtonIcon}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+
+          <Text style={styles.headerTitle}>Recent Activities</Text>
+          <View style={styles.headerRight} />
+      </ImageBackground>
 
       {/* Activities List */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -217,13 +224,18 @@ const RecentActivities = ({ navigation }) => {
             onPress={() => handleActivityPress(activity)}
           >
             <View style={styles.activityLeft}>
-              {renderAvatar(activity)}
-              
+              <Avatar 
+                  name={activity.name}
+                  size={50}
+                  image={activity.profile_pic || activity.avatar}
+                  badge={activity.type === 'message' ? activity.channel_icon : null}
+              />
+
               <View style={styles.activityInfo}>
                 <Text style={styles.activityName}>{activity.name}</Text>
                 <View style={styles.activityDescription}>
                   {activity.type === 'call' && (
-                    <Text style={styles.callIcon}>{getCallIcon(activity.status)}</Text>
+                    getCallIcon(activity.status)
                   )}
                   <Text style={[
                     styles.activityDescriptionText,
@@ -236,21 +248,34 @@ const RecentActivities = ({ navigation }) => {
             </View>
 
             <View style={styles.activityRight}>
-              <Text style={styles.activityTime}>{activity.time}</Text>
-              <View style={styles.rightActions}>
-                <TouchableOpacity 
-                  style={styles.infoButton}
-                  onPress={() => handleInfoPress(activity)}
-                >
-                  <Text style={styles.infoIcon}>ℹ️</Text>
-                </TouchableOpacity>
-                {activity.unread && (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadText}>{activity.unread}</Text>
-                  </View>
-                )}
-              </View>
+              {activity.type === 'call' ? (
+                // Time + Info (horizontal)
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                  <Text style={styles.activityTime}>{activity.time}</Text>
+                  <TouchableOpacity 
+                    style={styles.infoButton}
+                    onPress={() => handleInfoPress(activity)}
+                  >
+                    <Image
+                      source={require('../../assets/info.png')} 
+                      style={styles.infoIcon}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                // Message: Time + Unread (vertical)
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.activityTime}>{activity.time}</Text>
+                  {activity.unread && (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadText}>{activity.unread}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
+
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -264,8 +289,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   header: {
-    backgroundColor: '#4CAF50',
-    paddingTop: 50,
+    paddingTop: 80,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',
@@ -291,6 +315,8 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    paddingTop: 13,
+    paddingBottom: 50
   },
   activityItem: {
     flexDirection: 'row',
@@ -305,6 +331,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 8
   },
   avatarContainer: {
     position: 'relative',
@@ -369,9 +396,12 @@ const styles = StyleSheet.create({
     color: '#F44336',
   },
   activityRight: {
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     height: 50,
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    gap: 8
   },
   activityTime: {
     fontSize: 12,
@@ -387,18 +417,19 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   infoIcon: {
-    fontSize: 16,
-    color: '#2196F3',
+    width: 18,
+    height: 18
   },
   unreadBadge: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
-  },
+    marginTop: 4,
+  },  
   unreadText: {
     color: '#ffffff',
     fontSize: 12,

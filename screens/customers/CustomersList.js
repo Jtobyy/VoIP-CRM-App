@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { colors, typography } from '../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import Avatar from '../../components/Avatar';
 
 // Sample data - replace with your actual data source
@@ -70,6 +71,10 @@ const CustomersList = ({ navigation }) => {
         ? prev.filter(id => id !== customerId) 
         : [...prev, customerId]
     );
+  };
+
+  const handlePlusPress = () => {
+      navigation.navigate('AddCustomer');
   };
 
   // Handle search
@@ -198,12 +203,31 @@ const CustomersList = ({ navigation }) => {
                     iconStyle='solid' 
                     size={24} 
                     color={colors.white} 
+                    style={{ marginRight: 10}}
                   />
                 </TouchableOpacity>
               </View>
             )}
           </View>
         </ImageBackground>
+
+         {/* Popup Menu */}
+         {showFilterMenu && (
+          <View style={styles.popupMenu}>
+            <TouchableOpacity style={styles.popupMenuItem}>
+              <Text style={styles.popupMenuText}>Export Customers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.popupMenuItem}>
+              <Text style={styles.popupMenuText}>Import CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.popupMenuItem}>
+              <Text style={styles.popupMenuText}>Create Segment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.popupMenuItem}>
+              <Text style={styles.popupMenuText}>Send Message</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
@@ -284,6 +308,13 @@ const CustomersList = ({ navigation }) => {
             </View>
           </View>
         </Modal>
+
+        <TouchableOpacity
+              style={[styles.fab, {bottom: 30}]}
+              onPress={handlePlusPress}
+            >
+              <Icon name="add" size={30} color="#fff" />
+        </TouchableOpacity>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -486,6 +517,47 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  popupMenu: {
+    position: 'absolute',
+    top: 130, // adjust to position under the header
+    right: 20,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 100,
+    width: 180,
+  },
+  popupMenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  popupMenuText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  attachButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    backgroundColor: colors.primary,
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    zIndex: 10, 
+  }
 });
 
 export default CustomersList;

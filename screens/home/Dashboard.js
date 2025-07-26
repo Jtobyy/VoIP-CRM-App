@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Image } from 'react-native';
 import { colors, typography } from '../../styles/global';
 import Avatar from '../../components/Avatar';
+import { useNavigation } from '@react-navigation/native';
+
 
 const AdminDashboard = ({ navigation }) => {
   const activeCustomers = ['CL', 'AL', 'O', 'AL', 'AS'];
@@ -9,21 +11,21 @@ const AdminDashboard = ({ navigation }) => {
     { 
       id: '1',
       name: '+234 905 332 4369',
-      category: 'call',
+      type: 'call',
       text: 'Missed call',
       time: '10:33 PM',
     },
     { 
       id: '2',
       name: 'Shima Alidae',
-      category: 'call',
+      type: 'call',
       text: 'Outgoing call',
       time: '4:33 PM',
     },
     { 
       id: '3',
       name: 'Chioma Okere',
-      category: 'message',
+      type: 'message',
       channel: 'instagram',
       channel_icon: require('../../assets/instagram.png'),
       text: 'Hi Chichi! I\'d love to hear more about what...',
@@ -33,7 +35,7 @@ const AdminDashboard = ({ navigation }) => {
     { 
       id: '4',
       name: 'Sade Adu',
-      category: 'message',
+      type: 'message',
       channel: 'telegram',
       channel_icon: require('../../assets/telegram.png'),
       text: 'Hi Chichi! I\'d love to hear more about what...',
@@ -43,7 +45,7 @@ const AdminDashboard = ({ navigation }) => {
     { 
       id: '5',
       name: 'Viv Ubochi',
-      category: 'call',
+      type: 'call',
       channel: 'facebook',
       channel_icon: require('../../assets/facebook.png'),
       text: 'I\'m Vivian! My first investi...',
@@ -53,15 +55,8 @@ const AdminDashboard = ({ navigation }) => {
   ];
 
   const handleSeeAllPress = () => {
-    // Get the parent navigator (MainStackNavigator)
-    const parentNavigation = navigation.getParent();
-    if (parentNavigation) {
-      parentNavigation.navigate('RecentActivities');
-    } else {
-      // Fallback - this should work in most cases
-      navigation.navigate('RecentActivities');
-    }
-  };
+    navigation.navigate('RecentActivities');
+  };  
 
   return (
     <View style={styles.container}>
@@ -166,7 +161,6 @@ const AdminDashboard = ({ navigation }) => {
                 />
 
                 <View style={styles.activityContent}>
-
                   <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                     <Text style={styles.activityName}>{item.name}</Text>
                     <View style={{flexDirection: 'row', gap: 8}}>
@@ -180,14 +174,14 @@ const AdminDashboard = ({ navigation }) => {
                   </View>
                   
                   <View style={{flexDirection: 'row', gap: 8}}>
-                    {item.category == 'call' && item.text == 'Missed call' && 
+                    {item.type == 'call' && item.text == 'Missed call' && 
                       <Image
                           source={require('../../assets/missed.png')} 
                           style={styles.infoIcon}
                           resizeMode="contain"
                       />
                     }
-                    {item.category == 'call' && item.text == 'Outgoing call' && 
+                    {item.type == 'call' && item.text == 'Outgoing call' && 
                       <Image
                           source={require('../../assets/outgoing.png')} 
                           style={styles.infoIcon}
