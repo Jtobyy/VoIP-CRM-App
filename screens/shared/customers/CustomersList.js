@@ -13,10 +13,10 @@ import {
   Keyboard,
   Image
 } from 'react-native';
-import { colors, typography } from '../../styles/global';
+import { colors, typography } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import Avatar from '../../components/Avatar';
+import Avatar from '../../../components/Avatar';
 
 // Sample data - replace with your actual data source
 const initialCustomersData = [
@@ -162,7 +162,7 @@ const CustomersList = ({ navigation }) => {
         
         {/* Header */}
         <ImageBackground 
-          source={require('../../assets/header_bg.png')}
+          source={require('../../../assets/header_bg.png')}
           style={styles.header}
           resizeMode="cover"
         >

@@ -8,6 +8,7 @@ import { StatusBar, useColorScheme } from 'react-native';
 import SplashScreen from './screens/SplashScreen';
 import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './hooks/useAuth';
+import { SnackbarProvider } from './hooks/useSnackbar';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -25,8 +26,10 @@ function App() {
   return (
     <>
       <AuthProvider>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        {isLoading ? <SplashScreen /> : <AppNavigator />}
+        <SnackbarProvider>
+          <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+          {isLoading ? <SplashScreen /> : <AppNavigator />}
+        </SnackbarProvider>
       </AuthProvider>
     </>
   );

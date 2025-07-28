@@ -9,8 +9,8 @@ import {
   Image,
   ImageBackground,
 } from 'react-native';
-import { colors } from '../../styles/global'; // Assuming you have global colors
-import Avatar from '../../components/Avatar';
+import { colors } from '../../../styles/global'; // Assuming you have global colors
+import Avatar from '../../../components/Avatar';
 
 const RecentActivities = ({ navigation }) => {
   const activities = [
@@ -133,11 +133,11 @@ const RecentActivities = ({ navigation }) => {
   const getCallIcon = (status) => {
     switch (status) {
       case 'missed':
-        return require('../../assets/missed.png');
+        return require('../../../assets/missed.png');
       case 'outgoing':
-        return require('../../assets/outgoing.png');
+        return require('../../../assets/outgoing.png');
       default:
-        return require('../../assets/incoming.png');
+        return require('../../../assets/incoming.png');
     }
   };
 
@@ -197,7 +197,7 @@ const RecentActivities = ({ navigation }) => {
 
       {/* Header */}
       <ImageBackground 
-            source={require('../../assets/header_bg.png')}
+            source={require('../../../assets/header_bg.png')}
             style={styles.header}
             resizeMode="cover"
           >
@@ -205,7 +205,7 @@ const RecentActivities = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}>
             <Image
-              source={require('../../assets/backWhite.png')} 
+              source={require('../../../assets/backWhite.png')} 
               style={styles.backButtonIcon}
               resizeMode="contain"
             />
@@ -257,7 +257,7 @@ const RecentActivities = ({ navigation }) => {
                     onPress={() => handleInfoPress(activity)}
                   >
                     <Image
-                      source={require('../../assets/info.png')} 
+                      source={require('../../../assets/info.png')} 
                       style={styles.infoIcon}
                       resizeMode="contain"
                     />

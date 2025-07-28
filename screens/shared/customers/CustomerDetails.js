@@ -12,15 +12,15 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import { colors } from '../../styles/global';
+import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
-import AddCommentModal from '../../components/AddCommentModal';
+import AddCommentModal from '../../../components/AddCommentModal';
 
 
 const icons = {
-  'Missed call': require('../../assets/missed.png'),
-  'Incoming call': require('../../assets/incoming.png'),
-  'Outgoing call': require('../../assets/outgoing.png'),
+  'Missed call': require('../../../assets/missed.png'),
+  'Incoming call': require('../../../assets/incoming.png'),
+  'Outgoing call': require('../../../assets/outgoing.png'),
 };
 
 const CustomerDetails = ({ navigation }) => {
@@ -59,12 +59,12 @@ const CustomerDetails = ({ navigation }) => {
 
       {/* Header */}
       <ImageBackground
-        source={require('../../assets/header_bg.png')}
+        source={require('../../../assets/header_bg.png')}
         style={styles.header}
         resizeMode="cover"
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Image source={require('../../assets/backWhite.png')} style={styles.backIcon} />
+          <Image source={require('../../../assets/backWhite.png')} style={styles.backIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Customer info</Text>
         <TouchableOpacity onPress={() => setShowFilterMenu(!showFilterMenu)}>
@@ -108,7 +108,7 @@ const CustomerDetails = ({ navigation }) => {
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
-            source={require('../../assets/call_ic.png')} // replace with your actual image
+            source={require('../../../assets/call_ic.png')} // replace with your actual image
             style={styles.iconImage}
           />
         </TouchableOpacity>
@@ -122,7 +122,7 @@ const CustomerDetails = ({ navigation }) => {
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
-            source={require('../../assets/call_ic.png')} // same call icon
+            source={require('../../../assets/call_ic.png')} // same call icon
             style={styles.iconImage}
           />
         </TouchableOpacity>
@@ -136,7 +136,7 @@ const CustomerDetails = ({ navigation }) => {
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
-            source={require('../../assets/mail_ic.png')} // replace with your actual image
+            source={require('../../../assets/mail_ic.png')} // replace with your actual image
             style={styles.iconImage}
           />
         </TouchableOpacity>
@@ -150,7 +150,7 @@ const CustomerDetails = ({ navigation }) => {
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
-            source={require('../../assets/company_ic.png')} // replace with your actual image
+            source={require('../../../assets/company_ic.png')} // replace with your actual image
             style={styles.iconImage}
           />
         </TouchableOpacity>

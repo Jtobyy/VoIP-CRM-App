@@ -10,23 +10,23 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { colors, typography } from '../../styles/global';
+import { colors, typography } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
-import Avatar from '../../components/Avatar';
+import Avatar from '../../../components/Avatar';
 
 const More = ({ navigation }) => {
   const userProfile = {
     name: 'Chioma and Sons',
     phone: '0803 567 0547',
     balance: '₦38,000.00',
-    profileImage: require('../../assets/sample1.png'), // Add your profile image
+    profileImage: require('../../../assets/sample1.png'), // Add your profile image
   };
 
   const menuItems = [
     {
       id: 'edit-profile',
       title: 'Edit Profile',
-      icon: require('../../assets/ic_moreprofile.png'),
+      icon: require('../../../assets/ic_moreprofile.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('EditProfile'),
@@ -34,7 +34,7 @@ const More = ({ navigation }) => {
     {
       id: 'link-social',
       title: 'Link Social Media',
-      icon: require('../../assets/ic_link.png'),
+      icon: require('../../../assets/ic_link.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('ConnectChannels'),
@@ -42,7 +42,7 @@ const More = ({ navigation }) => {
     {
       id: 'manage-customers',
       title: 'Manage Customers',
-      icon: require('../../assets/ic_customers.png'),
+      icon: require('../../../assets/ic_customers.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('Customers'),
@@ -50,7 +50,7 @@ const More = ({ navigation }) => {
     {
       id: 'native-number',
       title: 'My Nativetalk Number',
-      icon: require('../../assets/ic_manage.png'),
+      icon: require('../../../assets/ic_manage.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('NativetalkNumber'),
@@ -58,7 +58,7 @@ const More = ({ navigation }) => {
     {
       id: 'settings',
       title: 'Settings',
-      icon: require('../../assets/ic_lock.png'),
+      icon: require('../../../assets/ic_lock.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('Settings'),
@@ -66,7 +66,7 @@ const More = ({ navigation }) => {
     {
       id: 'help',
       title: 'Help & Support',
-      icon: require('../../assets/ic_help.png'),
+      icon: require('../../../assets/ic_help.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('HelpSupport'),
@@ -74,7 +74,7 @@ const More = ({ navigation }) => {
     {
       id: 'logout',
       title: 'Log out',
-      icon: require('../../assets/ic_logout.png'),
+      icon: require('../../../assets/ic_logout.png'),
       iconColor: '#EF4444',
       backgroundColor: '#FEE2E2',
       onPress: () => handleLogout(),
@@ -144,7 +144,7 @@ const More = ({ navigation }) => {
       
       {/* Header */}
       <ImageBackground 
-        source={require('../../assets/more_bg.png')}
+        source={require('../../../assets/more_bg.png')}
         style={styles.header}
         resizeMode="cover"
       >
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   profileName: {
-    fontSize: typography.heading3,
+    fontSize: typography.heading3.fontSize,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 13,

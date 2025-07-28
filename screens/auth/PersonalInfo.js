@@ -53,7 +53,7 @@ const PersonalInfo = ({ navigation }) => {
             value={businessName}
             onChangeText={setBusinessName}
             placeholder="Enter your business name"
-            editable={false} // Assuming this is pre-filled and not editable
+            editable={true} // Assuming this is pre-filled and not editable
           />
         </View>
 
@@ -66,7 +66,7 @@ const PersonalInfo = ({ navigation }) => {
             onChangeText={setPhoneNumber}
             placeholder="Enter your phone number"
             keyboardType="phone-pad"
-            editable={false} // Assuming this is pre-filled and not editable
+            editable={true} // Assuming this is pre-filled and not editable
           />
         </View>
 

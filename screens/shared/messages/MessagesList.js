@@ -13,9 +13,9 @@ import {
   ImageBackground,
   TouchableWithoutFeedback
 } from 'react-native';
-import { colors, typography } from '../../styles/global';
+import { colors, typography } from '../../../styles/global';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import Avatar from '../../components/Avatar';
+import Avatar from '../../../components/Avatar';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 
 const messagesData = [
@@ -23,70 +23,70 @@ const messagesData = [
     id: '1',
     name: 'Chioma Okere',
     channel: 'telegram',
-    channel_icon: require('../../assets/telegram.png'),
+    channel_icon: require('../../../assets/telegram.png'),
     text: 'Hi Chichi! I\'d love to hear more about what...',
     time: 'Yesterday',
-    profile_pic: require('../../assets/sample2.png'),
+    profile_pic: require('../../../assets/sample2.png'),
     unread: true,
   },
   {
     id: '2',
     name: 'Sade Adu',
     channel: 'instagram',
-    channel_icon: require('../../assets/instagram.png'),
+    channel_icon: require('../../../assets/instagram.png'),
     text: 'Hi Chichi! I\'d love to hear more about what...',
     time: 'Yesterday',
-    profile_pic: require('../../assets/sample1.png'),
+    profile_pic: require('../../../assets/sample1.png'),
     unread: false,
   },
   {
     id: '3',
     name: 'Viv Ubochi',
     channel: 'facebook',
-    channel_icon: require('../../assets/facebook.png'),
+    channel_icon: require('../../../assets/facebook.png'),
     text: 'I\'m Vivian! My first investment...',
     time: 'Yesterday',
-    profile_pic: require('../../assets/sample3.png'),
+    profile_pic: require('../../../assets/sample3.png'),
     unread: true,
   },
   {
     id: '4',
     name: 'Nia Long',
     channel: 'telegram',
-    channel_icon: require('../../assets/telegram.png'),
+    channel_icon: require('../../../assets/telegram.png'),
     text: 'I\'m Nia! My first investment...',
     time: 'Yesterday',
-    profile_pic: require('../../assets/sample3.png'),
+    profile_pic: require('../../../assets/sample3.png'),
     unread: false,
   },
   {
     id: '5',
     name: 'Max Payne',
     channel: 'facebook',
-    channel_icon: require('../../assets/facebook.png'),
+    channel_icon: require('../../../assets/facebook.png'),
     text: 'I\'m Maxwell! My first investment...',
     time: 'Yesterday',
-    profile_pic: require('../../assets/sample2.png'),
+    profile_pic: require('../../../assets/sample2.png'),
     unread: false,
   },
   {
     id: '6',
     name: 'Donald Chuks',
     channel: 'instagram',
-    channel_icon: require('../../assets/instagram.png'),
+    channel_icon: require('../../../assets/instagram.png'),
     text: 'I\'m Don! My first investment...',
     time: 'Yesterday',
-    profile_pic: require('../../assets/sample1.png'),
+    profile_pic: require('../../../assets/sample1.png'),
     unread: true,
   },
   {
     id: '7',
     name: 'John Wayne',
     channel: 'telegram',
-    channel_icon: require('../../assets/telegram.png'),
+    channel_icon: require('../../../assets/telegram.png'),
     text: 'I\'m John! My first investment...',
     time: 'Yesterday',
-    profile_pic: require('../../assets/sample2.png'),
+    profile_pic: require('../../../assets/sample2.png'),
     unread: false,
   }
 ];
@@ -159,7 +159,7 @@ const MessagesList = ({ navigation }) => {
         
         {/* Header */}
         <ImageBackground 
-          source={require('../../assets/header_bg.png')}
+          source={require('../../../assets/header_bg.png')}
           style={styles.header}
           resizeMode="cover"
         >
@@ -176,7 +176,7 @@ const MessagesList = ({ navigation }) => {
           />
           <TouchableOpacity onPress={() => setShowFilterMenu(!showFilterMenu)}>
             <Image 
-              source={require('../../assets/filter.png')} 
+              source={require('../../../assets/filter.png')} 
               style={{width: 30, height: 30}}
               resizeMode="contain"
             />
@@ -236,7 +236,7 @@ const MessagesList = ({ navigation }) => {
         {isEmpty ? (
           <View style={{ flex: 1, position: 'relative', top: '-30', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
             <Image
-              source={require('../../assets/empty.png')} // your empty state image
+              source={require('../../../assets/empty.png')} // your empty state image
               style={{ width: 180, height: 180, marginBottom: 10 }}
               resizeMode="contain"
             />

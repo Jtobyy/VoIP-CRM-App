@@ -1,17 +1,17 @@
-// navigation/MainTabNavigator.js
+// navigation/AdminTabNavigator.js
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
-import AdminDashboard from '../screens/home/Dashboard';
-import CustomersList from '../screens/customers/CustomersList';
-import MessagesList from '../screens/messages/MessagesList';
+import AdminDashboard from '../screens/admin/home/Dashboard';
+import CustomersList from '../screens/shared/customers/CustomersList';
+import MessagesList from '../screens/shared/messages/MessagesList';
 import { colors } from '../styles/global';
-import CallLogs from '../screens/calls/CallLogs';
-import More from '../screens/more/More';
+import CallLogs from '../screens/shared/calls/CallLogs';
+import More from '../screens/shared/more/More';
 
 const Tab = createBottomTabNavigator();
 
-const MainTabNavigator = () => {
+const AdminTabNavigator = () => {
   const TAB_ICON_SIZE = 20;
 
   return (
@@ -85,4 +85,4 @@ const MainTabNavigator = () => {
   );
 };
 
-export default MainTabNavigator;
+export default AdminTabNavigator;

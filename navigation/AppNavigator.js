@@ -2,21 +2,24 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AuthNavigator from './AuthNavigator';
-import MainStackNavigator from './MainStackNavigator';
+import AdminStackNavigator from './AdminStackNavigator';
 import { useAuth } from '../hooks/useAuth';
+import AgentStackNavigator from './AgentStackNavigator';
 
 const RootStack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <RootStack.Screen name="MainStack" component={MainStackNavigator} />
-        ) : (
+        {!isAuthenticated ? (
           <RootStack.Screen name="AuthStack" component={AuthNavigator} />
+        ) : user.role === 'admin' ? (
+          <RootStack.Screen name="AdminStack" component={AdminStackNavigator} />
+        ) : (
+          <RootStack.Screen name="AgentStack" component={AgentStackNavigator} />
         )}
       </RootStack.Navigator>
     </NavigationContainer>

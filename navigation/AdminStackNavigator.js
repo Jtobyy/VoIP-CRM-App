@@ -1,0 +1,33 @@
+// navigation/AdminStackNavigator.js
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AdminTabNavigator from './AdminTabNavigator';
+import RecentActivities from '../screens/admin/home/RecentActivities';
+import ConversationScreen from '../screens/shared/messages/ConversationScreen';
+import ConnectChannels from '../screens/shared/messages/ConnectChannels';
+import AddCustomer from '../screens/shared/customers/AddCustomer';
+import CustomerDetails from '../screens/shared/customers/CustomerDetails';
+import AddUser from '../screens/shared/more/AddUser';
+import UsersList from '../screens/shared/more/UserList';
+
+const Stack = createNativeStackNavigator();
+
+const AdminStackNavigator = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Main" component={AdminTabNavigator} />
+      <Stack.Screen name="RecentActivities" component={RecentActivities} />
+      <Stack.Screen name="ConversationScreen" component={ConversationScreen} />
+      <Stack.Screen name="ConnectChannels" component={ConnectChannels} />
+
+      <Stack.Screen name="AddCustomer" component={AddCustomer} />
+      <Stack.Screen name="CustomerDetails" component={CustomerDetails} />
+
+      <Stack.Screen name="Users" component={UsersList} />
+      <Stack.Screen name="AddUser" component={AddUser} />
+
+      {/* Add other main app screens here */}
+    </Stack.Navigator>
+  );
+};
+
+export default AdminStackNavigator;

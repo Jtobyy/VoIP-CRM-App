@@ -14,6 +14,8 @@ import { colors } from '../../styles/global';
 import { useAuth } from '../../hooks/useAuth';
 import AuthFooter from '../../components/AuthFooter';
 import AuthHeader from '../../components/AuthHeader';
+import { useSnackbar } from '../../hooks/useSnackbar';
+
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +25,8 @@ const Login = ({ navigation }) => {
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const { showSnackbar } = useSnackbar();
+
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -31,7 +35,9 @@ const Login = ({ navigation }) => {
     
     // This alert should never show now
     if (!success) {
-      alert('Invalid credentials. Please try again.');
+      showSnackbar('Invalid credentials. Please try again.', 'error');
+    } else {
+      showSnackbar('Login successful!', 'success');
     }
     // AppNavigator should handle the authenticated state
   };

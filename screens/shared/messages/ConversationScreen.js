@@ -2,10 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, 
   TouchableOpacity, Image, ImageBackground, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { colors } from '../../styles/global';
-import Avatar from '../../components/Avatar';
+import { colors } from '../../../styles/global';
+import Avatar from '../../../components/Avatar';
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
-import DocumentPicker from 'react-native-document-picker';
+import { pick, keepLocalCopy, types } from '@react-native-documents/picker'
 
 
 const demoMessages = [
@@ -16,8 +16,8 @@ const demoMessages = [
 
 const contact = {
   name: 'January Jones',
-  avatar: require('../../assets/sample1.png'), // or remote URL
-  channel_icon: require('../../assets/telegram.png'),
+  avatar: require('../../../assets/sample1.png'), // or remote URL
+  channel_icon: require('../../../assets/telegram.png'),
 };
 
 const ConversationScreen = ({ route, navigation }) => {
@@ -26,16 +26,25 @@ const ConversationScreen = ({ route, navigation }) => {
 
   const pickFile = async () => {
     try {
-      const res = await DocumentPicker.pickSingle();
-      console.log('Selected file:', res);
+      const result = await pick({
+        type: [types.allFiles],
+      });
+  
+      if (Array.isArray(result) && result.length > 0) {
+        const file = result[0];
+        console.log('Selected file:', file);
+      } else {
+        console.log('No file selected');
+      }
     } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
+      if (err.code === 'DOCUMENT_PICKER_CANCELED') {
         console.log('User cancelled file picker');
       } else {
-        throw err;
+        console.error('DocumentPicker Error:', err);
       }
     }
   };
+  
 
   const renderMessage = ({ item }) => {
     const isOutgoing = item.type === 'outgoing';
@@ -71,7 +80,7 @@ const ConversationScreen = ({ route, navigation }) => {
     >
       {/* Header */}
       <ImageBackground 
-        source={require('../../assets/header_bg.png')}
+        source={require('../../../assets/header_bg.png')}
         style={styles.header}
         resizeMode="cover"
       >
@@ -80,7 +89,7 @@ const ConversationScreen = ({ route, navigation }) => {
           onPress={() => navigation.goBack()}
         >
           <Image
-            source={require('../../assets/backWhite.png')} 
+            source={require('../../../assets/backWhite.png')} 
             style={styles.backButtonIcon}
             resizeMode="contain"
           />

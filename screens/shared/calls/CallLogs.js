@@ -13,8 +13,8 @@ import {
   ImageBackground,
   TouchableWithoutFeedback
 } from 'react-native';
-import { colors, typography } from '../../styles/global';
-import Avatar from '../../components/Avatar';
+import { colors, typography } from '../../../styles/global';
+import Avatar from '../../../components/Avatar';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 
 const callLogsData = [
@@ -99,13 +99,13 @@ const CallLogs = ({ navigation }) => {
   const getCallIcon = (type) => {
     switch (type) {
       case 'missed':
-        return require('../../assets/missed.png');
+        return require('../../../assets/missed.png');
       case 'incoming':
-        return require('../../assets/incoming.png');
+        return require('../../../assets/incoming.png');
       case 'outgoing':
-        return require('../../assets/outgoing.png');
+        return require('../../../assets/outgoing.png');
       default:
-        return require('../../assets/outgoing.png');
+        return require('../../../assets/outgoing.png');
     }
   };
 
@@ -146,7 +146,7 @@ const CallLogs = ({ navigation }) => {
             <Text style={styles.time}>{item.time}</Text>
             <TouchableOpacity>
                 <Image
-                source={require('../../assets/info.png')} 
+                source={require('../../../assets/info.png')} 
                 style={styles.infoIcon}
                 resizeMode="contain"
                 />
@@ -196,7 +196,7 @@ const CallLogs = ({ navigation }) => {
         
         {/* Header */}
         <ImageBackground 
-          source={require('../../assets/header_bg.png')}
+          source={require('../../../assets/header_bg.png')}
           style={styles.header}
           resizeMode="cover"
         >

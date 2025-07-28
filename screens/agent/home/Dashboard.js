@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Image } from 'react-native';
-import { colors, typography } from '../../styles/global';
-import Avatar from '../../components/Avatar';
+import { colors, typography } from '../../../styles/global';
+import Avatar from '../../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
 
 
-const AdminDashboard = ({ navigation }) => {
+const AgentDashboard = ({ navigation }) => {
   const activeCustomers = ['CL', 'AL', 'O', 'AL', 'AS'];
   const recentActivities = [
     { 
@@ -27,30 +27,30 @@ const AdminDashboard = ({ navigation }) => {
       name: 'Chioma Okere',
       type: 'message',
       channel: 'instagram',
-      channel_icon: require('../../assets/instagram.png'),
+      channel_icon: require('../../../assets/instagram.png'),
       text: 'Hi Chichi! I\'d love to hear more about what...',
       time: 'Yesterday',
-      profile_pic: require('../../assets/sample1.png')
+      profile_pic: require('../../../assets/sample1.png')
     },
     { 
       id: '4',
       name: 'Sade Adu',
       type: 'message',
       channel: 'telegram',
-      channel_icon: require('../../assets/telegram.png'),
+      channel_icon: require('../../../assets/telegram.png'),
       text: 'Hi Chichi! I\'d love to hear more about what...',
       time: 'Yesterday',
-      profile_pic: require('../../assets/sample2.png')
+      profile_pic: require('../../../assets/sample2.png')
     },
     { 
       id: '5',
       name: 'Viv Ubochi',
       type: 'call',
       channel: 'facebook',
-      channel_icon: require('../../assets/facebook.png'),
+      channel_icon: require('../../../assets/facebook.png'),
       text: 'I\'m Vivian! My first investi...',
       time: 'Yesterday',
-      profile_pic: require('../../assets/sample3.png')
+      profile_pic: require('../../../assets/sample3.png')
     }
   ];
 
@@ -68,10 +68,10 @@ const AdminDashboard = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Stats Grid */}
         <View style={styles.statsContainer}>
-          <View style={[styles.statCard, {backgroundColor: '#E0EDFF'}]}>
+          <TouchableOpacity style={[styles.statCard, {backgroundColor: '#E0EDFF'}]}>
             <Text style={styles.statTitle}>TOTAL NUMBER OF CALLS</Text>
             <Text style={styles.statValue}>25</Text>
-          </View>
+          </TouchableOpacity>
 
           <View style={[styles.statCard, {backgroundColor: '#EAF8E5'}]}>
             <Text style={styles.statTitle}>TOTAL NUMBER OF MESSAGES</Text>
@@ -128,11 +128,11 @@ const AdminDashboard = ({ navigation }) => {
 
         {/* Add User Button */}
         <View style={styles.usersCard}>
-          <View style={{width: '40%'}}>
+          <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
             <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
             <Text style={styles.statValue}>25</Text>
-          </View>
-          <TouchableOpacity style={styles.addUserButton}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
             <Text style={styles.addUserText}>Invite users</Text>
           </TouchableOpacity>
         </View>
@@ -163,27 +163,29 @@ const AdminDashboard = ({ navigation }) => {
                 <View style={styles.activityContent}>
                   <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                     <Text style={styles.activityName}>{item.name}</Text>
-                    <View style={{flexDirection: 'row', gap: 8}}>
-                      <Text style={styles.activityTime}>{item.time}</Text>
-                      <Image
-                        source={require('../../assets/info.png')} 
-                        style={styles.infoIcon}
-                        resizeMode="contain"
-                      />
-                    </View>
+                    {item.type == 'call' &&
+                      <View style={{flexDirection: 'row', gap: 8}}>
+                        <Text style={styles.activityTime}>{item.time}</Text>
+                        <Image
+                          source={require('../../../assets/info.png')} 
+                          style={styles.infoIcon}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    }
                   </View>
-                  
+
                   <View style={{flexDirection: 'row', gap: 8}}>
                     {item.type == 'call' && item.text == 'Missed call' && 
                       <Image
-                          source={require('../../assets/missed.png')} 
+                          source={require('../../../assets/missed.png')} 
                           style={styles.infoIcon}
                           resizeMode="contain"
                       />
                     }
                     {item.type == 'call' && item.text == 'Outgoing call' && 
                       <Image
-                          source={require('../../assets/outgoing.png')} 
+                          source={require('../../../assets/outgoing.png')} 
                           style={styles.infoIcon}
                           resizeMode="contain"
                       />
@@ -333,4 +335,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdminDashboard;
+export default AgentDashboard;

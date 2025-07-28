@@ -11,9 +11,9 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native';
-import { colors } from '../../styles/global';
-import AuthFooter from '../../components/AuthFooter';
-import AuthHeader from '../../components/AuthHeader';
+import { colors } from '../../../styles/global';
+import AuthFooter from '../../../components/AuthFooter';
+import AuthHeader from '../../../components/AuthHeader';
 
 const { width } = Dimensions.get('window');
 

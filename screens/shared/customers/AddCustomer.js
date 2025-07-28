@@ -10,8 +10,10 @@ import {
   StatusBar,
   ImageBackground
 } from 'react-native';
-import { colors } from '../../styles/global';
+import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
+import SuccessModal from '../../../components/Modals/customers/SuccessModal';
+
 
 const AddCustomer = ({ navigation }) => {
   const [form, setForm] = useState({
@@ -24,6 +26,12 @@ const AddCustomer = ({ navigation }) => {
     company: '',
     comments: '',
   });
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleAddCustomer = () => {
+    // show modal
+    setShowSuccess(true);
+  };
 
   const handleChange = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -35,7 +43,7 @@ const AddCustomer = ({ navigation }) => {
       
       {/* Header */}
       <ImageBackground 
-            source={require('../../assets/header_bg.png')}
+            source={require('../../../assets/header_bg.png')}
             style={styles.header}
             resizeMode="cover"
           >
@@ -43,7 +51,7 @@ const AddCustomer = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}>
             <Image
-              source={require('../../assets/backWhite.png')} 
+              source={require('../../../assets/backWhite.png')} 
               style={styles.backButtonIcon}
               resizeMode="contain"
             />
@@ -133,9 +141,10 @@ const AddCustomer = ({ navigation }) => {
             onChangeText={(val) => handleChange('comments', val)}
         />
 
-        <TouchableOpacity style={styles.primaryBtn}>
-            <Text style={styles.primaryText}>Add Customer</Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleAddCustomer}>
+          <Text style={styles.primaryText}>Add Customer</Text>
         </TouchableOpacity>
+
 
         <TouchableOpacity
             style={styles.cancelBtn}
@@ -145,6 +154,7 @@ const AddCustomer = ({ navigation }) => {
         </TouchableOpacity>
         </View>
 
+        <SuccessModal visible={showSuccess} onClose={() => setShowSuccess(false)} />
     </ScrollView>
   );
 };

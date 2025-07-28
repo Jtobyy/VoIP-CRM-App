@@ -1,42 +1,42 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ImageBackground } from 'react-native';
-import { colors } from '../../styles/global';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { colors } from '../../../styles/global';
+
 
 const socialPlatforms = [
   {
     id: 'facebook',
     name: 'Facebook',
     description: 'Send and receive facebook messages via your inbox',
-    icon: require('../../assets/facebook.png'),
+    icon: require('../../../assets/facebook.png'),
     connected: false,
   },
   {
     id: 'instagram',
     name: 'Instagram',
     description: 'Send and receive instagram messages via your inbox',
-    icon: require('../../assets/instagram.png'),
+    icon: require('../../../assets/instagram.png'),
     connected: true,
   },
   {
     id: 'twitter',
     name: 'Twitter',
     description: 'Send and receive twitter messages via your inbox',
-    icon: require('../../assets/twitter.png'),
+    icon: require('../../../assets/twitter.png'),
     connected: true,
   },
   {
     id: 'whatsapp',
     name: 'Whatsapp',
     description: 'Send and receive whatsapp messages via your inbox',
-    icon: require('../../assets/wa.png'),
+    icon: require('../../../assets/wa.png'),
     connected: false,
   },
   {
     id: 'telegram',
     name: 'Telegram',
     description: 'Send and receive telegram messages via your inbox',
-    icon: require('../../assets/telegram.png'),
+    icon: require('../../../assets/telegram.png'),
     connected: false,
   },
   // {
@@ -53,7 +53,7 @@ const ConnectChannels = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header */}
       <ImageBackground 
-            source={require('../../assets/header_bg.png')}
+            source={require('../../../assets/header_bg.png')}
             style={styles.header}
             resizeMode="cover"
           >
@@ -61,7 +61,7 @@ const ConnectChannels = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}>
             <Image
-              source={require('../../assets/backWhite.png')} 
+              source={require('../../../assets/backWhite.png')} 
               style={styles.backButtonIcon}
               resizeMode="contain"
             />

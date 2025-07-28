@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { colors } from '../../styles/global';
+import { colors } from '../../../styles/global';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const CreateCustomer = ({ navigation }) => {
