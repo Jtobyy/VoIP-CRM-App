@@ -1,46 +1,55 @@
 {
   "images" : [
     {
+      "filename" : "Nativetalk buisness logo (2) (2).png",
       "idiom" : "iphone",
       "scale" : "2x",
       "size" : "20x20"
     },
     {
+      "filename" : "Nativetalk buisness logo (2) (3).png",
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "20x20"
     },
     {
+      "filename" : "Nativetalk buisness logo (2) (4).png",
       "idiom" : "iphone",
       "scale" : "2x",
       "size" : "29x29"
     },
     {
+      "filename" : "Nativetalk buisness logo (2) (5).png",
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "29x29"
     },
     {
+      "filename" : "Nativetalk buisness logo v2 (1).png",
       "idiom" : "iphone",
       "scale" : "2x",
       "size" : "40x40"
     },
     {
+      "filename" : "Nativetalk buisness logo v2 (2).png",
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "40x40"
     },
     {
+      "filename" : "App icon (1).png",
       "idiom" : "iphone",
       "scale" : "2x",
       "size" : "60x60"
     },
     {
+      "filename" : "App icon (2).png",
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "60x60"
     },
     {
+      "filename" : "App icon (3).png",
       "idiom" : "ios-marketing",
       "scale" : "1x",
       "size" : "1024x1024"

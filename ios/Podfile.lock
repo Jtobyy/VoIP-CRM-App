@@ -1767,6 +1767,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - react-native-splash-screen (3.3.0):
+    - React-Core
   - react-native-vector-icons-evil-icons (12.2.0)
   - react-native-vector-icons-fontawesome6 (12.1.0)
   - React-NativeModulesApple (0.80.1):
@@ -2243,6 +2245,35 @@ PODS:
     - React-perflogger (= 0.80.1)
     - React-utils (= 0.80.1)
     - SocketRocket
+  - RNCAsyncStorage (2.2.0):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - RNGestureHandler (2.27.2):
     - boost
     - DoubleConversion
@@ -2621,6 +2652,7 @@ DEPENDENCIES:
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - "react-native-document-picker (from `../node_modules/@react-native-documents/picker`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
+  - react-native-splash-screen (from `../node_modules/react-native-splash-screen`)
   - "react-native-vector-icons-evil-icons (from `../node_modules/@react-native-vector-icons/evil-icons`)"
   - "react-native-vector-icons-fontawesome6 (from `../node_modules/@react-native-vector-icons/fontawesome6`)"
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2654,6 +2686,7 @@ DEPENDENCIES:
   - ReactAppDependencyProvider (from `build/generated/ios`)
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -2752,6 +2785,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-documents/picker"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
+  react-native-splash-screen:
+    :path: "../node_modules/react-native-splash-screen"
   react-native-vector-icons-evil-icons:
     :path: "../node_modules/@react-native-vector-icons/evil-icons"
   react-native-vector-icons-fontawesome6:
@@ -2818,6 +2853,8 @@ EXTERNAL SOURCES:
     :path: build/generated/ios
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  RNCAsyncStorage:
+    :path: "../node_modules/@react-native-async-storage/async-storage"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
   RNReanimated:
@@ -2874,6 +2911,7 @@ SPEC CHECKSUMS:
   React-microtasksnativemodule: 4f1ef719ba6c7ebbd2d75346ffa2916f9b4771c9
   react-native-document-picker: 65723ccdfe85fafc77b80428b61973039cae2e80
   react-native-safe-area-context: 339885703b6dd1be2bce42d9c0b0350c21180032
+  react-native-splash-screen: 4312f786b13a81b5169ef346d76d33bc0c6dc457
   react-native-vector-icons-evil-icons: 02639805c4abca8068d963117d3342f8e90c649d
   react-native-vector-icons-fontawesome6: 2aed838cc3341d13e8eb0541929a74a16f62348d
   React-NativeModulesApple: f6f696e510b9d89c3c06b7764f56947dc13ae922
@@ -2907,6 +2945,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: ba631a31783569c13056dd57ff39e19764abdd6f
   ReactCodegen: b16d00d43b4e9dc44af53be171b17d93b4b20267
   ReactCommon: 96684b90b235d6ae340d126141edd4563b7a446a
+  RNCAsyncStorage: 767abb068db6ad28b5f59a129fbc9fab18b377e2
   RNGestureHandler: 502fd35c8e1d326562536ff256e61e38d703eafb
   RNReanimated: 868eb8929f529bc7ab1497c7e66e35613cd9a640
   RNScreens: 75074e642b69b086813a943bdf63da7085fb2166
