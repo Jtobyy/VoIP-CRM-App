@@ -13,8 +13,12 @@ import {
 import { colors, typography } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import Avatar from '../../../components/Avatar';
+import { useAuth } from '../../../hooks/useAuth';
+
 
 const More = ({ navigation }) => {
+  const { logout } = useAuth();
+
   const userProfile = {
     name: 'Chioma and Sons',
     phone: '0803 567 0547',
@@ -93,15 +97,22 @@ const More = ({ navigation }) => {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
-            // Handle logout logic here
-            // navigation.navigate('Login');
-            console.log('Logging out...');
+          onPress: async () => {
+            try {
+              await logout(); // Clear AsyncStorage, context, etc.
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (e) {
+              console.error('Logout failed', e);
+            }
           },
         },
       ]
     );
   };
+  
 
   const handleCopyNumber = () => {
     // Handle copy to clipboard functionality

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useContext, createContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSnackbar } from './useSnackbar';
+import axios from 'axios';
 
 const AuthContext = createContext();
 
@@ -62,12 +63,20 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const res = await axios.post('https://core-staging.nativetalkcrm.com/auth/login/', {
-        username,
+      console.log('username ', username)
+      console.log('password ', password)
+      console.log('username ', username)
+
+      const res = await axios.post('https://core-staging.nativetalkcrm.com/api/auth/signin/', {
+        email: username,
         password,
-        domain: 'tech4mation', // Adjust if necessary
+      }, {
+        headers: {
+          'User-Domain': 'tech4mation',
+        },
       });
 
+      console.log('res is ', res)
       const userData = res.data;
       setUser(userData);
       setIsAuthenticated(true);
@@ -80,6 +89,7 @@ export const AuthProvider = ({ children }) => {
       showSnackbar('Login successful!', 'success');
       return true;
     } catch (err) {
+      console.log('error is ', err.response)
       showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
       return false;
     }

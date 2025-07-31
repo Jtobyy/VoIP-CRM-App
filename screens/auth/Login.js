@@ -15,6 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 import AuthFooter from '../../components/AuthFooter';
 import AuthHeader from '../../components/AuthHeader';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useLoading } from '../../hooks/useLoading';
 
 
 const { width } = Dimensions.get('window');
@@ -24,14 +25,15 @@ const Login = ({ navigation }) => {
   const [username, setUsername] = React.useState('0803 567 0547');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
   const { showSnackbar } = useSnackbar();
+
+  const { setLoading } = useLoading();
 
 
   const handleLogin = async () => {
-    setIsLoading(true);
-    const success = await login(username, password); // Will always return true
-    setIsLoading(false);
+    setLoading(true);
+    const success = await login(username, password);
+    setLoading(false);
     
     // This alert should never show now
     if (!success) {
@@ -39,7 +41,6 @@ const Login = ({ navigation }) => {
     } else {
       showSnackbar('Login successful!', 'success');
     }
-    // AppNavigator should handle the authenticated state
   };
 
   const handleForgotPassword = () => {
@@ -81,7 +82,8 @@ const Login = ({ navigation }) => {
                   style={styles.input}
                   value={username}
                   onChangeText={setUsername}
-                  keyboardType="phone-pad"
+                  // keyboardType="phone-pad"
+                  keyboardType="email"
                   placeholder="Enter your phone number"
                 />
               </View>

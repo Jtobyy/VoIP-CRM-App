@@ -1,13 +1,19 @@
+// components/Loader.js
 import React from 'react';
 import { Modal, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useLoading } from '../hooks/useLoading';
 
-const GlobalLoader = ({ visible }) => (
-  <Modal visible={visible} transparent animationType="fade">
-    <View style={styles.overlay}>
-      <ActivityIndicator size="large" color="#3EBF0F" />
-    </View>
-  </Modal>
-);
+const Loader = () => {
+  const { loading } = useLoading();
+
+  return (
+    <Modal visible={loading} transparent animationType="fade">
+      <View style={styles.overlay}>
+        <ActivityIndicator size="large" color="#3EBF0F" />
+      </View>
+    </Modal>
+  );
+};
 
 const styles = StyleSheet.create({
   overlay: {
@@ -18,4 +24,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GlobalLoader;
+export default Loader;

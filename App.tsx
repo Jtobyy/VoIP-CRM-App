@@ -9,6 +9,7 @@ import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './hooks/useAuth';
 import { SnackbarProvider } from './hooks/useSnackbar';
 import { LoadingProvider } from './hooks/useLoading';
+import Loader from './components/Loader';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -20,6 +21,7 @@ function App() {
           <AuthProvider>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
               <AppNavigator />
+              <Loader />
           </AuthProvider>
         </SnackbarProvider>
       </LoadingProvider>
