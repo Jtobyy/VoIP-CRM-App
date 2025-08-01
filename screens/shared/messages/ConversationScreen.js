@@ -55,7 +55,7 @@ const ConversationScreen = ({ route, navigation }) => {
             {item.content}
           </Text>
         </View>
-        <Text style={styles.messageTime}>{getSmartTimestamp(item.created_at)}</Text>
+        <Text style={styles.messageTime}>{item.created_at ? getSmartTimestamp(item.created_at) : ''}</Text>
       </View>
     );
   };

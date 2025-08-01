@@ -37,17 +37,35 @@ const useChat = (leadId) => {
       });
     }
 
+    const tempId = `temp-${Date.now()}`;
+
+    const optimisticMsg = {
+      id: tempId,
+      content: text,
+      content_type: pickedFile ? 'document' : 'text',
+      created_at: new Date().toISOString(),
+      company_is_sender: true,
+      status: 'sending', // optional
+    };
+
+    setMessages((prev) => [optimisticMsg, ...prev]);
+
     try {
       setLoading(true);
-      const res = await api.post(`/communication/send-to-lead/`, formData, {
+      const res = await api.post('/communication/send-to-lead/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-
-      setMessages((prev) => [res.data, ...prev]);
+    
+      // Replace optimistic message with real one
+      console.log('response is ', res)
+      setMessages((prev) => [
+        { ...res.data, company_is_sender: true },
+        ...prev.filter((msg) => msg.id !== tempId),
+      ]);
       setText('');
       setPickedFile(null);
     } catch (err) {
-      console.error('Send message failed', err);
+      console.error('Send failed', err);
     } finally {
       setLoading(false);
     }
