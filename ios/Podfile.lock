@@ -1767,8 +1767,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-splash-screen (3.3.0):
-    - React-Core
   - react-native-vector-icons-evil-icons (12.2.0)
   - react-native-vector-icons-fontawesome6 (12.1.0)
   - React-NativeModulesApple (0.80.1):
@@ -2652,7 +2650,6 @@ DEPENDENCIES:
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - "react-native-document-picker (from `../node_modules/@react-native-documents/picker`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
-  - react-native-splash-screen (from `../node_modules/react-native-splash-screen`)
   - "react-native-vector-icons-evil-icons (from `../node_modules/@react-native-vector-icons/evil-icons`)"
   - "react-native-vector-icons-fontawesome6 (from `../node_modules/@react-native-vector-icons/fontawesome6`)"
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2785,8 +2782,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-documents/picker"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
-  react-native-splash-screen:
-    :path: "../node_modules/react-native-splash-screen"
   react-native-vector-icons-evil-icons:
     :path: "../node_modules/@react-native-vector-icons/evil-icons"
   react-native-vector-icons-fontawesome6:
@@ -2911,7 +2906,6 @@ SPEC CHECKSUMS:
   React-microtasksnativemodule: 4f1ef719ba6c7ebbd2d75346ffa2916f9b4771c9
   react-native-document-picker: 65723ccdfe85fafc77b80428b61973039cae2e80
   react-native-safe-area-context: 339885703b6dd1be2bce42d9c0b0350c21180032
-  react-native-splash-screen: 4312f786b13a81b5169ef346d76d33bc0c6dc457
   react-native-vector-icons-evil-icons: 02639805c4abca8068d963117d3342f8e90c649d
   react-native-vector-icons-fontawesome6: 2aed838cc3341d13e8eb0541929a74a16f62348d
   React-NativeModulesApple: f6f696e510b9d89c3c06b7764f56947dc13ae922

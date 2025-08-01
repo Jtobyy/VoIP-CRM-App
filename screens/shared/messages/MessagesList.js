@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -17,100 +17,79 @@ import { colors, typography } from '../../../styles/global';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Avatar from '../../../components/Avatar';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
+import { useLoading } from '../../../hooks/useLoading';
+import { useApi } from '../../../hooks/useApi';
+import { useError } from '../../../hooks/useError';
+import { formatChatTime } from '../../../utils/timeUtils';
 
-const messagesData = [
-  { 
-    id: '1',
-    name: 'Chioma Okere',
-    channel: 'telegram',
-    channel_icon: require('../../../assets/telegram.png'),
-    text: 'Hi Chichi! I\'d love to hear more about what...',
-    time: 'Yesterday',
-    profile_pic: require('../../../assets/sample2.png'),
-    unread: true,
-  },
-  {
-    id: '2',
-    name: 'Sade Adu',
-    channel: 'instagram',
-    channel_icon: require('../../../assets/instagram.png'),
-    text: 'Hi Chichi! I\'d love to hear more about what...',
-    time: 'Yesterday',
-    profile_pic: require('../../../assets/sample1.png'),
-    unread: false,
-  },
-  {
-    id: '3',
-    name: 'Viv Ubochi',
-    channel: 'facebook',
-    channel_icon: require('../../../assets/facebook.png'),
-    text: 'I\'m Vivian! My first investment...',
-    time: 'Yesterday',
-    profile_pic: require('../../../assets/sample3.png'),
-    unread: true,
-  },
-  {
-    id: '4',
-    name: 'Nia Long',
-    channel: 'telegram',
-    channel_icon: require('../../../assets/telegram.png'),
-    text: 'I\'m Nia! My first investment...',
-    time: 'Yesterday',
-    profile_pic: require('../../../assets/sample3.png'),
-    unread: false,
-  },
-  {
-    id: '5',
-    name: 'Max Payne',
-    channel: 'facebook',
-    channel_icon: require('../../../assets/facebook.png'),
-    text: 'I\'m Maxwell! My first investment...',
-    time: 'Yesterday',
-    profile_pic: require('../../../assets/sample2.png'),
-    unread: false,
-  },
-  {
-    id: '6',
-    name: 'Donald Chuks',
-    channel: 'instagram',
-    channel_icon: require('../../../assets/instagram.png'),
-    text: 'I\'m Don! My first investment...',
-    time: 'Yesterday',
-    profile_pic: require('../../../assets/sample1.png'),
-    unread: true,
-  },
-  {
-    id: '7',
-    name: 'John Wayne',
-    channel: 'telegram',
-    channel_icon: require('../../../assets/telegram.png'),
-    text: 'I\'m John! My first investment...',
-    time: 'Yesterday',
-    profile_pic: require('../../../assets/sample2.png'),
-    unread: false,
-  }
-];
 
 const MessagesList = ({ navigation }) => {
-  const [showFilterMenu, setShowFilterMenu] = React.useState(false);
-  const [activeFilter, setActiveFilter] = React.useState('All messages');
-  const [isEmpty, setIsEmpty] = React.useState(true);
-  const [hasActivatedOnce, setHasActivatedOnce] = React.useState(false);
+  const [messagesData, setMessagesData] = useState([]);
+  const { setLoading } = useLoading();
+  const { api } = useApi();
+  const [connectedChannels, setConnectedChannels] = useState([])
+  const [allChannels, setAllChannels] = useState([]);
+  const { handleApiError } = useError();
 
 
-  const filteredMessages = messagesData.filter(message => {
-    if (activeFilter === 'All messages') return true;
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('All messages');
+  const [isEmpty, setIsEmpty] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const flatListRef = useRef(null);
 
-    return message.channel === channelName;
+  const filteredMessages = messagesData.filter((message) => {
+    const matchesChannel =
+      activeFilter === 'All messages' || message.channel.toLowerCase() === activeFilter.toLowerCase();
+    const matchesSearch =
+      message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.text.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesChannel && matchesSearch;
   });
 
-  const handlePlusPress = () => {
-    if (isEmpty && !hasActivatedOnce) {
-      setIsEmpty(false); // Show dummy messages
-      setHasActivatedOnce(true);
-    } else {
-      navigation.navigate('ConnectChannels');
+  useEffect(() => {
+    const fetchMessages = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get(`/communication/contacts/?page=${1}&page_size=${15}`);
+        console.log(response.data);
+        setMessagesData(response.data.results);
+        setIsEmpty(response.data.results.length === 0);
+      } catch (error) {
+        handleApiError(error); // Use your error handler here too
+      } finally {
+        setLoading(false);
+      }
+    };    
+  
+    fetchMessages();
+  }, []);
+
+  useEffect(() => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
     }
+  }, [activeFilter]);
+
+  const fetchChannelsData = async () => {
+		try {
+		  const allChannelsResponse = await api.get("/channels/all/");
+		  setAllChannels(allChannelsResponse.data.channels);
+	
+		  const connectedChannelsResponse = await api.get("/channels/connected-channels/");
+		  setConnectedChannels(connectedChannelsResponse.data.connected_channels);
+		}
+		catch (error) {
+			if (isCancelError(error)) {
+				console.log('cr');
+			} else {
+				handleApiError(error);
+			}
+		}
+	};
+
+  const handlePlusPress = () => {
+    // TODO: Implement plus press
   };
 
   const dismissKeyboardAndMenu = () => {
@@ -118,47 +97,42 @@ const MessagesList = ({ navigation }) => {
     setShowFilterMenu(false);
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.messageItem}
-      onPress={() => navigation.navigate('ConversationScreen', { conversationId: item.id })}
-    >
-      <Avatar 
-        name={item.name} 
-        size={50} 
-        style={{ marginRight: 10 }}
-        image={item?.profile_pic}
-        badge={item?.channel_icon}
-      />
-      
-      <View style={styles.messageContent}>
-        <View style={styles.messageHeader}>
-          <Text 
-            style={[styles.name, item.unread && styles.unreadName]}
-            numberOfLines={1}
-          >
-            {item.name}
+  const renderItem = ({ item }) => {
+    const name = item?.name || item?.lead_name || item?.lead?.name || item?.customer_name || item?.customer.first_name || item?.customer.username || item?.customer.email || "Unknown "
+
+    return (
+      <TouchableOpacity
+        style={styles.messageItem}
+        onPress={() => navigation.navigate('ConversationScreen', { contactId: item.id, contact: item })}
+      >
+        <Avatar
+          name={name}
+          size={50}
+          style={{ marginRight: 10 }}
+          image={item?.image}
+          badge={item?.channel?.image}
+        />
+        <View style={styles.messageContent}>
+          <View style={styles.messageHeader}>
+            <Text style={[styles.name, item.unread && styles.unreadName]} numberOfLines={1}>
+              {name}
+            </Text>
+            <Text style={styles.time}>{formatChatTime(item?.lastMessageTime || item?.last_message_at)}</Text>
+          </View>
+          <Text style={[styles.preview, item.unread && styles.unreadPreview]} numberOfLines={1}>
+            {item.lastMessageData?.content}
           </Text>
-          <Text style={styles.time}>{item.time}</Text>
         </View>
-        
-        <Text 
-          style={[styles.preview, item.unread && styles.unreadPreview]}
-          numberOfLines={1}
-        >
-          {item.text}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    )};
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
       <View style={styles.container}>
         <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
-        
+
         {/* Header */}
-        <ImageBackground 
+        <ImageBackground
           source={require('../../../assets/header_bg.png')}
           style={styles.header}
           resizeMode="cover"
@@ -166,18 +140,20 @@ const MessagesList = ({ navigation }) => {
           <Text style={styles.headerTitle}>Messages</Text>
         </ImageBackground>
 
-        {/* Search Bar */}
+        {/* Search */}
         <View style={styles.searchContainer}>
           <FontAwesome6 name="magnifying-glass" iconStyle='solid' size={20} color={colors.gray} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search..."
             placeholderTextColor="#999"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
           />
           <TouchableOpacity onPress={() => setShowFilterMenu(!showFilterMenu)}>
-            <Image 
-              source={require('../../../assets/filter.png')} 
-              style={{width: 30, height: 30}}
+            <Image
+              source={require('../../../assets/filter.png')}
+              style={{ width: 30, height: 30 }}
               resizeMode="contain"
             />
           </TouchableOpacity>
@@ -186,8 +162,8 @@ const MessagesList = ({ navigation }) => {
         {/* Filter Menu */}
         {showFilterMenu && (
           <View style={styles.filterMenu}>
-            {['All messages', 'Instagram', 'Facebook', 'WhatsApp', 'SMS', 'Livechat'].map((item) => (
-              <TouchableOpacity 
+            {['All messages', 'Instagram', 'Facebook', 'Telegram'].map((item) => (
+              <TouchableOpacity
                 key={item}
                 style={[
                   styles.filterMenuItem,
@@ -200,11 +176,10 @@ const MessagesList = ({ navigation }) => {
               >
                 <Text style={styles.filterMenuText}>{item}</Text>
                 {activeFilter === item && (
-                  <FontAwesome6 
-                    name="check" 
-                    size={16} 
+                  <FontAwesome6
+                    name="check"
+                    size={16}
                     color={colors.primary}
-                    iconStyle='solid'
                     style={styles.filterMenuIcon}
                   />
                 )}
@@ -213,37 +188,45 @@ const MessagesList = ({ navigation }) => {
           </View>
         )}
 
-        {/* Filter Tabs */}
+        {/* Top Filters */}
         <View style={styles.filterContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterScrollContent}
           >
-            <TouchableOpacity style={[styles.filterButton, styles.activeFilter]}>
-              <Text style={[styles.filterButtonText, styles.activeFilterText]}>Leads</Text>
+            <TouchableOpacity
+              style={[styles.filterButton, styles.activeFilter]}
+              onPress={() => {
+                setActiveFilter('All messages');
+                setShowFilterMenu(false);
+              }}
+            >
+              <Text style={[styles.filterButtonText, styles.activeFilterText]}>All</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.filterButton}>
-              <Text style={styles.filterButtonText}>Customers</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.filterButton}>
-              <Text style={styles.filterButtonText}>Closed Conversations</Text>
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => {
+                setActiveFilter('Unread');
+                setShowFilterMenu(false);
+              }}
+            >
+              <Text style={styles.filterButtonText}>Unread</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
-        {/* Messages List */}
+        {/* List or Empty */}
         {isEmpty ? (
-          <View style={{ flex: 1, position: 'relative', top: '-30', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
             <Image
-              source={require('../../../assets/empty.png')} // your empty state image
+              source={require('../../../assets/empty.png')}
               style={{ width: 180, height: 180, marginBottom: 10 }}
               resizeMode="contain"
             />
             <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: '#000', marginBottom: 15 }}>
               You do not have any messages
             </Text>
-
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
               <Text style={{ fontSize: 15, color: '#444' }}>Tap on the</Text>
               <View style={{ marginHorizontal: 6 }}>
@@ -260,35 +243,26 @@ const MessagesList = ({ navigation }) => {
               </View>
               <Text style={{ fontSize: 15, color: '#444' }}>icon to get started</Text>
             </View>
-
-
-            <TouchableOpacity
-              style={[styles.fab, {bottom: 0}]}
-              onPress={handlePlusPress}
-            >
+            <TouchableOpacity style={[styles.fab, { bottom: 0 }]} onPress={handlePlusPress}>
               <Icon name="add" size={30} color="#fff" />
             </TouchableOpacity>
-
           </View>
         ) : (
           <FlatList
+            ref={flatListRef}
             data={filteredMessages}
             renderItem={renderItem}
-            keyExtractor={item => item.id}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
         )}
 
         {!isEmpty && (
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={handlePlusPress}
-          >
+          <TouchableOpacity style={styles.fab} onPress={handlePlusPress}>
             <Icon name="add" size={30} color="#fff" />
           </TouchableOpacity>
         )}
-
       </View>
     </TouchableWithoutFeedback>
   );

@@ -31,7 +31,7 @@ export const useApi = () => {
   };
 
   const axiosInstance = axios.create({
-    baseURL: process.env.EXPO_PUBLIC_API_URL || process.env.REACT_NATIVE_API_URL,
+    baseURL: 'https://core-staging.nativetalkcrm.com/api',
   });
 
   axiosInstance.interceptors.request.use(
@@ -145,5 +145,5 @@ export const useApi = () => {
     }
   );
 
-  return { axiosInstance, loading, cancelAllRequests };
+  return { api:axiosInstance, loading, cancelAllRequests };
 };

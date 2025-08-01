@@ -67,7 +67,7 @@ const Avatar = ({
     const textColor = adjustColor(baseColor, -darkenAmount); // Darkened text
     
     
-    const badgeIconSize = size * 0.35; // Badge icon is 35% of avatar size
+    const badgeIconSize = size * 0.45; // Badge icon is 35% of avatar size
     
     return (
         <View style={[styles.avatarContainer, style]}>
