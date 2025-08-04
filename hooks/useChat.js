@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useApi } from './useApi';
 import { pick } from '@react-native-documents/picker'
-
+import {useWebSocket} from '../context/WebsocketContext'
 
 const useChat = (leadId) => {
   const { api } = useApi();
@@ -11,6 +11,7 @@ const useChat = (leadId) => {
   const [text, setText] = useState('');
   const [pickedFile, setPickedFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { addMessageListener } = useWebSocket();
 
   const loadMessages = useCallback(async () => {
     try {
@@ -89,6 +90,41 @@ const useChat = (leadId) => {
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
+
+
+useEffect(() => {
+  const unsubscribe = addMessageListener((data) => {
+    if (data?.type === 'message' && data.message) {
+      const message = data.message;
+      if (
+        message.lead_sender === leadId ||
+        message.lead_receiver === leadId
+      ) {
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === message.id);
+          if (exists) return prev;
+
+          const tempMatchIndex = prev.findIndex((msg) =>
+            typeof msg.id === 'string' &&
+            msg.id.startsWith('temp-') &&
+            msg.content === message.content
+          );
+
+          const updated = [...prev];
+          if (tempMatchIndex !== -1) {
+            updated[tempMatchIndex] = message;
+            return updated;
+          }
+
+          return [message, ...prev];
+        });
+      }
+    }
+  });
+
+  return unsubscribe;
+}, [leadId, addMessageListener]);
+
 
   return {
     messages,

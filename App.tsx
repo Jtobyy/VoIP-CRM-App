@@ -11,6 +11,7 @@ import { SnackbarProvider } from './hooks/useSnackbar';
 import { LoadingProvider } from './hooks/useLoading';
 import Loader from './components/Loader';
 import { ErrorProvider } from './hooks/useError';
+import { WebSocketProvider } from './context/WebsocketContext';
 
 
 function App() {
@@ -22,9 +23,11 @@ function App() {
         <SnackbarProvider>
           <AuthProvider>
             <ErrorProvider>
-                <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-                <AppNavigator />
-                <Loader />
+                <WebSocketProvider>
+                   <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+                   <AppNavigator />
+                   <Loader />
+                </WebSocketProvider>
             </ErrorProvider>
           </AuthProvider>
         </SnackbarProvider>
