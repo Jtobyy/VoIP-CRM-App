@@ -21,6 +21,7 @@ import { useLoading } from '../../../hooks/useLoading';
 import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
 import { formatChatTime } from '../../../utils/timeUtils';
+import {useWebSocket} from '../../../context/WebsocketContext'
 
 
 const MessagesList = ({ navigation }) => {
@@ -31,6 +32,7 @@ const MessagesList = ({ navigation }) => {
   const [allChannels, setAllChannels] = useState([]);
   const { handleApiError } = useError();
 
+  const { addMessageListener } = useWebSocket();
 
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All messages');
@@ -64,6 +66,54 @@ const MessagesList = ({ navigation }) => {
   
     fetchMessages();
   }, []);
+
+  useEffect(() => {
+  const unsubscribe = addMessageListener((data) => {
+    if (data?.type === 'message' && data.message) {
+      const message = data.message;
+      const contactId = message.lead_sender || message.lead_receiver;
+
+      const newLead = message.lead_sender_details || message.lead_receiver_details;
+      const fallbackName = newLead?.name || newLead?.lead_name || newLead?.first_name || newLead?.email || "Unknown";
+
+      setMessagesData((prevMessages) => {
+        const index = prevMessages.findIndex((m) => m.id === contactId);
+
+        if (index !== -1) {
+          // update existing chat
+          const updated = [...prevMessages];
+          const updatedItem = {
+            ...updated[index],
+            lastMessageData: message,
+            last_message_at: message.created_at,
+            unread: true,
+            unreadCount: (updated[index].unreadCount || 0) + 1,
+          };
+          updated.splice(index, 1); // remove from old position
+          return [updatedItem, ...updated]; 
+        } else {
+          // 👇 insert new chat
+          const newItem = {
+            id: contactId,
+            name: fallbackName,
+            image: newLead?.image || null,
+            channel: newLead?.channel || null,
+            lastMessageData: message,
+            last_message_at: message.created_at,
+            unread: true,
+            unreadCount: 1,
+          };
+
+          return [newItem, ...prevMessages];
+        }
+      });
+    }
+  });
+
+  return unsubscribe;
+}, [addMessageListener]);
+
+
 
   useEffect(() => {
     if (flatListRef.current) {
@@ -204,7 +254,7 @@ const MessagesList = ({ navigation }) => {
             >
               <Text style={[styles.filterButtonText, styles.activeFilterText]}>All</Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.filterButton}
               onPress={() => {
                 setActiveFilter('Unread');
@@ -212,7 +262,7 @@ const MessagesList = ({ navigation }) => {
               }}
             >
               <Text style={styles.filterButtonText}>Unread</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </ScrollView>
         </View>
 
