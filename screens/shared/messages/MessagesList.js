@@ -29,6 +29,7 @@ const MessagesList = ({ navigation }) => {
   const { setLoading } = useLoading();
   const { api } = useApi();
   const [connectedChannels, setConnectedChannels] = useState([])
+  const [selectedChannel, setSelectedChannel] = useState(null); // null means "All"
   const [allChannels, setAllChannels] = useState([]);
   const { handleApiError } = useError();
 
@@ -41,84 +42,89 @@ const MessagesList = ({ navigation }) => {
   const flatListRef = useRef(null);
 
   const filteredMessages = messagesData.filter((message) => {
-    const matchesChannel =
-      activeFilter === 'All messages' || message.channel.toLowerCase() === activeFilter.toLowerCase();
     const matchesSearch =
-      message.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.text.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesChannel && matchesSearch;
-  });
+      message.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      message.text?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });  
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      setLoading(true);
-      try {
-        const response = await api.get(`/communication/contacts/?page=${1}&page_size=${15}`);
-        setMessagesData(response.data.results);
-        setIsEmpty(response.data.results.length === 0);
-      } catch (error) {
-        handleApiError(error); // Use your error handler here too
-      } finally {
-        setLoading(false);
-      }
-    };    
-  
     fetchMessages();
-  }, []);
+  }, [selectedChannel]);
+
 
   useEffect(() => {
-  const unsubscribe = addMessageListener((data) => {
-    if (data?.type === 'message' && data.message) {
-      const message = data.message;
-      const contactId = message.lead_sender || message.lead_receiver;
+    const unsubscribe = addMessageListener((data) => {
+      if (data?.type === 'message' && data.message) {
+        const message = data.message;
+        const contactId = message.lead_sender || message.lead_receiver;
 
-      const newLead = message.lead_sender_details || message.lead_receiver_details;
-      const fallbackName = newLead?.name || newLead?.lead_name || newLead?.first_name || newLead?.email || "Unknown";
+        const newLead = message.lead_sender_details || message.lead_receiver_details;
+        const fallbackName = newLead?.name || newLead?.lead_name || newLead?.first_name || newLead?.email || "Unknown";
 
-      setMessagesData((prevMessages) => {
-        const index = prevMessages.findIndex((m) => m.id === contactId);
+        setMessagesData((prevMessages) => {
+          const index = prevMessages.findIndex((m) => m.id === contactId);
 
-        if (index !== -1) {
-          // update existing chat
-          const updated = [...prevMessages];
-          const updatedItem = {
-            ...updated[index],
-            lastMessageData: message,
-            last_message_at: message.created_at,
-            unread: true,
-            unreadCount: (updated[index].unreadCount || 0) + 1,
-          };
-          updated.splice(index, 1); // remove from old position
-          return [updatedItem, ...updated]; 
-        } else {
-          // 👇 insert new chat
-          const newItem = {
-            id: contactId,
-            name: fallbackName,
-            image: newLead?.image || null,
-            channel: newLead?.channel || null,
-            lastMessageData: message,
-            last_message_at: message.created_at,
-            unread: true,
-            unreadCount: 1,
-          };
+          if (index !== -1) {
+            // update existing chat
+            const updated = [...prevMessages];
+            const updatedItem = {
+              ...updated[index],
+              lastMessageData: message,
+              last_message_at: message.created_at,
+              unread: true,
+              unreadCount: (updated[index].unreadCount || 0) + 1,
+            };
+            updated.splice(index, 1); // remove from old position
+            return [updatedItem, ...updated]; 
+          } else {
+            // 👇 insert new chat
+            const newItem = {
+              id: contactId,
+              name: fallbackName,
+              image: newLead?.image || null,
+              channel: newLead?.channel || null,
+              lastMessageData: message,
+              last_message_at: message.created_at,
+              unread: true,
+              unreadCount: 1,
+            };
 
-          return [newItem, ...prevMessages];
-        }
-      });
-    }
-  });
+            return [newItem, ...prevMessages];
+          }
+        });
+      }
+    });
 
-  return unsubscribe;
-}, [addMessageListener]);
-
-
+    return unsubscribe;
+  }, [addMessageListener]);
 
   useEffect(() => {
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
     }
   }, [activeFilter]);
+
+  useEffect(() => {
+    fetchChannelsData();
+  }, []);
+
+  const fetchMessages = async () => {
+    setLoading(true);
+    try {
+      let endpoint = `/communication/contacts/?page=1&page_size=15`;
+      if (selectedChannel && selectedChannel.id) {
+        endpoint += `&channel_id=${selectedChannel.id}`;
+      }
+      const response = await api.get(endpoint);
+      setMessagesData(response.data.results);
+      setIsEmpty(response.data.results.length === 0);
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchChannelsData = async () => {
 		try {
@@ -208,29 +214,38 @@ const MessagesList = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Filter Menu */}
+        // Filter Menu (Dropdown)
         {showFilterMenu && (
           <View style={styles.filterMenu}>
-            {['All messages', 'Instagram', 'Facebook', 'Telegram'].map((item) => (
+            <TouchableOpacity
+              style={[
+                styles.filterMenuItem,
+                selectedChannel === null && styles.activeFilterMenuItem
+              ]}
+              onPress={() => {
+                setSelectedChannel(null);
+                setShowFilterMenu(false);
+              }}>
+              <Text style={styles.filterMenuText}>All Channels</Text>
+              {selectedChannel === null && (
+                <FontAwesome6 name="check" size={16} iconStyle='solid' color={colors.primary} style={styles.filterMenuIcon} />
+              )}
+            </TouchableOpacity>
+
+            {connectedChannels.map((channel) => (
               <TouchableOpacity
-                key={item}
+                key={channel.id}
                 style={[
                   styles.filterMenuItem,
-                  activeFilter === item && styles.activeFilterMenuItem
+                  selectedChannel?.id === channel.id && styles.activeFilterMenuItem
                 ]}
                 onPress={() => {
-                  setActiveFilter(item);
+                  setSelectedChannel(channel);
                   setShowFilterMenu(false);
-                }}
-              >
-                <Text style={styles.filterMenuText}>{item}</Text>
-                {activeFilter === item && (
-                  <FontAwesome6
-                    name="check"
-                    size={16}
-                    color={colors.primary}
-                    style={styles.filterMenuIcon}
-                  />
+                }}>
+                <Text style={styles.filterMenuText}>{channel.name}</Text>
+                {selectedChannel?.id === channel.id && (
+                  <FontAwesome6 name="check" size={16} color={colors.primary} style={styles.filterMenuIcon} />
                 )}
               </TouchableOpacity>
             ))}
