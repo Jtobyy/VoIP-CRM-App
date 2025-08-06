@@ -11,7 +11,7 @@ import { SnackbarProvider } from './hooks/useSnackbar';
 import { LoadingProvider } from './hooks/useLoading';
 import Loader from './components/Loader';
 import { ErrorProvider } from './hooks/useError';
-import { WebSocketProvider } from './context/WebsocketContext';
+import { WebSocketProvider } from './hooks/useWebSocket';
 
 
 function App() {

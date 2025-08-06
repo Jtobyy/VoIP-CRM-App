@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useApi } from './useApi';
-import { pick } from '@react-native-documents/picker'
-import {useWebSocket} from '../context/WebsocketContext'
+import { pick, types } from '@react-native-documents/picker'
+import { useWebSocket } from '../hooks/useWebSocket'
 
 const useChat = (leadId) => {
   const { api } = useApi();
@@ -38,7 +38,7 @@ const useChat = (leadId) => {
       });
     }
 
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
 
     const optimisticMsg = {
       id: tempId,
@@ -58,11 +58,12 @@ const useChat = (leadId) => {
       });
     
       // Replace optimistic message with real one
-      console.log('response is ', res)
-      setMessages((prev) => [
-        { ...res.data, company_is_sender: true },
-        ...prev.filter((msg) => msg.id !== tempId),
-      ]);
+      // console.log('response is ', res)
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId ? { ...res.data.data, company_is_sender: true } : msg
+        )
+      );      
       setText('');
       setPickedFile(null);
     } catch (err) {
@@ -74,14 +75,13 @@ const useChat = (leadId) => {
 
   const pickFile = async () => {
     try {
-      const result = await pick({ type: '*/*' });
-      if (result.type === 'success') {
-        setPickedFile({
-          uri: result?.uri,
-          name: result?.name,
-          type: result?.mimeType || 'application/octet-stream',
-        });
-      }
+      const result = await pick({ type: [types.allFiles] });
+      setPickedFile({
+        uri: result[0].uri,
+        name: result[0].name,
+        type: result[0].type,
+      });
+      // console.log('picked file is ', result[0])
     } catch (err) {
       console.error('File pick error', err);
     }
@@ -135,6 +135,7 @@ useEffect(() => {
     sendMessage,
     refresh: loadMessages,
     loading,
+    setPickedFile
   };
 };
 

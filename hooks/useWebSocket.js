@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from './useAuth';
 
 const WebSocketContext = createContext(null);
 

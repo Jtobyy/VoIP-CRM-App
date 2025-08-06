@@ -10,7 +10,7 @@ export const SnackbarProvider = ({ children }) => {
     type: 'info',
   });
 
-  const showSnackbar = useCallback((message, type = 'info', duration = 3000) => {
+  const showSnackbar = useCallback((message, type = 'info', duration = 4000) => {
     setSnackbar({ visible: true, message, type });
 
     setTimeout(() => {

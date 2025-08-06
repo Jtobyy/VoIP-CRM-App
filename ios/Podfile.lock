@@ -2272,6 +2272,10 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNFileViewer (2.1.5):
+    - React-Core
+  - RNFS (2.20.0):
+    - React-Core
   - RNGestureHandler (2.27.2):
     - boost
     - DoubleConversion
@@ -2514,7 +2518,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNWorklets (0.4.0):
+  - RNWorklets (0.4.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2541,10 +2545,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNWorklets/worklets (= 0.4.0)
+    - RNWorklets/worklets (= 0.4.1)
     - SocketRocket
     - Yoga
-  - RNWorklets/worklets (0.4.0):
+  - RNWorklets/worklets (0.4.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2571,10 +2575,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNWorklets/worklets/apple (= 0.4.0)
+    - RNWorklets/worklets/apple (= 0.4.1)
     - SocketRocket
     - Yoga
-  - RNWorklets/worklets/apple (0.4.0):
+  - RNWorklets/worklets/apple (0.4.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2684,6 +2688,8 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
+  - RNFileViewer (from `../node_modules/react-native-file-viewer`)
+  - RNFS (from `../node_modules/react-native-fs`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -2850,6 +2856,10 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  RNFileViewer:
+    :path: "../node_modules/react-native-file-viewer"
+  RNFS:
+    :path: "../node_modules/react-native-fs"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
   RNReanimated:
@@ -2940,11 +2950,13 @@ SPEC CHECKSUMS:
   ReactCodegen: b16d00d43b4e9dc44af53be171b17d93b4b20267
   ReactCommon: 96684b90b235d6ae340d126141edd4563b7a446a
   RNCAsyncStorage: 767abb068db6ad28b5f59a129fbc9fab18b377e2
+  RNFileViewer: ce7ca3ac370e18554d35d6355cffd7c30437c592
+  RNFS: 4ac0f0ea233904cb798630b3c077808c06931688
   RNGestureHandler: 502fd35c8e1d326562536ff256e61e38d703eafb
   RNReanimated: 868eb8929f529bc7ab1497c7e66e35613cd9a640
   RNScreens: 75074e642b69b086813a943bdf63da7085fb2166
   RNVectorIcons: 54df27a2e90ddeb674c7237d76060ec9762d0bc5
-  RNWorklets: 8db874f555e240de36214cf092569427f5b78010
+  RNWorklets: 7d34d4c80edec50bb1eec6bd034e7686db26da8e
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 703055a9f39562521cdb8657162dfd80f8c174c3
 

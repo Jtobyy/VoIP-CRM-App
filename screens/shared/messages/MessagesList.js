@@ -21,7 +21,7 @@ import { useLoading } from '../../../hooks/useLoading';
 import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
 import { formatChatTime } from '../../../utils/timeUtils';
-import {useWebSocket} from '../../../context/WebsocketContext'
+import { useWebSocket } from '../../../hooks/useWebSocket';
 
 
 const MessagesList = ({ navigation }) => {
@@ -54,7 +54,6 @@ const MessagesList = ({ navigation }) => {
       setLoading(true);
       try {
         const response = await api.get(`/communication/contacts/?page=${1}&page_size=${15}`);
-        console.log(response.data);
         setMessagesData(response.data.results);
         setIsEmpty(response.data.results.length === 0);
       } catch (error) {
