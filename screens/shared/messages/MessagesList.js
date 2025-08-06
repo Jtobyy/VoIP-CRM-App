@@ -322,11 +322,11 @@ const MessagesList = ({ navigation }) => {
           />
         )}
 
-        {!isEmpty && (
+        {/* {!isEmpty && (
           <TouchableOpacity style={styles.fab} onPress={handlePlusPress}>
             <Icon name="add" size={30} color="#fff" />
           </TouchableOpacity>
-        )}
+        )} */}
       </View>
     </TouchableWithoutFeedback>
   );

@@ -15,6 +15,7 @@ import {
 import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import AddCommentModal from '../../../components/AddCommentModal';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 
 const icons = {
@@ -63,9 +64,9 @@ const CustomerDetails = ({ navigation }) => {
         style={styles.header}
         resizeMode="cover"
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Image source={require('../../../assets/backWhite.png')} style={styles.backIcon} />
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Icon name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
         <Text style={styles.headerTitle}>Customer info</Text>
         <TouchableOpacity onPress={() => setShowFilterMenu(!showFilterMenu)}>
           <FontAwesome6 

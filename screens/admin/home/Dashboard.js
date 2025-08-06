@@ -58,6 +58,10 @@ const AdminDashboard = ({ navigation }) => {
     navigation.navigate('RecentActivities');
   };  
 
+  const handleDialerPress = () => {
+    navigation.navigate('Dialer');
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -200,6 +204,25 @@ const AdminDashboard = ({ navigation }) => {
           />
         </View>
       </ScrollView>
+      
+      <TouchableOpacity
+        onPress={handleDialerPress}
+        style={{
+          width: 90,
+          height: 90,
+          position: 'absolute',
+          bottom: 5,
+          right: 0,
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+      >
+        <Image
+          source={require('../../../assets/dialer.png')}
+          style={{width: 90, height: 90}}
+          resizeMode="contain"
+        />
+      </TouchableOpacity>
     </View>
   );
 };
