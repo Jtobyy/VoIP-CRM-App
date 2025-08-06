@@ -28,6 +28,7 @@ const AddCustomer = ({ navigation, route }) => {
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
+    username:'',
     phone: '',
     altPhone: '',
     email: '',
@@ -119,6 +120,7 @@ const AddCustomer = ({ navigation, route }) => {
       const formData = new FormData();
       formData.append('first_name', form.firstName);
       formData.append('last_name', form.lastName);
+      formData.append('username',form.username);
       formData.append('phone_number', form.phone);
       formData.append('email', form.email);
       formData.append('address', form.address);
@@ -224,19 +226,12 @@ const AddCustomer = ({ navigation, route }) => {
               />
           </View>
 
-          <Text style={styles.label}>Add alternative phone number</Text>
-          <View style={styles.phoneRow}>
-              <View style={styles.countryCode}>
-              <FontAwesome6 name="circle-dot" size={16} color={colors.primary} />
-              <Text style={styles.codeText}>+234</Text>
-              </View>
-              <TextInput
-              style={styles.flexInput}
-              keyboardType="phone-pad"
-              value={form.altPhone}
-              onChangeText={(val) => handleChange('altPhone', val)}
-              />
-          </View>
+           <Text style={styles.label}>Username</Text>
+          <TextInput
+            style={styles.input}
+            value={form.username}
+            onChangeText={(val) => handleChange('username', val)}
+          />
 
           <Text style={styles.label}>Email address</Text>
           <TextInput

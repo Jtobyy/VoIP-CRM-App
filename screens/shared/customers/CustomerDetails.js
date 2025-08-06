@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef,useState,useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,9 @@ import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import AddCommentModal from '../../../components/AddCommentModal';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-
+import { useApi } from '../../../hooks/useApi'
+import { useLoading } from '../../../hooks/useLoading';
+import { useError } from '../../../hooks/useError';
 
 const icons = {
   'Missed call': require('../../../assets/missed.png'),
@@ -24,9 +26,15 @@ const icons = {
   'Outgoing call': require('../../../assets/outgoing.png'),
 };
 
-const CustomerDetails = ({ navigation }) => {
+const CustomerDetails = ({ route,navigation }) => {
   const [showFilterMenu, setShowFilterMenu] = React.useState(false);
+  const { customerId } = route.params;
+  const { setLoading } = useLoading();
+  const { handleApiError } = useError();
+  const {api} = useApi()
   const addCommentRef = useRef(null);
+  const [customer, setCustomer] = useState(null);
+  const [comments, setComments] = useState([]);
 
   const contact = {
     initials: 'AF',
@@ -52,6 +60,28 @@ const CustomerDetails = ({ navigation }) => {
     Keyboard.dismiss();
     setShowFilterMenu(false);
   };
+
+  useEffect(() => {
+  const fetchCustomerDetails = async () => {
+    setLoading(true);
+    try {
+      const [customerRes, commentRes] = await Promise.all([
+        api.get(`/customers/${customerId}/`),
+        api.get('/comments/', { params: { model: 'customer', object_id: customerId } })
+      ]);
+
+      setCustomer(customerRes?.data?.customer || null);
+      setComments(commentRes?.data?.comments || []);
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchCustomerDetails();
+}, [customerId]);
+
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
@@ -94,18 +124,24 @@ const CustomerDetails = ({ navigation }) => {
         )}
 
       {/* Avatar */}
-      <View style={styles.avatarContainer}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>{contact.initials}</Text>
-        </View>
-        <Text style={styles.customerName}>{contact.name}</Text>
-      </View>
+     <View style={styles.avatarContainer}>
+  {customer?.image ? (
+    <Image source={{ uri: customer.image }} style={styles.avatarImage} />
+  ) : (
+    <View style={styles.avatarCircle}>
+      <Text style={styles.avatarText}>
+        {`${customer?.first_name?.[0] || ''}${customer?.last_name?.[0] || ''}`.toUpperCase()}
+      </Text>
+    </View>
+  )}
+  <Text style={styles.customerName}>{`${customer?.first_name || ''} ${customer?.last_name || ''}`.trim()}</Text>
+</View>
 
       {/* Info */}
       <View style={styles.infoRow}>
         <View>
           <Text style={styles.label}>Phone number</Text>
-          <Text style={styles.value}>{contact.phone}</Text>
+          <Text style={styles.value}>{customer?.phone_number || 'N/A'}</Text>
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
@@ -118,12 +154,12 @@ const CustomerDetails = ({ navigation }) => {
       {/* Alt phone number */}
       <View style={styles.infoRow}>
         <View>
-          <Text style={styles.label}>Alternative Phone number</Text>
-          <Text style={styles.value}>{contact.altPhone}</Text>
+          <Text style={styles.label}>Username</Text>
+          <Text style={styles.value}>{customer?.username || 'N/A'}</Text>
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
-            source={require('../../../assets/call_ic.png')} // same call icon
+            source={require('../../../assets/ic_moreprofile.png')} 
             style={styles.iconImage}
           />
         </TouchableOpacity>
@@ -133,7 +169,7 @@ const CustomerDetails = ({ navigation }) => {
       <View style={styles.infoRow}>
         <View>
           <Text style={styles.label}>Email address</Text>
-          <Text style={styles.value}>{contact.email}</Text>
+          <Text style={styles.value}>{customer?.email || 'N/A'}</Text>
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
@@ -146,8 +182,8 @@ const CustomerDetails = ({ navigation }) => {
       {/* Company */}
       <View style={styles.infoRow}>
         <View>
-          <Text style={styles.label}>Company</Text>
-          <Text style={styles.value}>{contact.company}</Text>
+          <Text style={styles.label}>Country</Text>
+          <Text style={styles.value}>{customer?.country_name || 'N/A'}</Text>
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
@@ -158,7 +194,7 @@ const CustomerDetails = ({ navigation }) => {
       </View>
 
       {/* Call History */}
-      <View style={styles.section}>
+      {/* <View style={styles.section}>
         {contact.callHistory.map((call, idx) => (
           <View key={idx} style={styles.callRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -180,7 +216,7 @@ const CustomerDetails = ({ navigation }) => {
             <Text style={styles.callTime}>{call.time}</Text>
           </View>
         ))}
-      </View>
+      </View> */}
 
       {/* Comments */}
       <View style={styles.commentSection}>
@@ -195,15 +231,31 @@ const CustomerDetails = ({ navigation }) => {
 
         </View>
 
-        {contact.comments.map((comment, idx) => (
-          <View key={idx} style={styles.commentBlock}>
-            <View style={styles.commentMetaRow}>
-              <Text style={styles.commentDate}>{comment.date}</Text>
-              <Text style={styles.commentTime}>{comment.time}</Text>
-            </View>
-            <Text style={styles.commentText}>{comment.text}</Text>
-          </View>
-        ))}
+  {comments?.length > 0 ? (
+  comments?.map((comment) => {
+    const date = new Date(comment.created_at).toDateString();
+    const time = new Date(comment.created_at).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    return (
+      <View key={comment.id} style={styles.commentBlock}>
+        <View style={styles.commentMetaRow}>
+          <Text style={styles.commentDate}>{date}</Text>
+          <Text style={styles.commentTime}>{time}</Text>
+        </View>
+        <Text style={styles.commentText}>{comment.content}</Text>
+      </View>
+    );
+  })
+) : (
+  <View style={styles.noCommentsContainer}>
+    <Text style={styles.noCommentsText}>No comments yet.</Text>
+  </View>
+)}
+
+
       </View>
       {/* <AddCommentModal ref={addCommentRef} /> */}
 
@@ -252,6 +304,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  avatarImage: {
+  width: 100,
+  height: 100,
+  borderRadius: 50,
+  resizeMode: 'cover',
+  backgroundColor: '#f0f0f0', // optional fallback background
+},
   avatarText: {
     fontSize: 32,
     fontWeight: 'bold',

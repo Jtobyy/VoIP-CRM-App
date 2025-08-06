@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,44 +17,81 @@ import { colors, typography } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Avatar from '../../../components/Avatar';
+import { useApi } from '../../../hooks/useApi';
+import { useLoading } from '../../../hooks/useLoading';
+import { useError } from '../../../hooks/useError';
 
-// Sample data - replace with your actual data source
-const initialCustomersData = [
-  {
-    title: 'A',
-    data: [
-      { id: 'AF', name: 'Adedoyin Folakemi', initials: 'AF' },
-      { id: 'AC', name: 'Adetayo Cassandra', initials: 'AC' },
-      { id: 'AL', name: 'Adriana La Cerva', initials: 'AL' },
-      { id: 'AS', name: 'Alidae Shimana', initials: 'AS' },
-      { id: 'AN', name: 'Amaka new customer', initials: 'AN' },
-    ],
-  },
-  {
-    title: 'C',
-    data: [
-      { id: 'CF', name: 'Cassandra Fakoya', initials: 'CF' },
-      { id: 'CL', name: 'Customer Lekki 1', initials: 'CL' },
-    ],
-  },
-  {
-    title: 'E',
-    data: [
-      { id: 'ED', name: 'Eniola Daniels', initials: 'ED' },
-      { id: 'EM', name: 'Ez Moreno Papi Ioko', initials: 'EM' },
-    ],
-  },
-];
 
 const CustomersList = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [customersData, setCustomersData] = useState(initialCustomersData);
-  const [filteredData, setFilteredData] = useState(initialCustomersData);
+  const [customersData, setCustomersData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = React.useState(false);
+
+  const {api} = useApi()
+  const { setLoading } = useLoading();
+  const { handleApiError } = useError();
+
+  const groupCustomersAlphabetically = (customers) => {
+  const groups = {};
+
+  customers.forEach(customer => {
+    const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+    const initial = fullName.charAt(0).toUpperCase();
+    const initials = (customer.first_name?.charAt(0) || '') + (customer.last_name?.charAt(0) || '');
+
+    const formattedCustomer = {
+      id: customer.id,
+      name: fullName,
+      initials: initials.toUpperCase(),
+      image: customer.image
+    };
+
+    if (!groups[initial]) {
+      groups[initial] = [];
+    }
+    groups[initial].push(formattedCustomer);
+  });
+
+  // Convert to array of { title, data }
+  const sortedGroups = Object.keys(groups)
+    .sort()
+    .map(letter => ({
+      title: letter,
+      data: groups[letter].sort((a, b) => a.name.localeCompare(b.name))
+    }));
+
+  return sortedGroups;
+};
+
+useEffect(() => {
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/customers/', {
+        params: { page_size: 1000 }  
+      });
+
+      if (res?.data?.results) {
+        const grouped = groupCustomersAlphabetically(res.data.results);
+        setCustomersData(grouped);
+        setFilteredData(grouped);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customers:', error);
+       handleApiError(error);
+    }finally{
+      setLoading(false);
+    }
+  };
+
+  fetchCustomers();
+}, []);
+
 
   // Toggle delete mode
   const toggleDeleteMode = () => {
@@ -78,16 +115,36 @@ const CustomersList = ({ navigation }) => {
   };
 
   // Handle search
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-    const filtered = customersData.map(section => ({
-      title: section.title,
-      data: section.data.filter(item => 
-        item.name.toLowerCase().includes(query.toLowerCase())
-      ),
-    })).filter(section => section.data.length > 0);
-    setFilteredData(filtered);
-  };
+ const handleSearch = async (query) => {
+  setSearchQuery(query);
+
+  // Empty query? Show full cached list
+  if (!query.trim()) {
+    setFilteredData(customersData);
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await api.get('/customers/', {
+      params: {
+        search: query,
+      },
+    });
+
+    if (res?.data?.results) {
+      const grouped = groupCustomersAlphabetically(res.data.results);
+      setFilteredData(grouped);
+    }
+  } catch (error) {
+    console.error('Search failed:', error);
+    handleApiError(error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Delete selected customers
   const deleteCustomers = () => {
@@ -133,7 +190,7 @@ const CustomersList = ({ navigation }) => {
         </View>
       )}
       
-      <Avatar name={item.name} size={50} style={{ marginRight: 12 }} />
+      <Avatar name={item.name} size={50} style={{ marginRight: 12 }}  image={item.image}/>
       <View style={styles.customerContent}>
         <Text style={styles.customerName}>{item.name}</Text>
       </View>
