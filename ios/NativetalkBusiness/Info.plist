@@ -72,5 +72,8 @@
 		<string>Zocial.ttf</string>
 		<string>Fontisto.ttf</string>
 	</array>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access for SIP calls.</string>
 </dict>
 </plist>

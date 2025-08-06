@@ -9,6 +9,7 @@ import CustomerDetails from '../screens/shared/customers/CustomerDetails';
 import AddUser from '../screens/shared/more/AddUser';
 import UsersList from '../screens/shared/more/UserList';
 import DialerScreen from '../screens/shared/home/Dialer';
+import OutgoingCallScreen from '../screens/shared/calls/OutgoingCall';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,7 +27,7 @@ const AdminStackNavigator = () => {
       <Stack.Screen name="Users" component={UsersList} />
       <Stack.Screen name="AddUser" component={AddUser} />
       <Stack.Screen name="Dialer" component={DialerScreen} />
-
+      <Stack.Screen name="OutgoingCall" component={OutgoingCallScreen} />
     </Stack.Navigator>
   );
 };

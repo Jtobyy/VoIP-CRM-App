@@ -1,20 +1,11 @@
-// screens/DialerScreen.js
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ImageBackground,
-  StatusBar,
-  Dimensions,
-  SafeAreaView,
-  Image
+  View, Text, StyleSheet, TouchableOpacity, ImageBackground, StatusBar,
+  Dimensions, Image, Platform, PermissionsAndroid, Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { colors, typography } from '../../../styles/global';
-
+import { colors } from '../../../styles/global';
+import { Endpoint } from '@aldiand/react-native-pjsip';
 
 const dialPad = [
   [{ number: '1', letters: '' }, { number: '2', letters: 'ABC' }, { number: '3', letters: 'DEF' }],
@@ -24,42 +15,99 @@ const dialPad = [
 ];
 
 const { width } = Dimensions.get('window');
+let endpoint = new Endpoint();
+
 
 const DialerScreen = ({ navigation }) => {
   const [input, setInput] = useState('');
+  const [account, setAccount] = useState(null);
 
-  const handlePress = (value) => {
-    setInput(prev => prev + value);
-  };
+  useEffect(() => {
+    let listeners = [];
+    let accountRef = null;
 
-  const handleBackspace = () => {
-    setInput(prev => prev.slice(0, -1));
-  };
+    async function startSIP() {
+      await endpoint.start();
 
-  const handleCall = () => {
-    if (input.length > 0) {
-      // trigger call logic here
-      alert('Calling ' + input);
+      const configuration = {
+        name: "Test User",
+        username: "102",
+        domain: "cc2.nativetalk.com.ng",
+        password: "Test@123",
+        proxy: null,
+        transport: "udp",
+        regServer: "sip:cc2.nativetalk.com.ng:5060",
+        regTimeout: 3600,
+      };
+      
+      endpoint.createAccount(configuration).then((account) => {
+        console.log("Account created", account);
+      })
+      .catch((err) => {
+        console.error("Failed to create account", err);
+        Alert.alert('SIP Login Error', err.message || 'Failed to register SIP account.')
+      });
+
+      listeners = [
+        endpoint.on("registration_changed", (acc) => {
+          console.log('Registration changed:', acc);
+          if (acc.registration && acc.registration.status === 'Failed') {
+            Alert.alert('Registration Failed', acc.registration.reason || 'Unknown');
+          }
+        }),
+        endpoint.on("call_changed", (call) => {
+          console.log('Call changed:', call);
+        }),
+        endpoint.on("call_terminated", (call) => {
+          console.log('Call terminated:', call);
+        }),
+      ];
+    }
+
+    startSIP();
+  }, [])
+
+  const handlePress = (value) => setInput(prev => prev + value);
+  const handleBackspace = () => setInput(prev => prev.slice(0, -1));
+
+  const handleCall = async () => {
+    if (!account) {
+      Alert.alert('SIP not registered yet', 'Please wait for SIP registration.');
+      return;
+    }
+    if (!input || input.length < 3) {
+      Alert.alert('Invalid Number', 'Enter a valid phone number.');
+      return;
+    }
+    const dialedUri = input.includes('@') ? input : `sip:${input}@cc2.nativetalk.com.ng:8089`;
+    try {
+      const newCall = await endpoint.makeCall(account, dialedUri, {});
+      setCall(newCall);
+      navigation.navigate('OutgoingCall', {
+        name: input,
+        phone: input,
+        location: 'Nigeria',
+        initials: input.substring(0,2).toUpperCase(),
+        // Optionally pass callId: newCall.getId(),
+      });
+    } catch (err) {
+      Alert.alert('Call Failed', err.message || 'Failed to start call.');
     }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
-
-      {/* Header with background */}
       <ImageBackground
         source={require('../../../assets/header_bg.png')}
         style={styles.header}
         resizeMode="cover"
       >
-
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Icon name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
+          <Icon name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Dial Number</Text>
       </ImageBackground>
-
 
       {/* Input display */}
       <View style={styles.inputContainer}>
@@ -72,7 +120,6 @@ const DialerScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
       </View>
-
       {/* Dial Pad */}
       <View style={styles.dialPadContainer}>
         {dialPad.map((row, i) => (
@@ -92,14 +139,18 @@ const DialerScreen = ({ navigation }) => {
             ))}
           </View>
         ))}
-        {/* Call Button */}
-        <TouchableOpacity style={styles.callButton} onPress={handleCall}>
-          <Icon name="call" size={28} color="#fff" />
+        <TouchableOpacity style={{ marginTop: 15 }} onPress={handleCall}>
+          <Image
+            source={require('../../../assets/call.png')}
+            style={{ width: 70, height: 70 }}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
       </View>
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
@@ -110,10 +161,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  backIcon: {
-    width: 20,
-    height: 20,
   },
   backButton: { padding: 5 },
   headerTitle: {
@@ -127,9 +174,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    minHeight: 100,
     marginTop: 10,
     marginBottom: 10,
     paddingHorizontal: 30,
@@ -189,21 +234,6 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textAlign: 'center',
     marginTop: 2,
-  },
-  callButton: {
-    marginTop: 15,
-    alignSelf: 'center',
-    backgroundColor: '#35C10B',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#20a010',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
   },
 });
 
