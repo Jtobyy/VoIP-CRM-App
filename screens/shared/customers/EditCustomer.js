@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
-import SuccessModal from '../../../components/Modals/customers/SuccessModal';
+import SuccessModal from '../../../components/Modals/customers/EditSuccessModal';
 import { useLoading } from '../../../hooks/useLoading';
 import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
@@ -21,11 +21,52 @@ import { pick, types } from '@react-native-documents/picker';
 import RNPickerSelect from 'react-native-picker-select';
 
 
-const AddCustomer = ({ navigation, route }) => {
-  const { isFromLead, leadId, leadData } = route?.params || {};
+const EditCustomer = ({ navigation, route }) => {
+  const { customerId } = route.params;
   const [profileImage, setProfileImage] = useState(null);
   const { handleApiError } = useError();
-  const [formErrors, setFormErrors] = useState({});
+
+  const [customer, setCustomer] = useState(null);
+
+useEffect(() => {
+  if (customerId) {
+    fetchCustomerData();
+  }
+}, [customerId]);
+
+const fetchCustomerData = async () => {
+  setLoading(true);
+  try {
+    const res = await api.get(`/customers/${customerId}/`);
+    const data = res.data.customer;
+
+    setCustomer(data);
+    console.log(data)
+
+    setForm({
+      firstName: data.first_name || '',
+      lastName: data.last_name || '',
+      username: data.username || '',
+      phone: data.phone_number || '',
+      email: data.email || '',
+      gender: data.gender || '',
+      instagram: data.instagram || '',
+      facebook: data.facebook || '',
+      whatsapp: data.whatsapp || '',
+      tiktok: data.tiktok || '',
+      tags: data.tags || [],
+    });
+
+    if (data.image) {
+      setProfileImage({ uri: data.image });
+    }
+
+  } catch (err) {
+    handleApiError(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
 
   const [form, setForm] = useState({
@@ -45,31 +86,6 @@ const AddCustomer = ({ navigation, route }) => {
   const { setLoading } = useLoading();
   const { api } = useApi();
 
-  const validateForm = () => {
-  const errors = {};
-  if (!form.firstName) errors.firstName = 'First name is required';
-  if (!form.lastName) errors.lastName = 'Last name is required';
-  if (!form.username) errors.username = 'Username is required';
-  if (!form.email) errors.email = 'Email is required';
-  if (!form.phone) errors.phone = 'Phone number is required';
-
-  setFormErrors(errors);
-  return Object.keys(errors).length === 0;
-};
-
-
-  useEffect(() => {
-    // If we have leadData, prefill immediately
-    if (isFromLead && leadData) {
-      prefillFromLead(leadData);
-    }
-    // If we only have leadId, fetch from API
-    else if (isFromLead && leadId) {
-      fetchLeadData(leadId);
-    }
-    // eslint-disable-next-line
-  }, [isFromLead, leadId, leadData]);
-
   const pickProfileImage = async () => {
     try {
       // Only allow image types
@@ -85,93 +101,46 @@ const AddCustomer = ({ navigation, route }) => {
       console.error('Profile image pick error', err);
     }
   };
-  const prefillFromLead = (lead) => {
-    // Defensive splitting of name
-    let firstName = '';
-    let lastName = '';
-    if (lead?.name) {
-      const parts = lead.name.split(' ');
-      firstName = parts[0] || '';
-      lastName = parts.slice(1).join(' ') || '';
+  
+
+const handleEditCustomer = async () => {
+  setLoading(true);
+  try {
+    const formDataToSend = new FormData();
+
+    formDataToSend.append('first_name', form.firstName);
+    formDataToSend.append('last_name', form.lastName);
+    formDataToSend.append('username', form.username);
+    formDataToSend.append('phone_number', form.phone);
+    formDataToSend.append('email', form.email);
+    formDataToSend.append('gender', form.gender);
+    formDataToSend.append('instagram', form.instagram);
+    formDataToSend.append('facebook', form.facebook);
+    formDataToSend.append('whatsapp', form.whatsapp);
+    formDataToSend.append('tiktok', form.tiktok);
+    form.tags?.forEach(tag => formDataToSend.append('tags', tag.id)); // assumes tags is an array of {id, label}
+
+    if (profileImage && profileImage.uri && profileImage.name) {
+      formDataToSend.append('image', {
+        uri: profileImage.uri,
+        name: profileImage.name,
+        type: profileImage.type,
+      });
     }
-    setForm({
-      firstName: lead?.first_name || firstName,
-      lastName: lead?.last_name || lastName,
-      phone: lead?.phone || lead?.unique_identifier || '',
-      email: lead?.email || '',
-      
-      // Add extra fields here if you want
+
+    await api.patch(`/customers/${customerId}/`, formDataToSend, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-  };
 
-  const fetchLeadData = async (id) => {
-    setLoading(true);
-    try {
-      const res = await api.get(`/customers/leads/${id}/`);
+    setShowSuccess(true);
+  } catch (err) {
+    console.log('err res is ', err.response);
+    handleApiError(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
-      const lead = res?.data?.lead;
-
-      if (lead) {
-        prefillFromLead(lead);
-      } else {
-        Alert.alert('Lead not found', 'Could not fetch lead details');
-      }
-    } catch (err) {
-      console.log('err is ', err)
-      console.log('err response is ', err.response)
-
-      Alert.alert('Error', 'Error fetching lead details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddCustomer = async () => {
-    if (!validateForm()) return;
-    setLoading(true);
-    try {
-      let response;
-      // Use FormData!
-      const formData = new FormData();
-      formData.append('first_name', form.firstName);
-      formData.append('last_name', form.lastName);
-      formData.append('username',form.username);
-      formData.append('phone_number', form.phone);
-      formData.append('email', form.email);
-      formData.append('gender', form.gender);
-      formData.append('instagram', form.instagram);
-      formData.append('facebook', form.facebook);
-      formData.append('whatsapp', form.whatsapp);
-      formData.append('tiktok', form.tiktok);
-
-      if (profileImage) {
-        formData.append('image', {
-          uri: profileImage.uri,
-          name: profileImage.name,
-          type: profileImage.type || 'image/jpeg',
-        });
-      }
-
-      if (isFromLead && leadId) {
-        await api.post(`/customers/leads/${leadId}/convert/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-      } else {
-        // Normal customer creation (likely still JSON unless also requires FormData)
-        await api.post(`/customers/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-      }
-
-      console.log("SET SHOW SUCCESS TRUE"); // <------
-      setShowSuccess(true);
-      console.log("showSuccess set");
-    } catch (err) {console.log('err res is ', err.response)
-      handleApiError(err);
-    } finally {
-      setLoading(false);
-    }
-  };  
 
   const handleChange = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -195,18 +164,23 @@ const AddCustomer = ({ navigation, route }) => {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>New Customer</Text>
+          <Text style={styles.headerTitle}>Edit Customer</Text>
           <View style={styles.headerRight} />
         </ImageBackground>
 
         <View style={styles.avatarContainer}>
           <TouchableOpacity style={styles.avatarCircle} onPress={pickProfileImage}>
-            {profileImage ? (
-              <Image
-                source={{ uri: profileImage.uri }}
-                style={{ width: 80, height: 80, borderRadius: 40 }}
-              />
-            ) : (
+            {profileImage ?  (
+    <View>
+      <Image
+        source={{ uri: profileImage?.uri || customer?.image }}
+        style={{ width: 80, height: 80, borderRadius: 40 }}
+      />
+      <View style={styles.overlayIcon}>
+        <FontAwesome6 name="camera" size={16} iconStyle='solid' color="#fff" />
+      </View>
+    </View>
+  ): (
               <FontAwesome6 name="camera" iconStyle="solid" size={32} color={colors.primary} />
             )}
           </TouchableOpacity>
@@ -221,7 +195,6 @@ const AddCustomer = ({ navigation, route }) => {
             value={form.firstName}
             onChangeText={(val) => handleChange('firstName', val)}
           />
-          {formErrors.firstName && <Text style={{ color: 'red' }}>{formErrors.firstName}</Text>}
 
           <Text style={styles.label}>Last Name</Text>
           <TextInput
@@ -229,15 +202,14 @@ const AddCustomer = ({ navigation, route }) => {
             value={form.lastName}
             onChangeText={(val) => handleChange('lastName', val)}
           />
-          {formErrors.lastName && <Text style={{ color: 'red' }}>{formErrors.lastName}</Text>}
+          
 
           <Text style={styles.label}>Phone number</Text>
-          <TextInput
-            style={styles.input}
-            value={form.phone}
-            onChangeText={(val) => handleChange('phone', val)}
-          />
-            {formErrors.phone && <Text style={{ color: 'red' }}>{formErrors.phone}</Text>}
+              <TextInput
+                  style={styles.input}
+                  value={form.phone}
+                 onChangeText={(val) => handleChange('phone', val)}
+               />
 
            <Text style={styles.label}>Username</Text>
           <TextInput
@@ -245,7 +217,6 @@ const AddCustomer = ({ navigation, route }) => {
             value={form.username}
             onChangeText={(val) => handleChange('username', val)}
           />
-            {formErrors.username && <Text style={{ color: 'red' }}>{formErrors.username}</Text>}
 
           <Text style={styles.label}>Email address</Text>
           <TextInput
@@ -254,8 +225,8 @@ const AddCustomer = ({ navigation, route }) => {
               value={form.email}
               onChangeText={(val) => handleChange('email', val)}
           />
-            {formErrors.email && <Text style={{ color: 'red' }}>{formErrors.email}</Text>}
-          <Text style={styles.label}>Gender</Text>
+
+           <Text style={styles.label}>Gender</Text>
          <View style={styles.input}>
            <RNPickerSelect
                onValueChange={(value) => handleChange('gender', value)}
@@ -301,19 +272,9 @@ const AddCustomer = ({ navigation, route }) => {
               value={form.tiktok}
               onChangeText={(val) => handleChange('tiktok', val)}
           />
-      
 
-          {/* <Text style={styles.label}>Comments</Text>
-          <TextInput
-              multiline
-              numberOfLines={5}
-              style={[styles.input, styles.textArea]}
-              value={form.comments}
-              onChangeText={(val) => handleChange('comments', val)}
-          /> */}
-
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleAddCustomer}>
-            <Text style={styles.primaryText}>Add Customer</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleEditCustomer}>
+            <Text style={styles.primaryText}>Edit Customer</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -329,7 +290,7 @@ const AddCustomer = ({ navigation, route }) => {
   );
 };
 
-export default AddCustomer;
+export default EditCustomer;
 
 
 const styles = StyleSheet.create({
@@ -452,5 +413,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 8,
   },
-  
+  overlayIcon: {
+  position: 'absolute',
+  bottom: 0,
+  right: 0,
+  backgroundColor: 'rgba(0,0,0,0.6)',
+  borderRadius: 10,
+  padding: 4,
+}
+
 });

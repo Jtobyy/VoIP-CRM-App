@@ -10,6 +10,8 @@ import AddUser from '../screens/shared/more/AddUser';
 import UsersList from '../screens/shared/more/UserList';
 import DialerScreen from '../screens/shared/home/Dialer';
 import OutgoingCallScreen from '../screens/shared/calls/OutgoingCall';
+import EditCustomer from '../screens/shared/customers/EditCustomer';
+import EditProfile from '../screens/shared/more/EditProfile';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,12 +24,15 @@ const AgentStackNavigator = () => {
       <Stack.Screen name="ConnectChannels" component={ConnectChannels} />
 
       <Stack.Screen name="AddCustomer" component={AddCustomer} />
+      <Stack.Screen name="EditCustomer" component={EditCustomer} />
       <Stack.Screen name="CustomerDetails" component={CustomerDetails} />
 
       <Stack.Screen name="Users" component={UsersList} />
       <Stack.Screen name="AddUser" component={AddUser} />
       <Stack.Screen name="Dialer" component={DialerScreen} />
       <Stack.Screen name="OutgoingCall" component={OutgoingCallScreen} />
+
+      <Stack.Screen name="EditProfile" component={EditProfile} />
     </Stack.Navigator>
   );
 };

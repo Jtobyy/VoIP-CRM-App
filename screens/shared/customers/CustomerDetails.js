@@ -11,6 +11,7 @@ import {
   StatusBar,
   TouchableWithoutFeedback,
   Keyboard,
+  Modal
 } from 'react-native';
 import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
@@ -31,30 +32,33 @@ const CustomerDetails = ({ route,navigation }) => {
   const { customerId } = route.params;
   const { setLoading } = useLoading();
   const { handleApiError } = useError();
-  const {api} = useApi()
+  const { api } = useApi();
   const addCommentRef = useRef(null);
   const [customer, setCustomer] = useState(null);
   const [comments, setComments] = useState([]);
 
-  const contact = {
-    initials: 'AF',
-    name: 'Adedoyin Folakemi',
-    phone: '+234 803 567 0547',
-    altPhone: '+234 803 567 0547',
-    email: 'Adedoyinfolakemi22@gmail.com',
-    company: 'Folakemi Souvenirs LTD',
-    callHistory: [
-      { date: 'Tue, January, 26', type: 'Missed call', time: '10:43 AM' },
-      { date: 'Thu, January, 23', type: 'Incoming call', time: '5:30 PM', duration: '6 minutes' },
-      { date: 'Wed, December, 21', type: 'Outgoing call', time: '12:00 AM', duration: '43 seconds' },
-      { date: 'Tue, January, 26', type: 'Outgoing call', time: '2:33 PM', duration: '1 minute' },
-      { date: 'Tue, January, 26', type: 'Outgoing call', time: '4:55 PM', duration: '17 minutes' },
-    ],
-    comments: [
-      { date: 'MON, 24TH SEPT.', text: "I'd love to hear more about what we can do for you...", time: '10:00AM' },
-      { date: 'WED, 19TH SEPT.', text: "I'd love to hear more about what we can do for you...", time: '10:00AM' },
-    ]
-  };
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // const contact = {
+  //   initials: 'AF',
+  //   name: 'Adedoyin Folakemi',
+  //   phone: '+234 803 567 0547',
+  //   altPhone: '+234 803 567 0547',
+  //   email: 'Adedoyinfolakemi22@gmail.com',
+  //   company: 'Folakemi Souvenirs LTD',
+  //   callHistory: [
+  //     { date: 'Tue, January, 26', type: 'Missed call', time: '10:43 AM' },
+  //     { date: 'Thu, January, 23', type: 'Incoming call', time: '5:30 PM', duration: '6 minutes' },
+  //     { date: 'Wed, December, 21', type: 'Outgoing call', time: '12:00 AM', duration: '43 seconds' },
+  //     { date: 'Tue, January, 26', type: 'Outgoing call', time: '2:33 PM', duration: '1 minute' },
+  //     { date: 'Tue, January, 26', type: 'Outgoing call', time: '4:55 PM', duration: '17 minutes' },
+  //   ],
+  //   comments: [
+  //     { date: 'MON, 24TH SEPT.', text: "I'd love to hear more about what we can do for you...", time: '10:00AM' },
+  //     { date: 'WED, 19TH SEPT.', text: "I'd love to hear more about what we can do for you...", time: '10:00AM' },
+  //   ]
+  // };
 
   const dismissKeyboardAndMenu = () => {
     Keyboard.dismiss();
@@ -81,6 +85,28 @@ const CustomerDetails = ({ route,navigation }) => {
 
   fetchCustomerDetails();
 }, [customerId]);
+
+const deleteCustomers = async()=>{
+   setShowDeleteModal(false);
+  try {
+  const res = await api.delete(`/customers/${customerId}/`);
+
+  // If it somehow throws, but the delete still works:
+  if (!res || res.status === 204) {
+    setShowSuccessModal(true);
+  }
+} catch (error) {
+  if (
+    error?.message === 'Network Error' &&
+    error?.config?.url?.includes('/customers/')
+  ) {
+    // assume delete succeeded
+    setShowSuccessModal(true);
+  } else {
+    handleApiError(error);
+  }
+}
+}
 
 
   return (
@@ -111,13 +137,13 @@ const CustomerDetails = ({ route,navigation }) => {
 
       {showFilterMenu && (
           <View style={styles.popupMenu}>
-            <TouchableOpacity style={styles.popupMenuItem}>
+            <TouchableOpacity style={styles.popupMenuItem} onPress={()=>navigation.navigate('EditCustomer', { customerId: customerId })}>
               <Text style={styles.popupMenuText}>Edit</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.popupMenuItem}>
               <Text style={styles.popupMenuText}>Copy number</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.popupMenuItem}>
+            <TouchableOpacity style={styles.popupMenuItem} onPress={() =>  setShowDeleteModal(true)}>
               <Text style={styles.popupMenuText}>Delete customer</Text>
             </TouchableOpacity>
           </View>
@@ -217,6 +243,69 @@ const CustomerDetails = ({ route,navigation }) => {
           </View>
         ))}
       </View> */}
+
+        {/* Delete Confirmation Modal */}
+              <Modal
+                visible={showDeleteModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowDeleteModal(false)}
+              >
+                <View style={styles.modalContainer}>
+                  <View style={styles.confirmationModal}>
+                    <Text style={styles.modalTitle}>
+                      Delete Customer?
+                    </Text>
+                    
+                    <View style={styles.modalButtons}>
+                      <TouchableOpacity 
+                        style={[styles.modalButton, styles.cancelButton]}
+                        onPress={() => setShowDeleteModal(false)}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={[styles.modalButton, styles.deleteButton]}
+                        onPress={deleteCustomers}
+                      >
+                        <Text style={styles.deleteButtonText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
+      
+              {/* Success Modal */}
+              <Modal
+                visible={showSuccessModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {
+               setShowSuccessModal(false);
+               navigation.goBack(); // move to tab after closing
+              }}
+               >
+                <View style={styles.modalContainer}>
+                  <View style={styles.successModal}>
+                    <FontAwesome6 name="circle-check" iconStyle='solid' size={60} color={colors.primary} />
+                    <Text style={styles.successTitle}>Success!</Text>
+                    <Text style={styles.successMessage}>
+                      Customer deleted
+                    </Text>
+                    
+                    <TouchableOpacity 
+                      style={styles.successButton}
+                      onPress={() => {
+                       setShowSuccessModal(false);
+                     navigation.goBack(); // move to tab after closing
+                    }}
+                    >
+                      <Text style={styles.successButtonText}>OK</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
 
       {/* Comments */}
       <View style={styles.commentSection}>
@@ -440,6 +529,83 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+   modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  confirmationModal: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 25,
+    color: '#333',
+    fontWeight: '500',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f0f0f0',
+    marginRight: 10,
+  },
+  deleteButton: {
+    backgroundColor: colors.primary,
+    marginLeft: 10,
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  successModal: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 25,
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 15,
+    marginBottom: 5,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  successButton: {
+    width: '100%',
+    paddingVertical: 12,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  successButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   popupMenu: {
     position: 'absolute',

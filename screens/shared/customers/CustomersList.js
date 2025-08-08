@@ -147,19 +147,67 @@ useEffect(() => {
 
 
   // Delete selected customers
-  const deleteCustomers = () => {
-    setShowDeleteModal(false);
-    const updatedData = customersData.map(section => ({
+  const deleteCustomers = async () => {
+  setShowDeleteModal(false);
+  setLoading(true);
+
+  const results = await Promise.all(
+    selectedCustomers.map(async (customerId) => {
+      try {
+        const res = await api.delete(`/customers/${customerId}/`);
+
+        // Treat success if res is undefined or status 204
+        if (!res || res.status === 204) {
+          return { id: customerId, success: true };
+        } else {
+          return { id: customerId, success: false };
+        }
+      } catch (error) {
+        if (
+          error?.message === 'Network Error' &&
+          error?.config?.url?.includes('/customers/')
+        ) {
+          // Assume success on network error for this specific request
+          return { id: customerId, success: true };
+        } else {
+          return { id: customerId, success: false, error };
+        }
+      }
+    })
+  );
+
+  // ✅ Filter out successfully deleted IDs
+  const successfulIds = results
+    .filter(result => result.success)
+    .map(result => result.id);
+
+  const updatedData = customersData
+    .map(section => ({
       title: section.title,
-      data: section.data.filter(item => !selectedCustomers.includes(item.id))
-    })).filter(section => section.data.length > 0);
-    
-    setCustomersData(updatedData);
-    setFilteredData(updatedData);
-    setSelectedCustomers([]);
-    setIsDeleteMode(false);
+      data: section.data.filter(item => !successfulIds.includes(item.id))
+    }))
+    .filter(section => section.data.length > 0);
+
+  setCustomersData(updatedData);
+  setFilteredData(updatedData);
+  setSelectedCustomers([]);
+  setIsDeleteMode(false);
+
+  // ✅ Show success modal if at least one success
+  if (successfulIds.length > 0) {
     setShowSuccessModal(true);
-  };
+  }
+
+  // ❗ Optional: handle failed deletions
+  const failed = results.filter(result => !result.success);
+  if (failed.length > 0) {
+    console.warn(`${failed.length} deletions failed.`);
+    
+  }
+
+  setLoading(false);
+};
+
 
   // Render each customer item
   const renderItem = ({ item }) => (

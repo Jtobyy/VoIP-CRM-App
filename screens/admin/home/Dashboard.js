@@ -3,9 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Image }
 import { colors, typography } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
+import {useAuth} from '../../../hooks/useAuth'
 
 
 const AdminDashboard = ({ navigation }) => {
+  const {company} = useAuth()
+  console.log('company:',company)
   const activeCustomers = ['CL', 'AL', 'O', 'AL', 'AS'];
   const recentActivities = [
     { 
@@ -62,11 +65,13 @@ const AdminDashboard = ({ navigation }) => {
     navigation.navigate('Dialer');
   };
 
+ 
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hi, Chioma and Sons 😊</Text>
+        <Text style={styles.greeting}>{`Hi, ${company?.name} 😊`}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
