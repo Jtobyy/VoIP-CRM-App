@@ -19,6 +19,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApi } from '../../../hooks/useApi'
 import { useLoading } from '../../../hooks/useLoading';
 import { useError } from '../../../hooks/useError';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 
 const icons = {
   'Missed call': require('../../../assets/missed.png'),
@@ -37,6 +38,8 @@ const UserDetails = ({ route,navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+   const { showSnackbar } = useSnackbar();
+
   const dismissKeyboardAndMenu = () => {
     Keyboard.dismiss();
     setShowFilterMenu(false);
@@ -50,6 +53,14 @@ const UserDetails = ({ route,navigation }) => {
       console.log('data.user',data.user)
       setUser(data?.user);
     } catch (err) {
+       const status = err?.response?.status;
+      if (status === 403) {
+        // show a friendly message, then leave
+        showSnackbar('You do not have permission to view this user.', 'error');
+          // tiny delay so the toast renders before screen pops
+          setTimeout(() => navigation.goBack(), 300);
+          return;
+      }
       handleApiError(err);
     } finally {
       setLoading(false);
