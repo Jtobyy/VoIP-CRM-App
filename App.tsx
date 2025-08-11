@@ -12,7 +12,7 @@ import { LoadingProvider } from './hooks/useLoading';
 import Loader from './components/Loader';
 import { ErrorProvider } from './hooks/useError';
 import { WebSocketProvider } from './hooks/useWebSocket';
-
+import { CallProvider } from './hooks/useCall';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -22,13 +22,15 @@ function App() {
       <LoadingProvider>
         <SnackbarProvider>
           <AuthProvider>
-            <ErrorProvider>
-                <WebSocketProvider>
-                   <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-                   <AppNavigator />
-                   <Loader />
-                </WebSocketProvider>
-            </ErrorProvider>
+            <CallProvider>
+              <ErrorProvider>
+                  <WebSocketProvider>
+                    <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+                    <AppNavigator />
+                    <Loader />
+                  </WebSocketProvider>
+              </ErrorProvider>
+            </CallProvider>
           </AuthProvider>
         </SnackbarProvider>
       </LoadingProvider>
