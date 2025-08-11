@@ -1,4 +1,4 @@
-import React from 'react';
+import React,{useState,useEffect} from 'react';
 import {
   View,
   Text,
@@ -12,34 +12,32 @@ import {
 import { colors } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
+import { useApi } from '../../../hooks/useApi';
+import { useLoading } from '../../../hooks/useLoading';
+import { useError } from '../../../hooks/useError';
 
 const UsersList = ({ navigation }) => {
-  const users = [
-    {
-      id: '1',
-      name: 'Chioma Okere',
-      phone: '08034562345',
-      avatar: require('../../../assets/sample1.png'),
-    },
-    {
-      id: '2',
-      name: 'Chioma Okere',
-      phone: '08034562345',
-      avatar: require('../../../assets/sample2.png'),
-    },
-    {
-      id: '3',
-      name: 'Chioma Okere',
-      phone: '08034562345',
-      avatar: require('../../../assets/sample3.png'),
-    },
-    {
-      id: '4',
-      name: 'Chioma Okere',
-      phone: '08034562345',
-      avatar: require('../../../assets/sample1.png'),
-    },
-  ];
+  const [users,setUsers] = useState([])
+  const {api} = useApi()
+  const { setLoading } = useLoading();
+  const { handleApiError } = useError();
+
+    const fetchUsers = async () => {
+      setLoading(true);
+        try {
+            const res = await api.get(`/users/`);
+            setUsers(res.data?.results);
+        } catch (error) {
+           console.error('Failed to fetch users:', error);
+            handleApiError(error);
+        } finally{
+          setLoading(false);
+        }
+    };
+
+  useEffect(()=>{
+    fetchUsers()
+  },[])
 
   return (
     <View style={styles.container}>
@@ -64,22 +62,29 @@ const UsersList = ({ navigation }) => {
 
       {/* User List */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {users.map((user) => (
-          <View key={user.id} style={styles.userItem}>
+        {users.length === 0? (
+          <Text style={styles.emptyText}>You do not have any users.</Text>
+        ):users?.map((user) => (
+          <TouchableOpacity
+             key={user.id}
+             style={styles.userItem}
+             onPress={() => navigation.navigate('UserDetails', { userId: user.id })}
+            activeOpacity={0.7}
+          >
             <Avatar
-              name={user.name}
-              image={user.avatar}
+              name={`${user.first_name || ''} ${user.last_name || ''}`.trim()}
+              image={user.image}
               size={50}
               style={{ marginRight: 12 }}
             />
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.name}</Text>
-              <Text style={styles.userPhone}>{user.phone}</Text>
+              <Text style={styles.userName}>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'N/A'}</Text>
+              <Text style={styles.userPhone}>{user.phone_number || 'N/A'}</Text>
             </View>
             <TouchableOpacity style={styles.menuButton}>
               <FontAwesome6 name="ellipsis-vertical" iconStyle='solid' size={20} color="#666" />
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
@@ -171,6 +176,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  emptyText: {
+  textAlign: 'center',
+  marginTop: 20,
+  color: '#888',
+  fontSize: 16,
+  fontStyle: 'italic',
+}
+
 });
 
 export default UsersList;

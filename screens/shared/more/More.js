@@ -76,6 +76,14 @@ const fetchUserProfile = async () => {
       onPress: () => navigation.navigate('Customers'),
     },
     {
+      id: 'users',
+      title: 'Users',
+      icon: require('../../../assets/ic_customers.png'),
+      iconColor: '#22C55E',
+      backgroundColor: '#DCFCE7',
+      onPress: () => navigation.navigate('Users'),
+    },
+    {
       id: 'native-number',
       title: 'My Nativetalk Number',
       icon: require('../../../assets/ic_manage.png'),

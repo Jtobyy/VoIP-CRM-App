@@ -104,7 +104,7 @@ const AddUser = ({ navigation }) => {
             onPress={() => setInviteMethod('whatsapp')}
           >
             {/* <FontAwesome6 name="whatsapp" size={18} iconStyle='solid' color={inviteMethod === 'whatsapp' ? colors.primary : '#000'} /> */}
-            <image
+            <Image
                   source={require('../../../assets/wa.png')} 
                   style={styles.infoIcon}
                   resizeMode="contain"
