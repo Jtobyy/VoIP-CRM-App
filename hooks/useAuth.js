@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSnackbar } from './useSnackbar';
 import axios from 'axios';
+import {formatPhoneNumber} from '../utils/phone'
 
 const AuthContext = createContext();
 
@@ -45,7 +46,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchCompanyDetails = async (accessToken) => {
     try {
-      const res = await axios.get(`https://core-staging.nativetalkcrm.com/api/companies/details/`, {
+      const res = await axios.get(`https://staging.core.nativetalkcrm.com/api/companies/details/`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'User-Domain': 'tech4mation',
@@ -63,17 +64,18 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      console.log('username ', username)
+      const formattedPhone = formatPhoneNumber(username);
+      console.log('username ', formattedPhone)
       console.log('password ', password)
-      console.log('username ', username)
 
-      const res = await axios.post('https://core-staging.nativetalkcrm.com/api/auth/signin/', {
-        email: username,
+      const res = await axios.post('https://staging.core.nativetalkcrm.com/api/auth/mobile/signin/', {
+        phone_number: formattedPhone,
         password,
-      }, {
-        headers: {
-          'User-Domain': 'tech4mation',
-        },
+      },{
+           headers: {
+            'User-Domain': '+2349167523634',
+             'Content-Type': 'application/json'
+         }
       });
 
       console.log('res is ', res)
@@ -89,9 +91,9 @@ export const AuthProvider = ({ children }) => {
       showSnackbar('Login successful!', 'success');
       return true;
     } catch (err) {
-      console.log('error is ', err.response)
-      showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
-      return false;
+     console.log('response:', err?.response?.status, err?.response?.data);
+     showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
+     return false;
     }
   };
 

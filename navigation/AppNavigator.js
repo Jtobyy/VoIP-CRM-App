@@ -16,7 +16,7 @@ const AppNavigator = () => {
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <RootStack.Screen name="AuthStack" component={AuthNavigator} />
-        ) : user.role === 'admin' ? (
+        ) : user.roles?.some(r => r.toLowerCase() === 'admin') ? (
           <RootStack.Screen name="AdminStack" component={AdminStackNavigator} />
         ) : (
           <RootStack.Screen name="AgentStack" component={AgentStackNavigator} />

@@ -14,18 +14,26 @@ import {
 import AuthHeader from '../../components/AuthHeader';
 import { colors } from '../../styles/global';
 import AuthFooter from '../../components/AuthFooter';
+import axios from 'axios';
+import { Alert, ActivityIndicator } from 'react-native';
+import { useSnackbar } from '../../hooks/useSnackbar';
 
 
 const OTPVerification = ({ navigation, route }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute timer
   const inputRefs = useRef([]);
-  
+  const [verifying, setVerifying] = useState(false);
+const [resending, setResending] = useState(false);
+const { showSnackbar } = useSnackbar();
   // Get parameters with defaults
-  const { 
-    phoneNumber = '080******47', 
-    flowType = 'signup' // 'signup' or 'passwordReset'
+  const {
+    phoneNumber = '',
+    companyName = '',
+    password='',
+    flowType = 'signup',
   } = route.params || {};
+
 
   const isPasswordReset = flowType === 'passwordReset';
 
@@ -79,21 +87,62 @@ const OTPVerification = ({ navigation, route }) => {
     }
   }, [timeLeft]);
 
-  const handleVerify = () => {
+  const handleVerify = async() => {
     const enteredOtp = otp.join('');
     if (enteredOtp.length === 6) {
       Keyboard.dismiss();
 
-      // Here you would typically verify the OTP with your backend
-      navigation.navigate(nextScreen, { 
-        phoneNumber,
-        isPasswordReset: flowType === 'passwordReset' 
-      });
+        setVerifying(true);
+
+      try {
+
+      const res = await axios.post(
+        'https://staging.core.nativetalkcrm.com/api/auth/mobile/verify-otp/',
+        {
+          otp: enteredOtp,
+          phone_number: phoneNumber,
+          company_name: companyName,
+        }
+      );
+
+      if (res?.status === 201 && res?.data?.success) {
+
+        navigation.navigate('AccountCreated',{
+          phoneNumber,
+          password,
+        }); // success screen
+      } else {
+        Alert.alert('Verification', 'OTP verification failed.');
+      }
+    } catch (err) {
+      const msg =  'OTP verification failed.';
+      console.log(err)
+      Alert.alert('Verification', msg);
+    } finally{
+      setVerifying(false)
+    }
     }
   };
 
-  const resendCode = () => {
-    setTimeLeft(60);
+  const resendCode = async() => {
+     if (resending || timeLeft > 0) return;
+  setResending(true);
+     try {
+      await axios.post(
+        'https://staging.core.nativetalkcrm.com/api/auth/mobile/resend-otp/',
+        { phone_number: phoneNumber }
+      );
+      setTimeLeft(60);
+      showSnackbar('OTP resent to your phone number.', 'success');
+    } catch (err) {
+      err?.response?.data?.message ||
+      err?.response?.data?.detail ||
+      err?.message ||
+      'Failed to resend OTP.';
+    showSnackbar(msg, 'error');
+    }finally{
+      setResending(false);
+    }
     // Add your resend code logic here
   };
 
@@ -144,24 +193,30 @@ const OTPVerification = ({ navigation, route }) => {
           </Text>
 
           {/* Verify Button */}
-          <TouchableOpacity
-            style={[styles.button, !otp.join('') && styles.disabledButton]}
+         <TouchableOpacity
+            style={[styles.button, (!otp.join('') || verifying) && styles.disabledButton]}
             onPress={handleVerify}
-            disabled={!otp.join('')}
-          >
-            <Text style={styles.buttonText}>{buttonText}</Text>
+            disabled={!otp.join('') || verifying}
+         >
+         {verifying ? <ActivityIndicator /> : <Text style={styles.buttonText}>{buttonText}</Text>}
           </TouchableOpacity>
 
           {/* Resend Options */}
           <View style={styles.resendContainer}>
-            <TouchableOpacity onPress={resendCode}>
-              <Text style={styles.resendText}>Send code again</Text>
+              <TouchableOpacity onPress={resendCode} disabled={resending || timeLeft > 0}>
+             {resending ? (
+                <ActivityIndicator />
+               ) : (
+               <Text style={[styles.resendText, (resending || timeLeft > 0) && styles.resendDisabled]}>
+                Send code again
+              </Text>
+                )}
             </TouchableOpacity>
-            <Text style={styles.divider}>    </Text>
-            <TouchableOpacity>
-              <Text style={styles.resendText}>Send to email address</Text>
+               <Text style={styles.divider}>    </Text>
+             <TouchableOpacity>
+               <Text style={styles.resendText}>Send to email address</Text>
             </TouchableOpacity>
-          </View>
+           </View>
 
           <AuthFooter />
         </View>

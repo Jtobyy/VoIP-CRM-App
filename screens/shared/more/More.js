@@ -35,8 +35,10 @@ const fetchUserProfile = async () => {
     const res = await api.get(`/users/me`);
     const data = res.data.user;
     setUser(data);
+    console.log;('User profile fetched:',data)
   } catch (error) {
     console.error('Failed to fetch user profile:', error);
+    
   } finally {
     setLoading(false);
   }

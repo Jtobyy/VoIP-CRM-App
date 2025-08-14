@@ -13,6 +13,7 @@ import OutgoingCallScreen from '../screens/shared/calls/OutgoingCall';
 import EditCustomer from '../screens/shared/customers/EditCustomer';
 import EditProfile from '../screens/shared/more/EditProfile';
 import UserDetails from '../screens/shared/more/UserDetails';
+import EditUser from '../screens/shared/more/EditUser';
 
 const Stack = createNativeStackNavigator();
 
@@ -35,6 +36,7 @@ const AdminStackNavigator = () => {
       <Stack.Screen name="OutgoingCall" component={OutgoingCallScreen} />
 
       <Stack.Screen name="EditProfile" component={EditProfile} />
+      <Stack.Screen name="EditUser" component={EditUser} />
     </Stack.Navigator>
   );
 };
