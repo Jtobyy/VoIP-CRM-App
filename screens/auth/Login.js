@@ -30,18 +30,14 @@ const Login = ({ navigation }) => {
   const { setLoading } = useLoading();
 
 
-  const handleLogin = async () => {
+const handleLogin = async () => {
+  try {
     setLoading(true);
-    const success = await login(username, password);
+    await login(username, password, navigation); // login() shows its own toasts
+  } finally {
     setLoading(false);
-    
-    // This alert should never show now
-    if (!success) {
-      showSnackbar('Invalid credentials. Please try again.', 'error');
-    } else {
-      showSnackbar('Login successful!', 'success');
-    }
-  };
+  }
+};
 
   const handleForgotPassword = () => {
     navigation.navigate('OTPVerification', {phoneNumber: '820429482938', flowType: 'passwordReset'});

@@ -19,6 +19,10 @@ export const formatPhoneNumber = (phone) => {
     return '+' + cleaned;
   }
 
+  if (/^\d{10,11}$/.test(cleaned)) {
+    return '+234' + cleaned;
+  }
+
   // fallback: assume it's already correct
   return cleaned;
 };

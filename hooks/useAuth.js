@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
     }
   };  
 
-  const login = async (username, password) => {
+  const login = async (username, password, navigation) => {
     try {
       const formattedPhone = formatPhoneNumber(username);
       console.log('username ', formattedPhone)
@@ -78,23 +78,43 @@ export const AuthProvider = ({ children }) => {
          }
       });
 
-      console.log('res is ', res)
-      const userData = res.data;
-      setUser(userData);
-      setIsAuthenticated(true);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
+       const data = res.data;
+       console.log('Login response:')
+    
+    // === Case A: user is not yet verified ===
+    if (data?.verified === false && !data?.access) {
+      showSnackbar(data?.message || 'OTP sent to your phone number.', 'info');
 
-      if (userData?.access) {
-        fetchCompanyDetails(userData.access);
-      }
+      // IMPORTANT: do not set auth state yet
+      navigation.navigate('OTPVerification', {
+        phoneNumber: formattedPhone,
+        password,         
+        companyName: '',
+        flowType: 'login', // new flow
+      });
 
-      showSnackbar('Login successful!', 'success');
-      return true;
-    } catch (err) {
-     console.log('response:', err?.response?.status, err?.response?.data);
-     showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
-     return false;
+      return { needsVerification: true };
     }
+
+    // === Case B: verified and tokens present ===
+    if (data?.access) {
+      setUser(data);
+      setIsAuthenticated(true);
+      await AsyncStorage.setItem('user', JSON.stringify(data));
+      fetchCompanyDetails(data.access);
+      showSnackbar('Login successful!', 'success');
+      return { success: true };
+    }
+
+    // Unexpected response shape
+    showSnackbar(data?.message || 'Unexpected login response', 'error');
+    return { success: false };
+  } catch (err) {
+    console.error('Login error:',err)
+    console.log('response:', err?.response?.status, err?.response?.data);
+    showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
+    return { success: false, error: err };
+  }
   };
 
   const logout = async () => {

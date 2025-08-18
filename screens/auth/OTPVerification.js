@@ -17,6 +17,7 @@ import AuthFooter from '../../components/AuthFooter';
 import axios from 'axios';
 import { Alert, ActivityIndicator } from 'react-native';
 import { useSnackbar } from '../../hooks/useSnackbar';
+import { useAuth } from '../../hooks/useAuth';
 
 
 const OTPVerification = ({ navigation, route }) => {
@@ -24,12 +25,13 @@ const OTPVerification = ({ navigation, route }) => {
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute timer
   const inputRefs = useRef([]);
   const [verifying, setVerifying] = useState(false);
-const [resending, setResending] = useState(false);
-const { showSnackbar } = useSnackbar();
+  const [resending, setResending] = useState(false);
+  const { showSnackbar } = useSnackbar();
+  const { login } = useAuth();
   // Get parameters with defaults
   const {
     phoneNumber = '',
-    companyName = '',
+    companyName = '', 
     password='',
     flowType = 'signup',
   } = route.params || {};
@@ -43,14 +45,20 @@ const { showSnackbar } = useSnackbar();
       title: 'Enter Verification Code',
       subtitle: 'Verification code was sent to',
       buttonText: 'Verify',
-      nextScreen: 'CreatePassword',
+      nextScreen: 'AccountCreated',
     },
     passwordReset: {
       title: 'Verify Your Identity',
       subtitle: 'We sent a code to verify it\'s you',
       buttonText: 'Verify',
       nextScreen: 'ForgotPassword',
-    }
+    }, 
+    login: {
+       title: 'Enter Verification Code',
+       subtitle: 'We sent a code to',
+       buttonText: 'Verify',
+       nextScreen: null, // we will call login() directly
+  },
   };
 
   const { title, subtitle, buttonText, nextScreen } = flowConfig[flowType];
@@ -96,27 +104,39 @@ const { showSnackbar } = useSnackbar();
 
       try {
 
-      const res = await axios.post(
-        'https://staging.core.nativetalkcrm.com/api/auth/mobile/verify-otp/',
-        {
+      const payload =  {
           otp: enteredOtp,
           phone_number: phoneNumber,
-          company_name: companyName,
-        }
+      }
+      if (companyName){
+        payload.company_name = companyName
+      }
+
+      const res = await axios.post(
+        'https://staging.core.nativetalkcrm.com/api/auth/mobile/verify-otp/',
+        payload
       );
 
       if (res?.status === 201 && res?.data?.success) {
+          if (flowType === 'login') {
+        // For login flow, just log them in right away using the same credentials
+             console.log('Attemptin login with phone:',phoneNumber, 'and password:',password)
+             await login(phoneNumber, password);
+             return; // login() shows success + navigates as usual
+         }
 
         navigation.navigate('AccountCreated',{
           phoneNumber,
           password,
         }); // success screen
       } else {
+        console.log('Verification failed: ',res)
         Alert.alert('Verification', 'OTP verification failed.');
       }
     } catch (err) {
       const msg =  'OTP verification failed.';
-      console.log(err)
+       console.log('response:', err?.response?.status, err?.response?.data);
+      console.log('err',err)
       Alert.alert('Verification', msg);
     } finally{
       setVerifying(false)
@@ -135,6 +155,7 @@ const { showSnackbar } = useSnackbar();
       setTimeLeft(60);
       showSnackbar('OTP resent to your phone number.', 'success');
     } catch (err) {
+      console.log('Resend OTP error',err)
       err?.response?.data?.message ||
       err?.response?.data?.detail ||
       err?.message ||
