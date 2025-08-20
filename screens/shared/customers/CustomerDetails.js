@@ -11,7 +11,8 @@ import {
   StatusBar,
   TouchableWithoutFeedback,
   Keyboard,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
@@ -20,6 +21,8 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApi } from '../../../hooks/useApi'
 import { useLoading } from '../../../hooks/useLoading';
 import { useError } from '../../../hooks/useError';
+import {useSnackbar} from '../../../hooks/useSnackbar'
+import Clipboard from '@react-native-clipboard/clipboard';
 
 const icons = {
   'Missed call': require('../../../assets/missed.png'),
@@ -39,6 +42,7 @@ const CustomerDetails = ({ route,navigation }) => {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+     const { showSnackbar } = useSnackbar();
 
   // const contact = {
   //   initials: 'AF',
@@ -108,9 +112,52 @@ const deleteCustomers = async()=>{
 }
 }
 
+ const saveComment = async (text) => {
+    try {
+      setLoading(true);
+      const res = await api.post('/comments/', {
+        model: 'customer',
+        object_id: customerId,
+        content: text,
+      });
+
+      // Try to extract the created comment
+      const payload = res?.data;
+      const created =
+        payload?.comment ??            // case: { comment: {...} }
+        payload?.data ??               // case: { data: {...} }
+        payload;                       // case: {...comment fields...}
+
+      if (created && created.id) {
+        setComments(prev => [created, ...prev]);
+      } else {
+        // Fallback: refetch list if backend doesn't return the item
+        const list = await api.get('/comments/', {
+          params: { model: 'customer', object_id: customerId },
+        });
+        setComments(Array.isArray(list?.data?.results) ? list.data.results : (list?.data || []));
+      }
+
+      showSnackbar('Comment added', 'success');
+    } catch (err) {
+      handleApiError(err);
+      console.error('Failed to add comment:',err)
+      showSnackbar('Failed to add comment', 'error');
+      throw err; // keeps modal button from resetting if you want different handling
+    } finally {
+      setLoading(false);
+    }
+  };
+
+   const handleCopyNumber = (phoneNumber) => {
+      // Handle copy to clipboard functionality
+      Clipboard.setString(phoneNumber || '');
+      Alert.alert('Copied', 'Phone number copied to clipboard');
+    };
 
   return (
-    <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
+    <>
+      <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
     <ScrollView style={styles.container}>
       <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
 
@@ -140,7 +187,10 @@ const deleteCustomers = async()=>{
             <TouchableOpacity style={styles.popupMenuItem} onPress={()=>navigation.navigate('EditCustomer', { customerId: customerId })}>
               <Text style={styles.popupMenuText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.popupMenuItem}>
+            <TouchableOpacity 
+            style={styles.popupMenuItem}
+             onPress={()=>handleCopyNumber(customer?.phone_number || 'N/A')}
+            >
               <Text style={styles.popupMenuText}>Copy number</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.popupMenuItem} onPress={() =>  setShowDeleteModal(true)}>
@@ -346,10 +396,11 @@ const deleteCustomers = async()=>{
 
 
       </View>
-      {/* <AddCommentModal ref={addCommentRef} /> */}
-
+    
     </ScrollView>
     </TouchableWithoutFeedback>
+     <AddCommentModal ref={addCommentRef} onSave={saveComment}/>
+    </>
   );
 };
 

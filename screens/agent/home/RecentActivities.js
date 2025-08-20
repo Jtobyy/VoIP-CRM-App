@@ -28,40 +28,45 @@ const buildRecent7d = () => {
 
 
 // Safely pull an image url or return undefined
-const pickAvatar = (conv) => conv?.customer?.image || undefined;
+const pickAvatarFromContact = (c) => c?.profileImage || undefined;
+const pickChannelIconFromContact = (c) => c?.channel?.image || undefined;
 
-// Get a channel icon url (badge) if present
-const pickChannelIcon = (conv) => conv?.last_message?.channel?.image || undefined;
+const tidyPreview = (text) => {
+  if (!text) return '—';
+  return String(text).replace(/\s+/g, ' ').trim();
+};
 
-const transformConversationToActivity = (conv) => {
-  const last = conv?.last_message;
-  const name = conv?.customer_name || conv?.lead_name || 'Unknown';
-  const description = last?.content || '—';
-  const time = formatChatTime(last?.created_at);
-  const unread = last?.customer_receiver_details?.unreadCount ?? 0;
+
+const transformContactToActivity = (c) => {
+  const name = c?.name || c?.unique_identifier || 'Unknown';
+  const description = tidyPreview(c?.lastMessage || c?.lastMessageData?.content);
+  const time = formatChatTime(c?.lastMessageTime);
+  const unread = c?.unreadCount ?? 0;
 
   return {
-    id: conv.id,
-    type: 'message',                // conversations are messages; calls later
-    avatar: pickAvatar(conv),
-    initials: null,                 // your Avatar component can derive initials from name
+    // UI fields
+    id: c.id,                        // <-- contact id (lead/customer abstraction)
+    type: 'message',                 // contacts = messages for now
+    avatar: pickAvatarFromContact(c),
+    initials: null,
     name,
     description,
     time,
-    status: (last?.channel?.name || '').toLowerCase(), // e.g., 'whatsapp'
-    platform: (last?.channel?.name || '').toLowerCase(),
+    status: (c?.channel?.name || '').toLowerCase(),  // e.g., 'email', 'whatsapp'
+    platform: (c?.channel?.name || '').toLowerCase(),
     backgroundColor: null,
     textColor: null,
     unread,
-    // extra fields handy for navigation
-    conversation_id: conv.id,
-    lead_id: conv?.lead?.id ?? null,
-    customer_id: conv?.customer?.id ?? null,
-    profile_pic: pickAvatar(conv),
-    channel_icon: pickChannelIcon(conv),
-    rawTimestamp: last?.created_at,
-    channel: last?.channel ? { image: pickChannelIcon(conv) } : null,
-    lastMessageText: last?.content || '',
+
+    // extra navigation fields
+    conversation_id: c?.lastMessageData?.conversation ?? null,
+    lead_id: c?.id ?? null,          // keep for compatibility if needed
+    customer_id: null,               // contacts API seems lead-like; set null for now
+    profile_pic: pickAvatarFromContact(c),
+    channel_icon: pickChannelIconFromContact(c),
+    rawTimestamp: c?.lastMessageTime,
+    channel: c?.channel ? { image: pickChannelIconFromContact(c) } : null,
+    lastMessageText: c?.lastMessageData?.content || c?.lastMessage || '',
   };
 };
 
@@ -71,139 +76,36 @@ const RecentActivities = ({ navigation }) => {
     const { handleApiError } = useError();
     const [activities, setActivities] = useState([]);
     const { start_date, end_date } = useMemo(buildRecent7d, []);
-      useEffect(() => {
-        let cancelled = false;
-    
-        const fetchConversations = async () => {
-          try {
-            setLoading(true);
-            const res = await api.get('/communication/conversations/', {
-              params: {
-                start_date,
-                end_date,
-                call_logs: true, // backend will start honoring this later
-              },
-            });
-    
-            const results = Array.isArray(res?.data?.results) ? res.data.results : [];
-            const mapped = results.map(transformConversationToActivity);
-            if (!cancelled) setActivities(mapped);
-          } catch (err) {
-            console.warn('Failed to load conversations', err?.message || err);
-            handleApiError(error);
-            if (!cancelled) setActivities([]);
-          } finally {
-            if (!cancelled) setLoading(false);
-          }
-        };
-    
-        fetchConversations();
-        return () => { cancelled = true; };
-      }, [api, start_date, end_date]);
-  // const activities = [
-  //   {
-  //     id: 1,
-  //     type: 'call',
-  //     avatar: null,
-  //     initials: '0',
-  //     name: '+234 905 332 4369',
-  //     description: 'Missed call',
-  //     time: '10:33 PM',
-  //     status: 'missed',
-  //     backgroundColor: '#E8F5E8',
-  //     textColor: '#4CAF50',
-  //   },
-  //   {
-  //     id: 2,
-  //     type: 'call',
-  //     avatar: null,
-  //     initials: 'AF',
-  //     name: 'Adedoyin Folakemi',
-  //     description: 'Outgoing call',
-  //     time: '7:03 PM',
-  //     status: 'outgoing',
-  //     backgroundColor: '#E8F5E8',
-  //     textColor: '#4CAF50',
-  //   },
-  //   {
-  //     id: 3,
-  //     type: 'call',
-  //     avatar: null,
-  //     initials: 'AL',
-  //     name: 'Adrianna La Cerva (3)',
-  //     description: 'Outgoing call',
-  //     time: '4:33 PM',
-  //     status: 'outgoing',
-  //     backgroundColor: '#E3F2FD',
-  //     textColor: '#2196F3',
-  //   },
-  //   {
-  //     id: 4,
-  //     type: 'call',
-  //     avatar: null,
-  //     initials: 'SA',
-  //     name: 'Shima Alidae',
-  //     description: 'Outgoing call',
-  //     time: '4:33 PM',
-  //     status: 'outgoing',
-  //     backgroundColor: '#E3F2FD',
-  //     textColor: '#2196F3',
-  //   },
-  //   {
-  //     id: 5,
-  //     type: 'message',
-  //     avatar: 'https://images.unsplash.com/photo-1494790108755-2616b812b1e2?w=100&h=100&fit=crop&crop=face',
-  //     initials: null,
-  //     name: 'Chioma Okere',
-  //     description: "Hi Chichi! I'd love to hear more about what...",
-  //     time: 'Yesterday',
-  //     status: 'instagram',
-  //     platform: 'instagram',
-  //     backgroundColor: null,
-  //     textColor: null,
-  //   },
-  //   {
-  //     id: 6,
-  //     type: 'message',
-  //     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-  //     initials: null,
-  //     name: 'Sade Adu',
-  //     description: "Hi Chichi! I'd love to hear more about what...",
-  //     time: 'Yesterday',
-  //     status: 'telegram',
-  //     platform: 'telegram',
-  //     backgroundColor: null,
-  //     textColor: null,
-  //   },
-  //   {
-  //     id: 7,
-  //     type: 'message',
-  //     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-  //     initials: null,
-  //     name: 'Viv Ubochi',
-  //     description: "I'm Vivian! My first investment...",
-  //     time: 'Yesterday',
-  //     status: 'facebook',
-  //     platform: 'facebook',
-  //     backgroundColor: null,
-  //     textColor: null,
-  //     unread: 2,
-  //   },
-  //   {
-  //     id: 8,
-  //     type: 'message',
-  //     avatar: 'https://images.unsplash.com/photo-1494790108755-2616b812b1e2?w=100&h=100&fit=crop&crop=face',
-  //     initials: null,
-  //     name: 'Chioma Okere',
-  //     description: "Hi Chichi! I'd love to hear more about what...",
-  //     time: 'Yesterday',
-  //     status: 'instagram',
-  //     platform: 'instagram',
-  //     backgroundColor: null,
-  //     textColor: null,
-  //   },
-  // ];
 
+    useEffect(() => {
+    let cancelled = false;
+
+    const fetchConversations = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/communication/contacts/', {
+          params: {
+            page_size:10,
+            call_logs: true, // backend will start honoring this later
+          },
+        });
+
+        const results = Array.isArray(res?.data?.results) ? res.data.results : [];
+        const mapped = results.map(transformContactToActivity);
+        if (!cancelled) setActivities(mapped);
+      } catch (err) {
+        console.warn('Failed to load conversations', err?.message || err);
+        handleApiError(err);
+        if (!cancelled) setActivities([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchConversations();
+    return () => { cancelled = true; };
+  }, []);
+  
   const getPlatformIcon = (platform) => {
     switch (platform) {
       case 'instagram':
@@ -270,25 +172,20 @@ const RecentActivities = ({ navigation }) => {
       console.log('Call pressed:', activity);
     } else {
       // Handle message item press
-      console.log('Message pressed:', activity);
-       const contactId = activity.customer_id || activity.lead_id;
-    const name = activity.name;
-    const image = activity.profile_pic;
-    const channel = activity.channel; // { image: url }
-    const text = activity.lastMessageText;
+      const contactId = activity.id; // contact endpoint gives you the contact id directly
 
-    navigation.navigate('ConversationScreen', {
-      contactId,                     // 👈 same key your MessageList expects
-      contact: {
-        id: contactId,
-        name,
-        image,
-        channel,
-        lastMessageData: { content: text },
-        last_message_at: activity.rawTimestamp,
-      },
-      conversationId: activity.conversation_id,
-    });
+  navigation.navigate('ConversationScreen', {
+    contactId,
+    contact: {
+      id: contactId,
+      name: activity.name,
+      image: activity.profile_pic,
+      channel: activity.channel, // { image: url }
+      lastMessageData: { content: activity.lastMessageText },
+      last_message_at: activity.rawTimestamp,
+    },
+    conversationId: activity.conversation_id,
+  });
     }
   };
 
@@ -321,7 +218,7 @@ const RecentActivities = ({ navigation }) => {
       </ImageBackground>
 
       {/* Activities List */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {activities.map((activity) => (
           <TouchableOpacity
             key={activity.id}
@@ -346,7 +243,7 @@ const RecentActivities = ({ navigation }) => {
                     styles.activityDescriptionText,
                     activity.status === 'missed' && styles.missedCallText
                   ]}
-                  numberOfLines={1}
+                   numberOfLines={1}
                   ellipsizeMode="tail"
                   >
                     {activity.description}
@@ -386,6 +283,7 @@ const RecentActivities = ({ navigation }) => {
 
           </TouchableOpacity>
         ))}
+        <View style={{ height: 24 }} />
       </ScrollView>
     </View>
   );
@@ -425,6 +323,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 13,
     paddingBottom: 50
+  },
+    scrollContent: {
+    paddingBottom: 50, // ✅ pushes content above the bottom edge
   },
   activityItem: {
     flexDirection: 'row',

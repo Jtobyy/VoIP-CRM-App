@@ -16,7 +16,7 @@ import Avatar from '../../../components/Avatar';
 import { useAuth } from '../../../hooks/useAuth';
 import { useApi } from '../../../hooks/useApi';
 import { useLoading } from '../../../hooks/useLoading';
-
+import Clipboard from '@react-native-clipboard/clipboard';
 
 const More = ({ navigation }) => {
   const { logout } = useAuth();
@@ -148,8 +148,9 @@ const fetchUserProfile = async () => {
   };
   
 
-  const handleCopyNumber = () => {
+  const handleCopyNumber = (phoneNumber) => {
     // Handle copy to clipboard functionality
+    Clipboard.setString(phoneNumber || '');
     Alert.alert('Copied', 'Phone number copied to clipboard');
   };
 
@@ -236,7 +237,7 @@ const fetchUserProfile = async () => {
               <Text style={styles.phoneLabel}>MY NATIVETALK NUMBER</Text>
               <TouchableOpacity 
                 style={styles.phoneNumberContainer}
-                onPress={handleCopyNumber}
+                onPress={()=>handleCopyNumber(user?.phone_number)}
               >
                 <Text style={styles.phoneNumber}>{user?.phone_number || 'N/A'}</Text>
                 <FontAwesome6 

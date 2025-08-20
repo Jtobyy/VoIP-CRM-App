@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSnackbar } from './useSnackbar';
 import axios from 'axios';
 import {formatPhoneNumber} from '../utils/phone'
+import {getFcmTokenForLogin} from '../firebase/getTokenforLogin'
 
 const AuthContext = createContext();
 
@@ -62,15 +63,37 @@ export const AuthProvider = ({ children }) => {
     }
   };  
 
+  const fetchInvitePermission = async (userId, accessToken) => {
+  try {
+    const res = await axios.get(
+      `https://staging.core.nativetalkcrm.com/api/users/check-permission/${userId}/`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'User-Domain': 'tech4mation', // keep whatever you already send
+        },
+      }
+    );
+    return !!res?.data?.has_permission;
+  } catch (err) {
+    console.error('Permission check failed:', err?.response?.status, err?.response?.data);
+    return false; // safe default
+  }
+};
+
+
   const login = async (username, password, navigation) => {
     try {
       const formattedPhone = formatPhoneNumber(username);
+      const { token: fcmToken, platform } = await getFcmTokenForLogin({ timeoutMs: 1500 });
       console.log('username ', formattedPhone)
       console.log('password ', password)
+      console.log('fcm token ', fcmToken)
 
       const res = await axios.post('https://staging.core.nativetalkcrm.com/api/auth/mobile/signin/', {
         phone_number: formattedPhone,
         password,
+        fcm_token: fcmToken,
       },{
            headers: {
             'User-Domain': '+2349167523634',
@@ -98,9 +121,16 @@ export const AuthProvider = ({ children }) => {
 
     // === Case B: verified and tokens present ===
     if (data?.access) {
-      setUser(data);
+      const invitePerm = await fetchInvitePermission(data.user_id, data.access);
+      const userPayload = {
+       ...data,
+           permissions: {
+             inviteUsers: invitePerm,
+          },
+     };
+      setUser(userPayload);
       setIsAuthenticated(true);
-      await AsyncStorage.setItem('user', JSON.stringify(data));
+      await AsyncStorage.setItem('user', JSON.stringify(userPayload));
       fetchCompanyDetails(data.access);
       showSnackbar('Login successful!', 'success');
       return { success: true };
@@ -126,7 +156,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, company, isAuthenticated, loading, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, company, isAuthenticated, loading, login, logout, setUser,  canInviteUsers: !!user?.permissions?.inviteUsers, }}>
       {children}
     </AuthContext.Provider>
   );

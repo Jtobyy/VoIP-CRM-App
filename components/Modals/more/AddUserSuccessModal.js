@@ -10,6 +10,7 @@ const AddUserSuccessModal = ({
   message,
   // onSendSMS,
   // onSendWhatsApp,
+  onShare,
   onCopy,
   onAddAnother,
   onCancel,
@@ -46,6 +47,15 @@ const AddUserSuccessModal = ({
               {inviteMethod === 'sms' ? `Send SMS to ${phone}` : `Send WhatsApp Message to ${phone}`}
             </Text>
           </TouchableOpacity> */}
+          <TouchableOpacity style={styles.shareButton} onPress={onShare}>
+             <FontAwesome6
+                name="share-from-square"
+                size={18}
+               color="#111"
+                style={{ marginRight: 6 }}
+            />
+            <Text style={styles.shareButtonText}>Share via…</Text>
+         </TouchableOpacity>
 
           {/* New ghost action */}
           <TouchableOpacity style={styles.ghostButton} onPress={onCopy}>
@@ -164,4 +174,23 @@ ghostButtonText: {
   fontSize: 15,
   fontWeight: '500',
 },
+shareRow: {
+  width: '100%',
+  marginBottom: 6,
+  alignItems: 'center',
+  justifyContent: 'center',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F6F6F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: '#EEE',
+},
+shareIcon: { width: 18, height: 18, resizeMode: 'contain' },
+  shareButtonText: { fontSize: 15, fontWeight: '600', color: '#111' },
 });

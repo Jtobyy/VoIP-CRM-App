@@ -19,7 +19,7 @@ import { useLoading } from '../../../hooks/useLoading';
 import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
 import Clipboard from '@react-native-clipboard/clipboard';
-
+import { Share, Linking, Platform } from 'react-native';
 // const normalizeForWhatsApp = (phone) => (phone || '').replace(/\D/g, '').replace(/^0+/, '');
 
 // const launchSMS = async (phone, text) => {
@@ -91,6 +91,17 @@ const handleAddUser = async () => {
   }
 };
 
+  const handleShare = async () => {
+    try {
+      // Generic, cross-app share sheet
+      await Share.share({
+        message: inviteMessage || '',
+        title: 'User Invitation',
+      });
+    } catch (e) {
+      console.warn('Share error:', e?.message);
+    }
+  };
 
 
   return (
@@ -201,6 +212,7 @@ const handleAddUser = async () => {
            message={inviteMessage}
           //  onSendSMS={() => launchSMS(phone, inviteMessage)}
           //  onSendWhatsApp={() => launchWhatsApp(phone, inviteMessage)}
+          onShare={handleShare}
           onCopy={() => handleCopyMessage(inviteMessage)}
            onAddAnother={() => {
               setShowSuccessModal(false);

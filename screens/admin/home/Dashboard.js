@@ -65,6 +65,7 @@ const RANGE_OPTIONS = [
 
 const AdminDashboard = ({ navigation }) => {
   const {company} = useAuth()
+  const { canInviteUsers } = useAuth();
   console.log('company:',company)
   // const activeCustomers = ['CL', 'AL', 'O', 'AL', 'AS'];
   // const recentActivities = [
@@ -339,9 +340,13 @@ const handleActivityPress = (item) => {
             <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
             <Text style={styles.statValue}>{stats?.total_users}</Text>
           </TouchableOpacity>
+          {
+            canInviteUsers && (
           <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
             <Text style={styles.addUserText}>Invite users</Text>
           </TouchableOpacity>
+            )
+          }
         </View>
 
         {/* Recent Activities */}
