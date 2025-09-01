@@ -14,17 +14,48 @@ import { ErrorProvider } from './hooks/useError';
 import { WebSocketProvider } from './hooks/useWebSocket';
 import {initFcm} from './firebase/fcm'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ensureAndroidChannel, attachForegroundHandler } from './firebase/notification';
+import messaging from '@react-native-firebase/messaging';
+
+// Add this import or type definition for NormalizedNotification
+type NormalizedNotification = {
+  [key: string]: any;
+};
 
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+
   useEffect(() => {
-  let unsub: undefined | (() => void);
-  (async () => {
-    unsub = await initFcm(); // safe: no-ops until Firebase is configured
-  })();
-  return () => unsub && unsub();
-}, []);
+    let unsubFcm: undefined | (() => void);
+    let unsubOnMessage: undefined | (() => void);
+
+    (async () => {
+      await ensureAndroidChannel(); // Android channel once
+      unsubFcm = await initFcm();   // your existing init
+      unsubOnMessage = attachForegroundHandler((normalized: NormalizedNotification) => {
+        // Optional: update badge counts / in-app list
+        // console.log('[Notif] Foreground received:', normalized);
+      });
+    })();
+
+    // Taps from background -> foreground
+    const unsubOpened = messaging().onNotificationOpenedApp((rm) => {
+      routeByType(rm?.data || {});
+    });
+
+    // Taps from quit state
+    (async () => {
+      const initial = await messaging().getInitialNotification();
+      if (initial) routeByType(initial?.data || {});
+    })();
+
+    return () => {
+      unsubFcm?.();
+      unsubOnMessage?.();
+      unsubOpened();
+    };
+  }, []);
 
   return (
     <>
@@ -48,3 +79,17 @@ function App() {
 }
 
 export default App;
+
+ function routeByType(d: Record<string, string | object>) {
+  switch (d.notification_type) {
+    case 'new_message':
+      // navigationRef.current?.navigate('ChatThread', { leadId: Number(d.lead_id) });
+      break;
+    case 'task_assigned':
+      // navigationRef.current?.navigate('TaskDetails', { id: Number(d.task_id) });
+      break;
+    default:
+      // navigationRef.current?.navigate('Notifications');
+      break;
+  }
+}

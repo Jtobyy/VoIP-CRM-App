@@ -104,6 +104,11 @@ const OTPVerification = ({ navigation, route }) => {
 
       try {
 
+    const isPasswordReset = flowType === 'passwordReset';
+    const verifyUrl = isPasswordReset
+      ? 'https://staging.core.nativetalkcrm.com/api/auth/mobile/forgot-password/verify-otp/'
+      : 'https://staging.core.nativetalkcrm.com/api/auth/mobile/verify-otp/';
+
       const payload =  {
           otp: enteredOtp,
           phone_number: phoneNumber,
@@ -112,18 +117,24 @@ const OTPVerification = ({ navigation, route }) => {
         payload.company_name = companyName
       }
 
-      const res = await axios.post(
-        'https://staging.core.nativetalkcrm.com/api/auth/mobile/verify-otp/',
-        payload
-      );
+      const res = await axios.post(verifyUrl,payload);
 
-      if (res?.status === 201 && res?.data?.success) {
+      if ((res?.status === 200 || res?.status === 201) && res?.data?.success) {
           if (flowType === 'login') {
         // For login flow, just log them in right away using the same credentials
              console.log('Attemptin login with phone:',phoneNumber, 'and password:',password)
              await login(phoneNumber, password);
              return; // login() shows success + navigates as usual
          }
+         
+      if (isPasswordReset) {
+        // Go to "ForgotPassword" (CreateNewPassword), pass needed params
+        navigation.navigate('ForgotPassword', {
+          phoneNumber,
+          flowType: 'passwordReset',
+        });
+        return;
+      }
 
         navigation.navigate('AccountCreated',{
           phoneNumber,

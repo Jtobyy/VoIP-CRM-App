@@ -11,7 +11,8 @@ import {
   ScrollView,
   Keyboard,
   ImageBackground,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  ActivityIndicator
 } from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -44,12 +45,17 @@ const MessagesList = ({ navigation }) => {
   const filteredMessages = messagesData.filter((message) => {
     const matchesSearch =
       message.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.text?.toLowerCase().includes(searchTerm.toLowerCase());
+      message.lastMessageData.content?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });  
 
+  const [nextUrl, setNextUrl] = useState(null);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const onEndReachedCalledDuringMomentum = useRef(false);
+
   useEffect(() => {
-    fetchMessages();
+   fetchMessages({ reset: true  });
   }, [selectedChannel]);
 
 
@@ -109,23 +115,78 @@ const MessagesList = ({ navigation }) => {
     fetchChannelsData();
   }, []);
 
-  const fetchMessages = async () => {
-    setLoading(true);
-    try {
-      let endpoint = `/communication/contacts/?page=1&page_size=15`;
-      if (selectedChannel && selectedChannel.id) {
-        endpoint += `&channel_id=${selectedChannel.id}`;
+  const buildFirstPageEndpoint = () => {
+    let endpoint = `/communication/contacts/?page=1&page_size=15`;
+    if (selectedChannel?.id) endpoint += `&channel_id=${selectedChannel.id}`;
+    return endpoint;
+  };
+
+  const mergeUniqueById = (prev, incoming) => {
+    const map = new Map();
+    prev.forEach((it) => map.set(it.id, it));
+    incoming.forEach((it) => {
+      const existing = map.get(it.id);
+      // prefer the newer last_message_at / newer fields if present
+      if (!existing) {
+        map.set(it.id, it);
+      } else {
+        const newer =
+          (it.last_message_at && existing.last_message_at &&
+            new Date(it.last_message_at) > new Date(existing.last_message_at)) ? it : existing;
+        map.set(it.id, { ...existing, ...newer });
       }
-      const response = await api.get(endpoint);
-      setMessagesData(response.data.results);
-      setIsEmpty(response.data.results.length === 0);
+    });
+    return Array.from(map.values());
+  };
+
+  // --- DATA FETCHERS ---
+  const fetchMessages = async ({ reset = false } = {}) => {
+    const endpoint = buildFirstPageEndpoint();
+    if (reset) {
+      setLoading(true);
+      setNextUrl(null);
+    }
+    try {
+      const res = await api.get(endpoint);
+      const { results = [], next = null } = res.data || {};
+      setMessagesData(results);
+      setIsEmpty(results.length === 0);
+      setNextUrl(next);
     } catch (error) {
       handleApiError(error);
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
     }
   };
 
+  const fetchNextPage = async () => {
+    if (!nextUrl || isFetchingMore) return;
+    // optional: don’t paginate during search since list is filtered
+    if (searchTerm.trim()) return;
+
+    setIsFetchingMore(true);
+    try {
+      // axios can fetch absolute URLs; if your api client enforces baseURL only,
+      // swap to: await api.get(nextUrl.replace(api.defaults.baseURL, ''))
+      const res = await api.get(nextUrl);
+      const { results = [], next = null } = res.data || {};
+      setMessagesData((prev) => mergeUniqueById(prev, results));
+      setNextUrl(next);
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchMessages({ reset: true });
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const fetchChannelsData = async () => {
 		try {
 		  const allChannelsResponse = await api.get("/channels/all/");
@@ -180,6 +241,24 @@ const MessagesList = ({ navigation }) => {
         </View>
       </TouchableOpacity>
     )};
+
+  const ListFooter = () => {
+    if (isFetchingMore) {
+      return (
+        <View style={{ paddingVertical: 16 }}>
+          <ActivityIndicator />
+        </View>
+      );
+    }
+    if (!nextUrl && messagesData.length > 0) {
+      return (
+        <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+          <Text style={{ color: '#777' }}>No more messages</Text>
+        </View>
+      );
+    }
+    return null;
+  };
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
@@ -319,6 +398,20 @@ const MessagesList = ({ navigation }) => {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+                 refreshing={refreshing}
+            onRefresh={onRefresh}
+            // NEW: infinite scroll
+            onEndReachedThreshold={0.5}
+            onMomentumScrollBegin={() => {
+              onEndReachedCalledDuringMomentum.current = false;
+            }}
+            onEndReached={() => {
+              if (!onEndReachedCalledDuringMomentum.current) {
+                onEndReachedCalledDuringMomentum.current = true;
+                fetchNextPage();
+              }
+            }}
+            ListFooterComponent={<ListFooter />}
           />
         )}
 
