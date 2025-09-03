@@ -95,6 +95,7 @@ const MessagesList = ({ navigation }) => {
               unread: true,
               unreadCount: 1,
             };
+            console.log('Inserting new chat item:',newItem)
 
             return [newItem, ...prevMessages];
           }

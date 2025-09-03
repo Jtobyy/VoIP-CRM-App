@@ -8,6 +8,8 @@ import { useApi } from '../../../hooks/useApi';
 import { useLoading } from '../../../hooks/useLoading';
 import { useError } from '../../../hooks/useError';
 import {formatChatTime} from '../../../utils/timeUtils'
+import { useUnread } from '../../shared/notifications/UnreadProvider';
+import { BellButton } from '../../../components/Bell';
 
 const PREVIEW_LEN = 80;
 const cleanPreview = (s = '') =>
@@ -246,17 +248,7 @@ const handleActivityPress = (item) => {
             </TouchableOpacity>
 
               {/* Bell (your bell.png already has the red dot) */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Notifications')}
-              style={styles.bellBtn}
-              hitSlop={{top:10,left:10,bottom:10,right:10}}
-             >
-             <Image
-                 source={require('../../../assets/bell.png')}
-                 style={{ width: 22, height: 22 }}
-                 resizeMode="contain"
-              />
-           </TouchableOpacity>
+            <BellButton style={styles.BellButton} hitSlop={{top:10,left:10,bottom:10,right:10}} navigation={navigation}/>
            </View>
         </View>
 

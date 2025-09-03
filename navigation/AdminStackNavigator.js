@@ -14,6 +14,7 @@ import EditCustomer from '../screens/shared/customers/EditCustomer';
 import EditProfile from '../screens/shared/more/EditProfile';
 import UserDetails from '../screens/shared/more/UserDetails';
 import EditUser from '../screens/shared/more/EditUser';
+import Notifications from '../screens/shared/notifications/Notification';
 
 const Stack = createNativeStackNavigator();
 
@@ -37,6 +38,8 @@ const AdminStackNavigator = () => {
 
       <Stack.Screen name="EditProfile" component={EditProfile} />
       <Stack.Screen name="EditUser" component={EditUser} />
+
+       <Stack.Screen name="Notifications" component={Notifications} />
     </Stack.Navigator>
   );
 };

@@ -7,6 +7,8 @@ import messaging from '@react-native-firebase/messaging';
 import App from './App';
 import { name as appName } from './app.json';
 import { showLocalBanner, normalizeFCM } from './firebase/notification';
+import { incrementUnread, getUnreadCount } from './screens/shared/notifications/unread';
+import notifee from '@notifee/react-native';
 
 // Called when a message arrives while app is backgrounded/killed.
 // If backend sends notification+data, OS shows tray notif automatically.
@@ -22,6 +24,13 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
       data: remoteMessage?.data || {},
     });
   }
+
+    // Update unread & badge (regardless of system vs data-only)
+  try {
+    await incrementUnread(1);
+    const n = await getUnreadCount();
+    await notifee.setBadgeCount(n); // iOS & supported Android launchers
+  } catch {}
 });
 
 AppRegistry.registerComponent(appName, () => App);

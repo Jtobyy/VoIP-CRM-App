@@ -16,6 +16,9 @@ import {initFcm} from './firebase/fcm'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ensureAndroidChannel, attachForegroundHandler } from './firebase/notification';
 import messaging from '@react-native-firebase/messaging';
+import { UnreadProvider } from './screens/shared/notifications/UnreadProvider';
+import { incrementUnread, getUnreadCount } from './screens/shared/notifications/unread';
+import { useUnread } from './screens/shared/notifications/UnreadProvider';
 
 // Add this import or type definition for NormalizedNotification
 type NormalizedNotification = {
@@ -25,6 +28,7 @@ type NormalizedNotification = {
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+  const { setUnreadCountState } = useUnread();
 
   useEffect(() => {
     let unsubFcm: undefined | (() => void);
@@ -33,9 +37,13 @@ function App() {
     (async () => {
       await ensureAndroidChannel(); // Android channel once
       unsubFcm = await initFcm();   // your existing init
-      unsubOnMessage = attachForegroundHandler((normalized: NormalizedNotification) => {
+      unsubOnMessage = attachForegroundHandler(async(normalized: NormalizedNotification) => {
         // Optional: update badge counts / in-app list
         // console.log('[Notif] Foreground received:', normalized);
+        await incrementUnread(1);
+        // 2) Update in-memory state so the bell dot reacts immediately
+        const n = await getUnreadCount();
+        setUnreadCountState(n);
       });
     })();
 
@@ -64,11 +72,13 @@ function App() {
         <SnackbarProvider>
           <AuthProvider>
             <ErrorProvider>
+               <UnreadProvider>
                 <WebSocketProvider>
                    <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
                    <AppNavigator />
                    <Loader />
                 </WebSocketProvider>
+                </UnreadProvider>
             </ErrorProvider>
           </AuthProvider>
         </SnackbarProvider>
