@@ -15,6 +15,8 @@ import EditProfile from '../screens/shared/more/EditProfile';
 import UserDetails from '../screens/shared/more/UserDetails';
 import EditUser from '../screens/shared/more/EditUser';
 import Notifications from '../screens/shared/notifications/Notification';
+import AddFunds from '../screens/shared/more/AddFunds';
+import PaystackCheckout from '../screens/shared/more/PaystackCheckout';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +42,9 @@ const AdminStackNavigator = () => {
       <Stack.Screen name="EditUser" component={EditUser} />
 
        <Stack.Screen name="Notifications" component={Notifications} />
+
+       <Stack.Screen name="AddFunds" component={AddFunds} />
+       <Stack.Screen name="PaystackCheckout" component={PaystackCheckout} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 };
