@@ -254,53 +254,84 @@ export function CallProvider({ children }) {
 
   const sendDTMFActive      = useCallback(async (d) => { const id = getActiveId(); if (id) await sendDTMF(id, d); }, [getActiveId, sendDTMF]);
 
-  // ---- boot + listeners ONCE; auto-register with hardcoded config ----
   useEffect(() => {
     let subs = [];
     (async () => {
       await startEndpoint();
       if (!account) { try { await register(); } catch {} }
-
-      subs = [
-        endpoint.on('registration_changed', (acc) => {
-          console.log("registration changed", acc)
-          setRegistration(acc?.registration || null);
-          if (acc?.registration?.status === 'Failed') {
-            Alert.alert('Registration Failed', acc.registration.reason || 'Unknown');
-          }
-        }),
-        endpoint.on('incoming_call', (call) => {
-          console.log('call is incoming')
-          setCurrentCall(call);
-          setCallStatus('Incoming');
-          resetDuration();
-        }),
-        endpoint.on('call_changed', (call) => {
-          console.log('call changed to ', call)
-          if (call._state == "PJSIP_INV_STATE_CONFIRMED") {
-            setCallStatus('In progress');
-            startDuration()
-
-            console.log("call is now outgoing")
-            return
-          }
-
-          setCurrentCall(call);
+  
+      // --- handlers (single funcs used by both iOS/Android event names) ---
+      const onRegChanged = (acc) => {
+        // acc may be Account or raw; be defensive:
+        const reg = acc?.getRegistration?.().toJson?.() ?? acc?.registration ?? acc;
+        console.log('registration account ', acc)
+        console.log('registration ', reg)
+        setRegistration(reg || null);
+        if ((reg?.status === 'Failed') || (reg?.statusText === 'Failed')) {
+          Alert.alert('Registration Failed', reg?.reason || reg?.statusText || 'Unknown');
+        }
+      };
+  
+      const onCallReceived = (call) => {
+        // incoming ringing
+        setCurrentCall(call);
+        setCallStatus('Incoming');
+        resetDuration();
+        // iOS: make sure audio is ready
+        endpoint.activateAudioSession?.().catch(() => {});
+      };
+  
+      const onCallChanged = (call) => {
+        // progress / connected / etc
+        setCurrentCall(call);
+        console.log('call changed ', call)
+        if (call?._state === 'PJSIP_INV_STATE_CONFIRMED') {
+          setCallStatus('In progress');
+          startDuration();
+        } else if (call?._state === 'PJSIP_INV_STATE_CONNECTING') {
+          setCallStatus('Connecting…');
+        } else if (call?._state === 'PJSIP_INV_STATE_EARLY') {
+          setCallStatus('Ringing…');
+        } else {
           setCallStatus('Dialing...');
-          if (call.state === 'PJSIP_INV_STATE_DISCONNECTED') clearTimer();
-        }),
-        endpoint.on('call_terminated', (call) => {
-          setCallStatus('Ended');
-          setCurrentCall(null);
+        }
+        if (call?._state === 'PJSIP_INV_STATE_DISCONNECTED') {
+          // let terminated handler clean up
           clearTimer();
-        }),
+        }
+      };
+  
+      const onCallTerminated = (call) => {
+        setCallStatus('Ended');
+        setCurrentCall(null);
+        clearTimer();
+        // optional: end tone already handled in your hangup()
+      };
+  
+      // --- subscribe to BOTH naming schemes ---
+      subs = [
+        // Registration
+        endpoint.on('pjSipRegistrationChanged', onRegChanged),
+        endpoint.on('registration_changed',     onRegChanged),
+  
+        // Incoming
+        endpoint.on('pjSipCallReceived', onCallReceived),
+        endpoint.on('incoming_call',     onCallReceived),
+  
+        // State changes
+        endpoint.on('pjSipCallChanged',  onCallChanged),
+        endpoint.on('call_changed',      onCallChanged),
+  
+        // Terminated
+        endpoint.on('pjSipCallTerminated', onCallTerminated),
+        endpoint.on('call_terminated',     onCallTerminated),
       ];
     })();
-
+  
     return () => subs.forEach(s => { try { s?.remove?.(); } catch {} });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once
-
+  }, []);
+  
   const value = {
     // Expose read-only config
     sipConfig: SIP_CFG,
