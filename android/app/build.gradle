@@ -119,3 +119,10 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+def googleServicesFile = file("$projectDir/google-services.json")
+if (googleServicesFile.exists()) {
+  apply plugin: "com.google.gms.google-services"
+} else {
+  println "⚠️ google-services.json not found. Skipping Google Services plugin."
+}

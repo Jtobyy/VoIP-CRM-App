@@ -13,15 +13,102 @@ import {
 import AuthHeader from '../../components/AuthHeader';
 import { colors, typography } from '../../styles/global';
 import AuthFooter from '../../components/AuthFooter';
-
+import {formatPhoneNumber} from '../../utils/phone'
+import axios from 'axios';
+import { Alert, ActivityIndicator } from 'react-native';
 
 const PersonalInfo = ({ navigation }) => {
   const [businessName, setBusinessName] = useState('Eze & Sons NG LTD');
   const [phoneNumber, setPhoneNumber] = useState('+234 803 567 0547');
 
-  const handleProceed = () => {
-    navigation.navigate('OTPVerification', { phoneNumber: phoneNumber, flowType: 'signup' });
-  };
+  const [touched, setTouched] = useState({
+  businessName: false,
+  phoneNumber: false,
+  password: false,
+  confirmPassword: false,
+});
+const [errors, setErrors] = useState({});
+const [showFormBanner, setShowFormBanner] = useState(false);
+const [submitting, setSubmitting] = useState(false);
+
+   const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+    // Password requirements validation
+    const meetsRequirements = {
+      length: password.length >= 8,
+      hasNumberOrSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?0-9]/.test(password),
+    };
+   const passwordsMatch = password === confirmPassword && password !== '';
+    const allFilled =
+    businessName.trim().length > 1 &&
+    phoneNumber.trim().length > 0 &&
+    password.length > 0 &&
+    confirmPassword.length > 0;
+  
+    const isValid = allFilled && meetsRequirements.length && meetsRequirements.hasNumberOrSymbol && passwordsMatch;
+    
+    const getValidationErrors = () => {
+  const e = {};
+  if (!businessName.trim()) e.businessName = 'Business name is required.';
+  if (!phoneNumber.trim()) e.phoneNumber = 'Phone number is required.';
+  if (!password) e.password = 'Password is required.';
+  if (!confirmPassword) e.confirmPassword = 'Please confirm your password.';
+
+  if (password && !meetsRequirements.length) e.password = 'Password must be at least 8 characters.';
+  if (password && !meetsRequirements.hasNumberOrSymbol) e.password = 'Include at least one number or symbol.';
+  if (password && confirmPassword && !passwordsMatch) e.confirmPassword = 'Passwords do not match.';
+
+  return e;
+};
+  
+
+  const handleProceed = async () => {
+  const vErrors = getValidationErrors();
+  setErrors(vErrors);
+  setTouched({ businessName: true, phoneNumber: true, password: true, confirmPassword: true });
+
+  if (Object.keys(vErrors).length > 0) {
+    setShowFormBanner(true);
+    return;
+  }
+  setShowFormBanner(false);
+
+  if (!isValid) return;
+
+  try {
+    setSubmitting(true);
+    console.log('[Proceed] submitting…');
+    
+    const formattedPhone = formatPhoneNumber(phoneNumber);
+    const res = await axios.post(
+      'https://staging.core.nativetalkcrm.com/api/auth/mobile/register/',
+      { phone_number: formattedPhone, password }
+    );
+    console.log('Phone number:',formatPhoneNumber,'Password:',password)
+    console.log('[Proceed] response:', res?.status, res?.data);
+
+    if (res?.data?.success) {
+      navigation.navigate('OTPVerification', {
+        phoneNumber: formattedPhone,
+        companyName: businessName.trim(),
+        password,
+        flowType: 'signup',
+      });
+    } else {
+      Alert.alert('Sign up', res?.data?.message || 'Failed to send OTP.');
+    }
+  } catch (err) {
+    console.log('[Proceed] error:', err?.response || err);
+    const msg = err?.response?.data?.message || err?.message || 'Failed to send OTP.';
+    Alert.alert('Sign up', msg);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
   const handleSignIn = () => {
     navigation.navigate('Login');
@@ -37,7 +124,7 @@ const PersonalInfo = ({ navigation }) => {
         totalSteps={3}
         onBack={() => navigation.goBack()}
       />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}  keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, typography.heading1]}>Personal</Text>
@@ -53,9 +140,14 @@ const PersonalInfo = ({ navigation }) => {
             value={businessName}
             onChangeText={setBusinessName}
             placeholder="Enter your business name"
+            onBlur={() => setTouched(s => ({...s, businessName: true}))}
             editable={true} // Assuming this is pre-filled and not editable
           />
+          {(touched.businessName && errors.businessName) && (
+  <Text style={styles.errorText}>{errors.businessName}</Text>
+)}
         </View>
+        
 
         {/* Phone Number Input */}
         <View style={styles.inputContainer}>
@@ -65,21 +157,104 @@ const PersonalInfo = ({ navigation }) => {
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             placeholder="Enter your phone number"
+            onBlur={() => setTouched(s => ({...s, phoneNumber: true}))}
             keyboardType="phone-pad"
             editable={true} // Assuming this is pre-filled and not editable
           />
+          {(touched.phoneNumber && errors.phoneNumber) && (
+  <Text style={styles.errorText}>{errors.phoneNumber}</Text>
+)}
         </View>
 
         {/* Verification Note */}
         <Text style={styles.note}>
           We will be sending a 4 digit verification code to the number provided
         </Text>
+        
+                {/* Password Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Password</Text>
+                  <View style={styles.passwordInputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      placeholder="Enter your password"
+                      autoCapitalize="none"
+                      onBlur={() => setTouched(s => ({...s, password: true}))}
+                    />
+                    <TouchableOpacity 
+                      style={styles.showButton}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <Text style={styles.showButtonText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+{(touched.password && errors.password) && (
+  <Text style={styles.errorText}>{errors.password}</Text>
+)}
+                </View>
+
+<View style={styles.requirementsContainer}>
+            <View style={styles.requirementItem}>
+              <Text style={styles.requirementText}>Must not contain your name or email</Text>
+            </View>
+            <View style={styles.requirementItem}>
+              <Text style={[styles.requirementText, meetsRequirements.length && styles.requirementMet]}>
+                At least 8 characters
+              </Text>
+            </View>
+            <View style={styles.requirementItem}>
+              <Text style={[styles.requirementText, meetsRequirements.hasNumberOrSymbol && styles.requirementMet]}>
+                Contains a symbol or a number
+              </Text>
+            </View>
+          </View>
+
+                
+        
+                {/* Confirm Password Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Confirm Password</Text>
+                  <View style={styles.passwordInputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry={!showConfirmPassword}
+                      placeholder="Confirm your password"
+                      autoCapitalize="none"
+                      onBlur={() => setTouched(s => ({...s, confirmPassword: true}))}
+                    />
+                    <TouchableOpacity 
+                      style={styles.showButton}
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      <Text style={styles.showButtonText}>{showConfirmPassword ? 'Hide' : 'Show'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {(touched.confirmPassword && errors.confirmPassword) && (
+  <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+)}
+                </View>
 
         {/* Proceed Button */}
-        <TouchableOpacity style={styles.proceedButton} onPress={handleProceed}>
-          <Text style={styles.proceedButtonText}>Proceed</Text>
-        </TouchableOpacity>
-
+       <TouchableOpacity
+             style={[
+                 styles.proceedButton,
+                (!isValid || submitting) && styles.disabledButton
+                ]}
+               onPress={handleProceed}
+                 disabled={!isValid || submitting}
+               >
+             {submitting ? (
+                   <ActivityIndicator />
+                ) : (
+                 <Text style={styles.proceedButtonText}>Proceed</Text>
+               )}
+          </TouchableOpacity>
         {/* Sign In Link */}
         <View style={styles.signInContainer}>
           <Text style={styles.signInText}>Already have an account? </Text>
@@ -87,7 +262,7 @@ const PersonalInfo = ({ navigation }) => {
             <Text style={styles.signInLink}>Sign in</Text>
           </TouchableOpacity>
         </View>
-
+       <View style={{ height: 140 }} />
         <AuthFooter />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -123,6 +298,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
+    flex: 1,
     height: 50,
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -135,7 +311,7 @@ const styles = StyleSheet.create({
   note: {
     fontSize: 14,
     color: colors.secondary,
-    marginBottom: 60,
+    marginBottom: 20,
     textAlign: 'start',
   },
   proceedButton: {
@@ -144,7 +320,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 20,
   },
   proceedButtonText: {
     color: '#FFFFFF',
@@ -165,6 +341,48 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     fontWeight: '500',
   },
+   showButton: {
+    position: 'absolute',
+    right: 16,
+  },
+  showButtonText: {
+    color: colors.gray,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+   passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  errorText: {
+  marginTop: 6,
+  fontSize: 12,
+  color: '#D92D20', // red
+},
+disabledButton: {
+    opacity: 0.6,
+  },
+requirementsContainer: {
+    marginBottom: 32,
+  },
+  requirementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  requirementIcon: {
+    marginRight: 8,
+  },
+  requirementText: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  requirementMet: {
+    color: '#6CBE45',
+    fontWeight: '500',
+  },
+  
 });
 
 export default PersonalInfo;

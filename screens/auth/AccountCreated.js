@@ -3,13 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '../../styles/global';
 import { useAuth } from '../../hooks/useAuth';
 
-const AccountCreated = ({ navigation }) => {
+const AccountCreated = ({ navigation,route }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const { login, isAuthenticated } = useAuth();
+  const {
+    phoneNumber = '',
+    password='',
+  } = route.params || {};
 
   const handleContinue = async () => {
     setIsLoading(true);
-    const success = await login('any-username', 'any-password');
+    const success = await login(phoneNumber,password);
     setIsLoading(false);
     
     console.log('success value:', success); // Add this to debug

@@ -7,6 +7,21 @@ import { colors } from '../styles/global';
 
 const AddCommentModal = React.forwardRef((props, ref) => {
   const [comment, setComment] = useState('');
+   const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    const text = comment.trim();
+    if (!text || saving) return;
+
+    try {
+      setSaving(true);
+      await props.onSave?.(text);      // let parent do the API call
+      setComment('');                  // reset composer
+      ref?.current?.close();           // close the sheet
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Modalize
@@ -14,6 +29,7 @@ const AddCommentModal = React.forwardRef((props, ref) => {
       adjustToContentHeight
       handleStyle={{ backgroundColor: '#ddd' }}
       modalStyle={styles.modal}
+      onClosed={() => setComment('')}
     >
       <View style={styles.content}>
         <Text style={styles.title}>Add Comment</Text>
@@ -31,12 +47,16 @@ const AddCommentModal = React.forwardRef((props, ref) => {
         <Text style={styles.charCount}>{comment.length}/300</Text>
 
         <View style={styles.buttonRow}>
-          <TouchableOpacity onPress={() => ref.current?.close()}>
+          <TouchableOpacity onPress={() => ref?.current?.close()} disabled={saving}>
             <Text style={styles.cancel}>Cancel</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.saveButton}>
-            <Text style={styles.saveText}>Save</Text>
+          <TouchableOpacity 
+          style={[styles.saveButton, (!comment.trim() || saving) && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={!comment.trim() || saving}
+          >
+            <Text style={styles.saveText}>{saving ? 'Saving…' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
       </View>

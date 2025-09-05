@@ -16,36 +16,70 @@ import AuthFooter from '../../components/AuthFooter';
 import AuthHeader from '../../components/AuthHeader';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useLoading } from '../../hooks/useLoading';
+import axios from 'axios';
+import { useError } from '../../hooks/useError'
+import {formatPhoneNumber} from '../../utils/phone'
 
 
 const { width } = Dimensions.get('window');
 
 const Login = ({ navigation }) => {
   const { login, isAuthenticated } = useAuth();
+  const {company} = useAuth()
   const [username, setUsername] = React.useState('0803 567 0547');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const { showSnackbar } = useSnackbar();
+  const {handleApiError} = useError()
 
   const { setLoading } = useLoading();
 
 
-  const handleLogin = async () => {
+const handleLogin = async () => {
+  try {
     setLoading(true);
-    const success = await login(username, password);
+    await login(username, password, navigation); // login() shows its own toasts
+  } finally {
     setLoading(false);
-    
-    // This alert should never show now
-    if (!success) {
-      showSnackbar('Invalid credentials. Please try again.', 'error');
-    } else {
-      showSnackbar('Login successful!', 'success');
-    }
-  };
+  }
+};
 
-  const handleForgotPassword = () => {
-    navigation.navigate('OTPVerification', {phoneNumber: '820429482938', flowType: 'passwordReset'});
-  };
+ const handleForgotPassword = async () => {
+  if (!username || username.trim() === '') {
+    showSnackbar('Phone number is required.', 'error');
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const formattedPhone = formatPhoneNumber(username);
+
+    const res = await axios.post(
+      'https://staging.core.nativetalkcrm.com/api/auth/mobile/forgot-password/send-otp/',
+      { phone_number: formattedPhone },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if (res?.data?.success) {
+      showSnackbar(res.data.message || 'OTP sent to your phone number.', 'success');
+
+      navigation.navigate('OTPVerification', {
+        phoneNumber: formattedPhone,
+        flowType: 'passwordReset',
+      });
+    }
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      showSnackbar('No account associated with this phone number.', 'error');
+    } else {
+      showSnackbar(err?.response?.data || 'Failed to reset password!', 'error');
+      handleApiError(err);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleCreateAccount = () => {
     navigation.navigate('PersonalInfo');

@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "157793231187",
+    "project_id": "nativetalk-business",
+    "storage_bucket": "nativetalk-business.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157793231187:android:9d2072b6e4949dde5c81a6",
+        "android_client_info": {
+          "package_name": "app.nativetalk.business"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "157793231187-05l2r4dk886ne30l4gvhb3b8r4h7drqn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAASfVwxPeU8jritOwRnwcFSYaSGzCVrRw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "157793231187-05l2r4dk886ne30l4gvhb3b8r4h7drqn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157793231187:android:043ed8ba1a875a7e5c81a6",
+        "android_client_info": {
+          "package_name": "com.nativetalkbusiness"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "157793231187-05l2r4dk886ne30l4gvhb3b8r4h7drqn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAASfVwxPeU8jritOwRnwcFSYaSGzCVrRw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "157793231187-05l2r4dk886ne30l4gvhb3b8r4h7drqn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

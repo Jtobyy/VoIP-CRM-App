@@ -27,7 +27,10 @@ import SpinningIcon from '../../../components/SpiningIcon';
 
 
 const ConversationScreen = ({ route, navigation }) => {
-  const { contactId, contact } = route.params;
+  const params = route.params || {};
+  const contactId = params.contactId;
+  const seedContact = params.contact || null;
+  const [contact, setContact] = useState(seedContact);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [layoutReady, setLayoutReady] = useState(false);
   const flatListRef = useRef(null);
@@ -53,6 +56,43 @@ const ConversationScreen = ({ route, navigation }) => {
       }, 100);
     }
   }, [messages.length, layoutReady]);
+
+useEffect(() => {
+    if (contact || !messages || !messages.length) return;
+
+    // Prefer a message that references this lead/customer; otherwise first message
+    const m =
+      messages.find(
+        (msg) =>
+          msg?.lead_receiver_details?.id === contactId ||
+          msg?.lead_sender_details?.id === contactId ||
+          msg?.customer_receiver_details?.id === contactId ||
+          msg?.customer_sender_details?.id === contactId
+      ) || messages[0];
+
+    const details =
+      m?.lead_receiver_details ||
+      m?.lead_sender_details ||
+      m?.customer_receiver_details ||
+      m?.customer_sender_details ||
+      {};
+
+    const derived = {
+      id: contactId,
+      name:
+        details?.name ||
+        details?.first_name ||
+        details?.unique_identifier ||
+        params?.contact?.name ||
+        'Unknown',
+      image: details?.profileImage || details?.image || null,
+      channel: m?.channel || details?.channel || null,
+      lastMessageData: { content: m?.content || '' },
+      last_message_at: m?.created_at,
+    };
+
+    setContact(derived);
+  }, [messages, contactId, contact, params?.contact?.name]);
 
   const downloadFile = async (fileUrl, fileName) => {
     try {

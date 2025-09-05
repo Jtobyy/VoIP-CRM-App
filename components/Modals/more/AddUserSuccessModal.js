@@ -3,38 +3,74 @@ import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '../../../styles/global';
 import {FontAwesome6} from '@react-native-vector-icons/fontawesome6';
 
-const AddUserSuccessModal = ({ visible, onAddAnother, onCancel }) => {
+const AddUserSuccessModal = ({
+  visible,
+  inviteMethod,  // 'sms' | 'whatsapp'
+  // phone,
+  message,
+  // onSendSMS,
+  // onSendWhatsApp,
+  onShare,
+  onCopy,
+  onAddAnother,
+  onCancel,
+}) => {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          {/* Close icon */}
+
           <TouchableOpacity style={styles.closeIcon} onPress={onCancel}>
             <Text style={styles.closeText}>×</Text>
           </TouchableOpacity>
 
-          {/* Success Icon */}
           <View style={styles.iconCircle}>
             <FontAwesome6 name="check" iconStyle='solid' size={32} color="#22C55E" />
           </View>
 
-          {/* Texts */}
-          <Text style={styles.successText}>Success!</Text>
-          <Text style={styles.subText}>A mail will be sent to you within the next 24hrs</Text>
+          <Text style={styles.successText}>Invitation created</Text>
+          <Text style={styles.subText}>
+            Share the invite using the options below.
+          </Text>
 
-          {/* Buttons */}
+          {/* Your green primary button reused */}
           <TouchableOpacity style={styles.addButton} onPress={onAddAnother}>
             <Text style={styles.addButtonText}>Add another user</Text>
           </TouchableOpacity>
 
+          {/* New secondary action
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={inviteMethod === 'sms' ? onSendSMS : onSendWhatsApp}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {inviteMethod === 'sms' ? `Send SMS to ${phone}` : `Send WhatsApp Message to ${phone}`}
+            </Text>
+          </TouchableOpacity> */}
+          <TouchableOpacity style={styles.shareButton} onPress={onShare}>
+             <FontAwesome6
+                name="share-from-square"
+                size={18}
+               color="#111"
+                style={{ marginRight: 6 }}
+            />
+            <Text style={styles.shareButtonText}>Share via…</Text>
+         </TouchableOpacity>
+
+          {/* New ghost action */}
+          <TouchableOpacity style={styles.ghostButton} onPress={onCopy}>
+            <Text style={styles.ghostButtonText}>Copy message</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={onCancel}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>Done</Text>
           </TouchableOpacity>
         </View>
       </View>
     </Modal>
   );
 };
+
 
 export default AddUserSuccessModal;
 
@@ -96,4 +132,65 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 16,
   },
+  messagePreview: {
+  width: '100%',
+  backgroundColor: '#F6F6F6',
+  borderRadius: 12,
+  padding: 12,
+  marginBottom: 16,
+  borderWidth: 1,
+  borderColor: '#EEE',
+},
+messagePreviewText: {
+  fontSize: 13,
+  color: '#333',
+},
+
+secondaryButton: {
+  backgroundColor: '#E7F7E1',        // matches your active invite state
+  paddingVertical: 14,
+  paddingHorizontal: 30,
+  borderRadius: 12,
+  marginBottom: 12,
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: colors.primary,
+},
+secondaryButtonText: {
+  color: colors.primary,
+  fontWeight: '600',
+  fontSize: 16,
+},
+
+ghostButton: {
+  paddingVertical: 12,
+  paddingHorizontal: 30,
+  borderRadius: 12,
+  marginBottom: 8,
+  alignItems: 'center',
+},
+ghostButtonText: {
+  color: '#333',
+  fontSize: 15,
+  fontWeight: '500',
+},
+shareRow: {
+  width: '100%',
+  marginBottom: 6,
+  alignItems: 'center',
+  justifyContent: 'center',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F6F6F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: '#EEE',
+},
+shareIcon: { width: 18, height: 18, resizeMode: 'contain' },
+  shareButtonText: { fontSize: 15, fontWeight: '600', color: '#111' },
 });

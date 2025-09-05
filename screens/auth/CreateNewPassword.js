@@ -14,16 +14,72 @@ import { colors, containers } from '../../styles/global';
 import { typography } from '../../styles/global';
 import AuthFooter from '../../components/AuthFooter';
 import AuthHeader from '../../components/AuthHeader';
+import { useSnackbar } from '../../hooks/useSnackbar';
+import { useLoading } from '../../hooks/useLoading';
+import axios from 'axios';
+import { useError } from '../../hooks/useError'
 
 const CreateNewPassword = ({ navigation, route }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+   const { showSnackbar } = useSnackbar();
+    const {handleApiError} = useError()
   
-  const handleSubmit = () => {
-    // Add password validation and update logic here
-    navigation.navigate('PasswordChanged');
+    const { setLoading } = useLoading();
+     const { phoneNumber = '', flowType = 'passwordReset' } = route.params || {};
+  
+ const handleSubmit = async () => {
+    // basic guards
+    if (!phoneNumber) {
+      showSnackbar('Missing phone number. Please restart the reset flow.', 'error');
+      return;
+    }
+    if (!meetsRequirements.length || !meetsRequirements.hasNumberOrSymbol) {
+      showSnackbar('Password must be at least 8 characters and include a number or symbol.', 'error');
+      return;
+    }
+    if (!passwordsMatch) {
+      showSnackbar('Passwords do not match.', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const res = await axios.post(
+        'https://staging.core.nativetalkcrm.com/api/auth/mobile/forgot-password/change-password/',
+        {
+          phone_number: phoneNumber,
+          new_password: password,
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      if ([200, 201].includes(res?.status) && res?.data?.success) {
+        showSnackbar(res?.data?.message || 'Password changed successfully.', 'success');
+        navigation.navigate('PasswordChanged', {
+          phoneNumber,
+          flowType, // keep passing in case you need it there
+        });
+      } else {
+        showSnackbar('Could not change password. Please try again.', 'error');
+      }
+    } catch (err) {
+      // server may return 400 with a useful error string
+      const specific =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.response?.data?.detail;
+      if (specific) {
+        showSnackbar(specific, 'error');
+      } else {
+        handleApiError(err);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignIn = () => {

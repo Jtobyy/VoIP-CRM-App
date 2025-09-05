@@ -9,10 +9,42 @@ import {
   Image,
   ImageBackground,
   ScrollView,
+  Alert
 } from 'react-native';
 import { colors } from '../../../styles/global';
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
 import AddUserSuccessModal from '../../../components/Modals/more/AddUserSuccessModal';
+import {formatPhoneNumber} from '../../../utils/phone'
+import { useLoading } from '../../../hooks/useLoading';
+import { useApi } from '../../../hooks/useApi';
+import { useError } from '../../../hooks/useError';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { Share, Linking, Platform } from 'react-native';
+// const normalizeForWhatsApp = (phone) => (phone || '').replace(/\D/g, '').replace(/^0+/, '');
+
+// const launchSMS = async (phone, text) => {
+//   const number = phone?.trim();
+//   const body = encodeURIComponent(text || '');
+//   const url = Platform.select({
+//     ios: `sms:${number}&body=${body}`,
+//     android: `sms:${number}?body=${body}`,
+//   });
+//   const can = await Linking.canOpenURL(url);
+//   if (can) return Linking.openURL(url);
+//   return Share.share({ message: text || '' });
+// };
+
+// const launchWhatsApp = async (phone, text) => {
+//   const waPhone = normalizeForWhatsApp(phone);
+//   const msg = encodeURIComponent(text || '');
+//   const primary = `whatsapp://send?phone=${waPhone}&text=${msg}`;
+//   const fallback = `https://wa.me/${waPhone}?text=${msg}`;
+//   if (await Linking.canOpenURL(primary)) return Linking.openURL(primary);
+//   if (await Linking.canOpenURL(fallback)) return Linking.openURL(fallback);
+//   return Share.share({ message: text || '' });
+// };
+
+// const copyToClipboard = (text) => Clipboard.setString(text || '');
 
 
 const AddUser = ({ navigation }) => {
@@ -21,13 +53,56 @@ const AddUser = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [inviteMethod, setInviteMethod] = useState('sms'); // sms or whatsapp
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const { handleApiError } = useError();
+   const { loading,setLoading } = useLoading();
+    const { api } = useApi();
+   const phone = formatPhoneNumber(phoneNumber)
+   const handleCopyMessage = (text) => {
+       Clipboard.setString(text || '');
+      Alert.alert('Copied', 'Message copied successfully');
+    };
 
-
-  const handleAddUser = () => {
-    // submit user creation logic
-    console.log({ firstName, lastName, phoneNumber, inviteMethod });
+  const [inviteMessage, setInviteMessage] = useState('');
+const canSubmit = phoneNumber.trim().length > 0 && !loading;
+const handleAddUser = async () => {
+  setLoading(true);
+ 
+  if (!phone) {
+    // use your snackbar/toast if available
+    console.warn('Please enter a phone number');
+    return;
+  }
+  try { 
+    const payload = {  
+       'first_name':firstName.trim(),
+       'last_name':lastName.trim(),
+        phone
+     };
+    console.log('Sending invite to ',payload);
+    const res = await api.post('/users/invitations/send/mobile/', payload);
+    const messageFromServer = res?.data?.content || '';
+    setInviteMessage(messageFromServer);
     setShowSuccessModal(true);
+  } catch (err) {
+    console.error('Invite error:', err?.response?.data || err?.message);
+    handleApiError(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleShare = async () => {
+    try {
+      // Generic, cross-app share sheet
+      await Share.share({
+        message: inviteMessage || '',
+        title: 'User Invitation',
+      });
+    } catch (e) {
+      console.warn('Share error:', e?.message);
+    }
   };
+
 
   return (
     <View style={styles.container}>
@@ -104,7 +179,7 @@ const AddUser = ({ navigation }) => {
             onPress={() => setInviteMethod('whatsapp')}
           >
             {/* <FontAwesome6 name="whatsapp" size={18} iconStyle='solid' color={inviteMethod === 'whatsapp' ? colors.primary : '#000'} /> */}
-            <image
+            <Image
                   source={require('../../../assets/wa.png')} 
                   style={styles.infoIcon}
                   resizeMode="contain"
@@ -122,23 +197,34 @@ const AddUser = ({ navigation }) => {
         </View>
 
         {/* Add Button */}
-        <TouchableOpacity style={styles.addButton} onPress={handleAddUser}>
-          <Text style={styles.addButtonText}>Add</Text>
+        <TouchableOpacity
+            style={[styles.addButton, (!canSubmit || loading) && { opacity: 0.5 }]}
+            onPress={handleAddUser}
+            disabled={!canSubmit || loading}
+        >
+            <Text style={styles.addButtonText}>{loading ? 'Sending...' : 'Add'}</Text>
         </TouchableOpacity>
 
         <AddUserSuccessModal
-          visible={showSuccessModal}
-          onAddAnother={() => {
-            setShowSuccessModal(false);
-            setFirstName('');
-            setLastName('');
-            setPhoneNumber('');
-            setInviteMethod('sms');
-          }}
-          onCancel={() => {
-            setShowSuccessModal(false);
-            navigation.goBack(); // or keep user on same page
-          }}
+           visible={showSuccessModal}
+           inviteMethod={inviteMethod}
+          //  phone={phoneNumber}
+           message={inviteMessage}
+          //  onSendSMS={() => launchSMS(phone, inviteMessage)}
+          //  onSendWhatsApp={() => launchWhatsApp(phone, inviteMessage)}
+          onShare={handleShare}
+          onCopy={() => handleCopyMessage(inviteMessage)}
+           onAddAnother={() => {
+              setShowSuccessModal(false);
+              setFirstName('');
+              setLastName('');
+              setPhoneNumber('');
+              setInviteMethod('sms');
+         }}
+           onCancel={() => {
+              setShowSuccessModal(false);
+              navigation.goBack();
+           }}
         />
 
       </ScrollView>

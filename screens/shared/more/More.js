@@ -1,4 +1,4 @@
-import React from 'react';
+import React,{useState,useEffect} from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,37 @@ import { colors, typography } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import Avatar from '../../../components/Avatar';
 import { useAuth } from '../../../hooks/useAuth';
-
+import { useApi } from '../../../hooks/useApi';
+import { useLoading } from '../../../hooks/useLoading';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 const More = ({ navigation }) => {
   const { logout } = useAuth();
+   const {company} = useAuth()
+   const [user, setUser] = useState(null);
+   const { api } = useApi();
+   const { setLoading } = useLoading();
+
+  useEffect(() => {
+  fetchUserProfile();
+}, []);
+
+const fetchUserProfile = async () => {
+  setLoading(true);
+  try {
+    const res = await api.get(`/users/me`);
+    const data = res.data.user;
+    console.log('Fetched user data:',data)
+    setUser(data);
+    console.log;('User profile fetched:',data)
+  } catch (error) {
+    console.error('Failed to fetch user profile:', error);
+    
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const userProfile = {
     name: 'Chioma and Sons',
@@ -50,6 +77,14 @@ const More = ({ navigation }) => {
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('Customers'),
+    },
+    {
+      id: 'users',
+      title: 'Users',
+      icon: require('../../../assets/ic_customers.png'),
+      iconColor: '#22C55E',
+      backgroundColor: '#DCFCE7',
+      onPress: () => navigation.navigate('Users'),
     },
     {
       id: 'native-number',
@@ -114,8 +149,9 @@ const More = ({ navigation }) => {
   };
   
 
-  const handleCopyNumber = () => {
+  const handleCopyNumber = (phoneNumber) => {
     // Handle copy to clipboard functionality
+    Clipboard.setString(phoneNumber || '');
     Alert.alert('Copied', 'Phone number copied to clipboard');
   };
 
@@ -179,23 +215,32 @@ const More = ({ navigation }) => {
 
           {/* Profile Section */}
           <View style={styles.profileSection}>
-            <View style={styles.profileImageContainer}>
-              <Image 
-                source={userProfile.profileImage} 
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
-            </View>
+          <View style={styles.profileImageContainer}>
+    {user?.image ? (
+      <Image
+        source={{ uri: user.image }}
+        style={styles.profileImage}
+        resizeMode="cover"
+      />
+    ) : (
+      <View style={styles.avatarFallback}>
+        <Text style={styles.avatarText}>
+          {`${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}`.toUpperCase()}
+        </Text>
+      </View>
+    )}
+  </View>
+
             
-            <Text style={styles.profileName}>{userProfile.name}</Text>
+            <Text style={styles.profileName}>{company?.name}</Text>
             
             <View style={styles.phoneContainer}>
               <Text style={styles.phoneLabel}>MY NATIVETALK NUMBER</Text>
               <TouchableOpacity 
                 style={styles.phoneNumberContainer}
-                onPress={handleCopyNumber}
+                onPress={()=>handleCopyNumber(user?.phone_number)}
               >
-                <Text style={styles.phoneNumber}>{userProfile.phone}</Text>
+                <Text style={styles.phoneNumber}>{user?.phone_number || 'N/A'}</Text>
                 <FontAwesome6 
                   name="copy" 
                   size={16} 
@@ -397,6 +442,23 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+   avatarContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  avatarFallback: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#E7F7E1',
+},
+
 });
 
 export default More;

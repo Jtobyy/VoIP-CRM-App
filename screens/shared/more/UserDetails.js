@@ -11,18 +11,15 @@ import {
   StatusBar,
   TouchableWithoutFeedback,
   Keyboard,
-  Modal,
-  Alert
+  Modal
 } from 'react-native';
 import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
-import AddCommentModal from '../../../components/AddCommentModal';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApi } from '../../../hooks/useApi'
 import { useLoading } from '../../../hooks/useLoading';
 import { useError } from '../../../hooks/useError';
-import {useSnackbar} from '../../../hooks/useSnackbar'
-import Clipboard from '@react-native-clipboard/clipboard';
+import { useSnackbar } from '../../../hooks/useSnackbar';
 
 const icons = {
   'Missed call': require('../../../assets/missed.png'),
@@ -30,39 +27,18 @@ const icons = {
   'Outgoing call': require('../../../assets/outgoing.png'),
 };
 
-const CustomerDetails = ({ route,navigation }) => {
+const UserDetails = ({ route,navigation }) => {
   const [showFilterMenu, setShowFilterMenu] = React.useState(false);
-  const { customerId } = route.params;
+  const { userId } = route.params;
   const { setLoading } = useLoading();
   const { handleApiError } = useError();
   const { api } = useApi();
-  const addCommentRef = useRef(null);
-  const [customer, setCustomer] = useState(null);
-  const [comments, setComments] = useState([]);
-
+  const [user, setUser] = useState(null);
+  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-     const { showSnackbar } = useSnackbar();
 
-  // const contact = {
-  //   initials: 'AF',
-  //   name: 'Adedoyin Folakemi',
-  //   phone: '+234 803 567 0547',
-  //   altPhone: '+234 803 567 0547',
-  //   email: 'Adedoyinfolakemi22@gmail.com',
-  //   company: 'Folakemi Souvenirs LTD',
-  //   callHistory: [
-  //     { date: 'Tue, January, 26', type: 'Missed call', time: '10:43 AM' },
-  //     { date: 'Thu, January, 23', type: 'Incoming call', time: '5:30 PM', duration: '6 minutes' },
-  //     { date: 'Wed, December, 21', type: 'Outgoing call', time: '12:00 AM', duration: '43 seconds' },
-  //     { date: 'Tue, January, 26', type: 'Outgoing call', time: '2:33 PM', duration: '1 minute' },
-  //     { date: 'Tue, January, 26', type: 'Outgoing call', time: '4:55 PM', duration: '17 minutes' },
-  //   ],
-  //   comments: [
-  //     { date: 'MON, 24TH SEPT.', text: "I'd love to hear more about what we can do for you...", time: '10:00AM' },
-  //     { date: 'WED, 19TH SEPT.', text: "I'd love to hear more about what we can do for you...", time: '10:00AM' },
-  //   ]
-  // };
+   const { showSnackbar } = useSnackbar();
 
   const dismissKeyboardAndMenu = () => {
     Keyboard.dismiss();
@@ -70,30 +46,34 @@ const CustomerDetails = ({ route,navigation }) => {
   };
 
   useEffect(() => {
-  const fetchCustomerDetails = async () => {
+  const fetchUserDetails = async () => {
     setLoading(true);
     try {
-      const [customerRes, commentRes] = await Promise.all([
-        api.get(`/customers/${customerId}/`),
-        api.get('/comments/', { params: { model: 'customer', object_id: customerId } })
-      ]);
-
-      setCustomer(customerRes?.data?.customer || null);
-      setComments(commentRes?.data?.comments || []);
+      const {data} = await api.get(`/users/${userId}`)
+      console.log('data.user',data.user)
+      setUser(data?.user);
     } catch (err) {
+       const status = err?.response?.status;
+      if (status === 403) {
+        // show a friendly message, then leave
+        showSnackbar('You do not have permission to view this user.', 'error');
+          // tiny delay so the toast renders before screen pops
+          setTimeout(() => navigation.goBack(), 300);
+          return;
+      }
       handleApiError(err);
     } finally {
       setLoading(false);
     }
   };
 
-  fetchCustomerDetails();
-}, [customerId]);
+  fetchUserDetails();
+}, [userId]);
 
-const deleteCustomers = async()=>{
+const deleteUser = async()=>{
    setShowDeleteModal(false);
   try {
-  const res = await api.delete(`/customers/${customerId}/`);
+  const res = await api.delete(`/users/${userId}/`);
 
   // If it somehow throws, but the delete still works:
   if (!res || res.status === 204) {
@@ -102,7 +82,7 @@ const deleteCustomers = async()=>{
 } catch (error) {
   if (
     error?.message === 'Network Error' &&
-    error?.config?.url?.includes('/customers/')
+    error?.config?.url?.includes('/users/')
   ) {
     // assume delete succeeded
     setShowSuccessModal(true);
@@ -112,52 +92,9 @@ const deleteCustomers = async()=>{
 }
 }
 
- const saveComment = async (text) => {
-    try {
-      setLoading(true);
-      const res = await api.post('/comments/', {
-        model: 'customer',
-        object_id: customerId,
-        content: text,
-      });
-
-      // Try to extract the created comment
-      const payload = res?.data;
-      const created =
-        payload?.comment ??            // case: { comment: {...} }
-        payload?.data ??               // case: { data: {...} }
-        payload;                       // case: {...comment fields...}
-
-      if (created && created.id) {
-        setComments(prev => [created, ...prev]);
-      } else {
-        // Fallback: refetch list if backend doesn't return the item
-        const list = await api.get('/comments/', {
-          params: { model: 'customer', object_id: customerId },
-        });
-        setComments(Array.isArray(list?.data?.results) ? list.data.results : (list?.data || []));
-      }
-
-      showSnackbar('Comment added', 'success');
-    } catch (err) {
-      handleApiError(err);
-      console.error('Failed to add comment:',err)
-      showSnackbar('Failed to add comment', 'error');
-      throw err; // keeps modal button from resetting if you want different handling
-    } finally {
-      setLoading(false);
-    }
-  };
-
-   const handleCopyNumber = (phoneNumber) => {
-      // Handle copy to clipboard functionality
-      Clipboard.setString(phoneNumber || '');
-      Alert.alert('Copied', 'Phone number copied to clipboard');
-    };
 
   return (
-    <>
-      <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
+    <TouchableWithoutFeedback onPress={dismissKeyboardAndMenu}>
     <ScrollView style={styles.container}>
       <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
 
@@ -170,7 +107,7 @@ const deleteCustomers = async()=>{
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Icon name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-        <Text style={styles.headerTitle}>Customer info</Text>
+        <Text style={styles.headerTitle}>User info</Text>
         <TouchableOpacity onPress={() => setShowFilterMenu(!showFilterMenu)}>
           <FontAwesome6 
             name="ellipsis-vertical" 
@@ -184,40 +121,37 @@ const deleteCustomers = async()=>{
 
       {showFilterMenu && (
           <View style={styles.popupMenu}>
-            <TouchableOpacity style={styles.popupMenuItem} onPress={()=>navigation.navigate('EditCustomer', { customerId: customerId })}>
+            <TouchableOpacity style={styles.popupMenuItem} onPress={()=>navigation.navigate('EditUser', { userId: userId })}>
               <Text style={styles.popupMenuText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-            style={styles.popupMenuItem}
-             onPress={()=>handleCopyNumber(customer?.phone_number || 'N/A')}
-            >
+            <TouchableOpacity style={styles.popupMenuItem}>
               <Text style={styles.popupMenuText}>Copy number</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.popupMenuItem} onPress={() =>  setShowDeleteModal(true)}>
-              <Text style={styles.popupMenuText}>Delete customer</Text>
+              <Text style={styles.popupMenuText}>Delete User</Text>
             </TouchableOpacity>
           </View>
         )}
 
       {/* Avatar */}
      <View style={styles.avatarContainer}>
-  {customer?.image ? (
-    <Image source={{ uri: customer.image }} style={styles.avatarImage} />
+  {user?.image ? (
+    <Image source={{ uri: user.image }} style={styles.avatarImage} />
   ) : (
     <View style={styles.avatarCircle}>
       <Text style={styles.avatarText}>
-        {`${customer?.first_name?.[0] || ''}${customer?.last_name?.[0] || ''}`.toUpperCase()}
+        {`${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}`.toUpperCase()}
       </Text>
     </View>
   )}
-  <Text style={styles.customerName}>{`${customer?.first_name || ''} ${customer?.last_name || ''}`.trim()}</Text>
+  <Text style={styles.customerName}>{`${user?.first_name || ''} ${user?.last_name || ''}`.trim()}</Text>
 </View>
 
       {/* Info */}
       <View style={styles.infoRow}>
         <View>
           <Text style={styles.label}>Phone number</Text>
-          <Text style={styles.value}>{customer?.phone_number || 'N/A'}</Text>
+          <Text style={styles.value}>{user?.phone_number || 'N/A'}</Text>
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
@@ -228,24 +162,11 @@ const deleteCustomers = async()=>{
       </View>
 
       {/* Alt phone number */}
-      <View style={styles.infoRow}>
-        <View>
-          <Text style={styles.label}>Username</Text>
-          <Text style={styles.value}>{customer?.username || 'N/A'}</Text>
-        </View>
-        <TouchableOpacity style={styles.iconWrapper}>
-          <Image
-            source={require('../../../assets/ic_moreprofile.png')} 
-            style={styles.iconImage}
-          />
-        </TouchableOpacity>
-      </View>
-
       {/* Email address */}
       <View style={styles.infoRow}>
         <View>
           <Text style={styles.label}>Email address</Text>
-          <Text style={styles.value}>{customer?.email || 'N/A'}</Text>
+          <Text style={styles.value}>{user?.email || 'N/A'}</Text>
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
@@ -259,7 +180,7 @@ const deleteCustomers = async()=>{
       <View style={styles.infoRow}>
         <View>
           <Text style={styles.label}>Country</Text>
-          <Text style={styles.value}>{customer?.country_name || 'N/A'}</Text>
+          <Text style={styles.value}>{user?.country || 'N/A'}</Text>
         </View>
         <TouchableOpacity style={styles.iconWrapper}>
           <Image
@@ -304,7 +225,7 @@ const deleteCustomers = async()=>{
                 <View style={styles.modalContainer}>
                   <View style={styles.confirmationModal}>
                     <Text style={styles.modalTitle}>
-                      Delete Customer?
+                      Delete User?
                     </Text>
                     
                     <View style={styles.modalButtons}>
@@ -317,7 +238,7 @@ const deleteCustomers = async()=>{
                       
                       <TouchableOpacity 
                         style={[styles.modalButton, styles.deleteButton]}
-                        onPress={deleteCustomers}
+                        onPress={deleteUser}
                       >
                         <Text style={styles.deleteButtonText}>Delete</Text>
                       </TouchableOpacity>
@@ -341,7 +262,7 @@ const deleteCustomers = async()=>{
                     <FontAwesome6 name="circle-check" iconStyle='solid' size={60} color={colors.primary} />
                     <Text style={styles.successTitle}>Success!</Text>
                     <Text style={styles.successMessage}>
-                      Customer deleted
+                      User deleted
                     </Text>
                     
                     <TouchableOpacity 
@@ -356,55 +277,12 @@ const deleteCustomers = async()=>{
                   </View>
                 </View>
               </Modal>
-
-      {/* Comments */}
-      <View style={styles.commentSection}>
-        <View style={styles.commentHeaderRow}>
-          <Text style={styles.commentHeader}>Comments</Text>
-          <TouchableOpacity
-            style={styles.addCommentInlineButton}
-            onPress={() => addCommentRef.current?.open()}
-          >
-            <Text style={styles.addCommentInlineText}>+ Add comment</Text>
-          </TouchableOpacity>
-
-        </View>
-
-  {comments?.length > 0 ? (
-  comments?.map((comment) => {
-    const date = new Date(comment.created_at).toDateString();
-    const time = new Date(comment.created_at).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    return (
-      <View key={comment.id} style={styles.commentBlock}>
-        <View style={styles.commentMetaRow}>
-          <Text style={styles.commentDate}>{date}</Text>
-          <Text style={styles.commentTime}>{time}</Text>
-        </View>
-        <Text style={styles.commentText}>{comment.content}</Text>
-      </View>
-    );
-  })
-) : (
-  <View style={styles.noCommentsContainer}>
-    <Text style={styles.noCommentsText}>No comments yet.</Text>
-  </View>
-)}
-
-
-      </View>
-    
     </ScrollView>
     </TouchableWithoutFeedback>
-     <AddCommentModal ref={addCommentRef} onSave={saveComment}/>
-    </>
   );
 };
 
-export default CustomerDetails;
+export default UserDetails;
 
 const styles = StyleSheet.create({
   container: {

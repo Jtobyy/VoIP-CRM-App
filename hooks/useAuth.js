@@ -3,6 +3,8 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSnackbar } from './useSnackbar';
 import axios from 'axios';
+import {formatPhoneNumber} from '../utils/phone'
+import {getFcmTokenForLogin} from '../firebase/getTokenforLogin'
 
 const AuthContext = createContext();
 
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchCompanyDetails = async (accessToken) => {
     try {
-      const res = await axios.get(`https://core-staging.nativetalkcrm.com/api/companies/details/`, {
+      const res = await axios.get(`https://staging.core.nativetalkcrm.com/api/companies/details/`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'User-Domain': 'tech4mation',
@@ -61,38 +63,88 @@ export const AuthProvider = ({ children }) => {
     }
   };  
 
-  const login = async (username, password) => {
-    try {
-      console.log('username ', username)
-      console.log('password ', password)
-      console.log('username ', username)
-
-      const res = await axios.post('https://core-staging.nativetalkcrm.com/api/auth/signin/', {
-        email: username,
-        password,
-      }, {
+  const fetchInvitePermission = async (userId, accessToken) => {
+  try {
+    const res = await axios.get(
+      `https://staging.core.nativetalkcrm.com/api/users/check-permission/${userId}/`,
+      {
         headers: {
-          'User-Domain': 'tech4mation',
+          Authorization: `Bearer ${accessToken}`,
+          'User-Domain': 'tech4mation', // keep whatever you already send
         },
+      }
+    );
+    return !!res?.data?.has_permission;
+  } catch (err) {
+    console.error('Permission check failed:', err?.response?.status, err?.response?.data);
+    return false; // safe default
+  }
+};
+
+
+  const login = async (username, password, navigation) => {
+    try {
+      const formattedPhone = formatPhoneNumber(username);
+      const { token: fcmToken, platform } = await getFcmTokenForLogin({ timeoutMs: 1500 });
+      console.log('username ', formattedPhone)
+      console.log('password ', password)
+      console.log('fcm token ', fcmToken)
+
+      const res = await axios.post('https://staging.core.nativetalkcrm.com/api/auth/mobile/signin/', {
+        phone_number: formattedPhone,
+        password,
+        fcm_token: fcmToken,
+      },{
+           headers: {
+            'User-Domain': '+2349167523634',
+             'Content-Type': 'application/json'
+         }
       });
 
-      console.log('res is ', res)
-      const userData = res.data;
-      setUser(userData);
-      setIsAuthenticated(true);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
+       const data = res.data;
+       console.log('Login response:')
+    
+    // === Case A: user is not yet verified ===
+    if (data?.verified === false && !data?.access) {
+      showSnackbar(data?.message || 'OTP sent to your phone number.', 'info');
 
-      if (userData?.access) {
-        fetchCompanyDetails(userData.access);
-      }
+      // IMPORTANT: do not set auth state yet
+      navigation.navigate('OTPVerification', {
+        phoneNumber: formattedPhone,
+        password,         
+        companyName: '',
+        flowType: 'login', // new flow
+      });
 
-      showSnackbar('Login successful!', 'success');
-      return true;
-    } catch (err) {
-      console.log('error is ', err.response)
-      showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
-      return false;
+      return { needsVerification: true };
     }
+
+    // === Case B: verified and tokens present ===
+    if (data?.access) {
+      const invitePerm = await fetchInvitePermission(data.user_id, data.access);
+      const userPayload = {
+       ...data,
+           permissions: {
+             inviteUsers: invitePerm,
+          },
+     };
+      setUser(userPayload);
+      setIsAuthenticated(true);
+      await AsyncStorage.setItem('user', JSON.stringify(userPayload));
+      fetchCompanyDetails(data.access);
+      showSnackbar('Login successful!', 'success');
+      return { success: true };
+    }
+
+    // Unexpected response shape
+    showSnackbar(data?.message || 'Unexpected login response', 'error');
+    return { success: false };
+  } catch (err) {
+    console.error('Login error:',err)
+    console.log('response:', err?.response?.status, err?.response?.data);
+    showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
+    return { success: false, error: err };
+  }
   };
 
   const logout = async () => {
@@ -104,7 +156,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, company, isAuthenticated, loading, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, company, isAuthenticated, loading, login, logout, setUser,  canInviteUsers: !!user?.permissions?.inviteUsers, }}>
       {children}
     </AuthContext.Provider>
   );
