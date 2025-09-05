@@ -22,7 +22,7 @@ const More = ({ navigation }) => {
   const { logout } = useAuth();
    const {company} = useAuth()
    const [user, setUser] = useState(null);
-   const [balance, setBalance] = useState('₦0.00')
+   const [balance, setBalance] = useState('0.00')
    const { api } = useApi();
    const { setLoading } = useLoading();
 
@@ -52,7 +52,7 @@ const fetchWalletBalance = async () => {
   try {
     const res = await api.get(`/billings/wallet/`);
     const data = res.data.wallet;
-    setBalance(data);
+    setBalance(data?.balance);
   } catch (error) {
     console.error('Failed to fetch wallet balance:', error);
   } finally {
@@ -274,7 +274,7 @@ const fetchWalletBalance = async () => {
         <View style={styles.balanceContent}>
           <View>
             <Text style={styles.balanceLabel}>Acct. Balance</Text>
-            <Text style={[typography.heading2, {fontWeight: 'bold'}]}>{`₦${balance.balance}`}</Text>
+            <Text style={[typography.heading2, {fontWeight: 'bold'}]}>{`₦${balance}`}</Text>
           </View>
           <TouchableOpacity 
             style={styles.addFundsButton}

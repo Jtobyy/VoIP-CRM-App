@@ -17,6 +17,7 @@ import EditUser from '../screens/shared/more/EditUser';
 import Notifications from '../screens/shared/notifications/Notification';
 import AddFunds from '../screens/shared/more/AddFunds';
 import PaystackCheckout from '../screens/shared/more/PaystackCheckout';
+import HelpSupport from '../screens/shared/more/HelpSupport';
 
 const Stack = createNativeStackNavigator();
 
@@ -46,6 +47,7 @@ const AgentStackNavigator = () => {
       <Stack.Screen name="AddFunds" component={AddFunds} />
       <Stack.Screen name="PaystackCheckout" component={PaystackCheckout} options={{ headerShown: false }} />
       
+      <Stack.Screen name="HelpSupport" component={HelpSupport}  />
     </Stack.Navigator>
   );
 };
