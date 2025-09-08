@@ -13,6 +13,10 @@ import { colors } from '../../../styles/global';
 import { useLoading } from '../../../hooks/useLoading';
 import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
+import ComingSoonModal from '../../../components/Modals/connectchannels/ComingSoonModal';
+import ConnectWhatsAppModal from '../../../components/Modals/connectchannels/ConnectWhatsAppModal';
+import ConnectLiveChatModal from '../../../components/Modals/connectchannels/ConnectLiveChatModal';
+import ConnectEmailModal from '../../../components/Modals/connectchannels/ConnectEmailModal';
 
 const ConnectChannels = ({ navigation }) => {
   const { setLoading } = useLoading();
@@ -21,6 +25,9 @@ const ConnectChannels = ({ navigation }) => {
 
   const [channels, setChannels] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [activeModal, setActiveModal] = useState(null); 
+  const [selectedChannel, setSelectedChannel] = useState(null);
 
   const fetchChannels = useCallback(async () => {
     try {
@@ -49,14 +56,13 @@ const ConnectChannels = ({ navigation }) => {
   }, [fetchChannels]);
 
   const onConnectPress = (channel) => {
-    // If already connected, maybe navigate to a "Manage" screen
-    // Otherwise, navigate to a "Connect" flow
-    // 🔧 Replace route names below with yours
-    if (channel.connected) {
-      navigation.navigate('ManageChannel', { channelId: channel.id, channel });
-    } else {
-      navigation.navigate('ConnectChannel', { channelId: channel.id, channel });
-    }
+    setSelectedChannel(channel);
+    const name = (channel?.name || '').toLowerCase();
+
+    if (name.includes('email')) return setActiveModal('email');
+    if (name.includes('livechat')) return setActiveModal('livechat');
+    if (name.includes('whatsapp')) return setActiveModal('whatsapp');
+    return setActiveModal('coming');
   };
 
   return (
@@ -130,6 +136,34 @@ const ConnectChannels = ({ navigation }) => {
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
       </ScrollView>
+      <ConnectEmailModal
+        visible={activeModal === 'email'}
+        onClose={() => setActiveModal(null)}
+        api={api}
+        handleApiError={handleApiError}
+      />
+
+      <ConnectLiveChatModal
+        visible={activeModal === 'livechat'}
+        onClose={() => setActiveModal(null)}
+        api={api}
+        handleApiError={handleApiError}
+      />
+
+      <ConnectWhatsAppModal
+        visible={activeModal === 'whatsapp'}
+        onClose={() => setActiveModal(null)}
+        channel={selectedChannel}
+        api={api}
+        handleApiError={handleApiError}
+      />
+
+      <ComingSoonModal
+        visible={activeModal === 'coming'}
+        title="Coming Soon"
+        message="This feature is coming soon!"
+        onClose={() => setActiveModal(null)}
+      />
     </View>
   );
 };

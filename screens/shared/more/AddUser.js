@@ -153,7 +153,7 @@ const handleAddUser = async () => {
           placeholder="Enter phone number"
         />
 
-        <Text style={styles.label}>Select how user receives invite</Text>
+        {/* <Text style={styles.label}>Select how user receives invite</Text>
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={[
@@ -179,7 +179,7 @@ const handleAddUser = async () => {
             onPress={() => setInviteMethod('whatsapp')}
           >
             {/* <FontAwesome6 name="whatsapp" size={18} iconStyle='solid' color={inviteMethod === 'whatsapp' ? colors.primary : '#000'} /> */}
-            <Image
+            {/* <Image
                   source={require('../../../assets/wa.png')} 
                   style={styles.infoIcon}
                   resizeMode="contain"
@@ -194,7 +194,8 @@ const handleAddUser = async () => {
               Whatsapp
             </Text>
           </TouchableOpacity>
-        </View>
+        </View>  */}
+        {/* } */}
 
         {/* Add Button */}
         <TouchableOpacity
