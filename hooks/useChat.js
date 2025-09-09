@@ -13,14 +13,61 @@ const useChat = (leadId) => {
   const [loading, setLoading] = useState(false);
   const { addMessageListener } = useWebSocket();
 
+  // NEW: pagination state
+  const [nextUrl, setNextUrl] = useState(null);     // URL to fetch older messages
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+    // Helper to merge older pages at the TAIL (because list is inverted)
+  const mergeOlder = useCallback((older = []) => {
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const deduped = older.filter((m) => !seen.has(m.id));
+      return [...prev, ...deduped];
+    });
+  }, []);
+
   const loadMessages = useCallback(async () => {
+    if (!leadId) return;
     try {
+      setLoading(true)
       const res = await api.get(`/communication/history/?lead_id=${leadId}`);
-      setMessages(res.data.results);
+      const data = res?.data || {};
+      setMessages(data.results || []);
+      setNextUrl(data.next || null);
+      setHasMore(Boolean(data.next));
     } catch (err) {
       console.error('Failed to load messages', err);
+    } finally {
+      setLoading(false);
     }
   }, [leadId]);
+
+  
+  // NEW: load older (next page) when user reaches top
+  const loadMore = useCallback(async () => {
+    if (!hasMore || !nextUrl || loadingMore) return;
+    try {
+      setLoadingMore(true);
+      const res = await api.get(nextUrl);
+      const data = res?.data || {};
+      mergeOlder(data.results || []);
+      setNextUrl(data.next || null);
+      setHasMore(Boolean(data.next));
+    } catch (err) {
+      console.error('Failed to load older messages', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, nextUrl, loadingMore, mergeOlder]);
+
+  // Reset state whenever thread changes
+  useEffect(() => {
+    setMessages([]);
+    setNextUrl(null);
+    setHasMore(true);
+    loadMessages();
+  }, [leadId, loadMessages]);
 
   const sendMessage = async () => {
     if (!text && !pickedFile) return;
@@ -87,11 +134,6 @@ const useChat = (leadId) => {
     }
   };
 
-  useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
-
-
 useEffect(() => {
   const unsubscribe = addMessageListener((data) => {
     if (data?.type === 'message' && data.message) {
@@ -135,6 +177,8 @@ useEffect(() => {
     sendMessage,
     refresh: loadMessages,
     loading,
+    loadingMore,  
+    loadMore, 
     setPickedFile
   };
 };

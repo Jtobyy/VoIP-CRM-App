@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  ActivityIndicator,
   Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -34,6 +35,8 @@ const ConversationScreen = ({ route, navigation }) => {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [layoutReady, setLayoutReady] = useState(false);
   const flatListRef = useRef(null);
+  const didInitialScrollRef = useRef(false);     
+  const prevTopIdRef = useRef(null);
   const [downloadingFileId, setDownloadingFileId] = useState(null);
 
   const {
@@ -44,18 +47,44 @@ const ConversationScreen = ({ route, navigation }) => {
     sendMessage,
     loading,
     pickedFile,
-    setPickedFile
+    setPickedFile,
+    loadingMore,    
+    loadMore,
   } = useChat(contactId);
 
-  // Ensure FlatList scrolls to bottom when new messages arrive
-  useEffect(() => {
-    if (messages.length > 0 && flatListRef.current && layoutReady) {
-      // Small delay to ensure the FlatList has rendered the new content
-      setTimeout(() => {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      }, 100);
-    }
-  }, [messages.length, layoutReady]);
+ // Initial jump-to-bottom only once (first load)
+useEffect(() => {
+  if (!didInitialScrollRef.current && layoutReady && messages.length > 0) {
+    didInitialScrollRef.current = true;
+    // no animation = no rubber-banding on mount
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }
+}, [layoutReady, messages.length]);
+
+// Auto-jump when the *top* message changes (i.e., sending OR incoming realtime)
+// NOTE: older pagination appends to the TAIL, so messages[0] stays the same → no jump.
+useEffect(() => {
+  if (!layoutReady || !messages?.length) return;
+
+  const topId = messages[0]?.id ?? null;
+
+  // first time we set it and bail
+  if (prevTopIdRef.current === null) {
+    prevTopIdRef.current = topId;
+    return;
+  }
+
+  // If top message changed, that's a *newer* message (send or websocket) → jump to bottom
+  if (topId && topId !== prevTopIdRef.current) {
+    prevTopIdRef.current = topId;
+    // schedule after render to avoid fighting reconciliation
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    });
+  } else {
+    prevTopIdRef.current = topId;
+  }
+}, [messages, layoutReady]);
 
 useEffect(() => {
     if (contact || !messages || !messages.length) return;
@@ -274,6 +303,16 @@ useEffect(() => {
             scrollEventThrottle={16}
             bounces={true}
             alwaysBounceVertical={true}
+
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.15}
+            ListFooterComponent={
+                loadingMore ? (
+                  <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                     <ActivityIndicator />
+                  </View>
+               ) : null
+            }
           />
         </View>
 
