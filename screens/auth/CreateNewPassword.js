@@ -36,10 +36,13 @@ const CreateNewPassword = ({ navigation, route }) => {
       showSnackbar('Missing phone number. Please restart the reset flow.', 'error');
       return;
     }
-    if (!meetsRequirements.length || !meetsRequirements.hasNumberOrSymbol) {
-      showSnackbar('Password must be at least 8 characters and include a number or symbol.', 'error');
-      return;
-    }
+    if (!Object.values(meetsRequirements).every(Boolean)) {
+  showSnackbar(
+    'Password must be at least 8 characters and include uppercase, lowercase, a digit, and a symbol.',
+    'error'
+  );
+  return;
+}
     if (!passwordsMatch) {
       showSnackbar('Passwords do not match.', 'error');
       return;
@@ -88,11 +91,15 @@ const CreateNewPassword = ({ navigation, route }) => {
 
   // Password requirements validation
   const meetsRequirements = {
-    length: password.length >= 8,
-    hasNumberOrSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?0-9]/.test(password),
-  };
+  length: password.length >= 8,
+  hasUppercase: /[A-Z]/.test(password),
+  hasLowercase: /[a-z]/.test(password),
+  hasDigit: /\d/.test(password),
+  hasSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+};
 
   const passwordsMatch = password === confirmPassword && password !== '';
+  const allValid = Object.values(meetsRequirements).every(Boolean) && passwordsMatch;
 
   return (
     <KeyboardAvoidingView
@@ -116,20 +123,37 @@ const CreateNewPassword = ({ navigation, route }) => {
 
           {/* Password Requirements */}
           <View style={styles.requirementsContainer}>
-            <View style={styles.requirementItem}>
-              <Text style={styles.requirementText}>Must not contain your name or email</Text>
-            </View>
-            <View style={styles.requirementItem}>
-              <Text style={[styles.requirementText, meetsRequirements.length && styles.requirementMet]}>
-                At least 8 characters
-              </Text>
-            </View>
-            <View style={styles.requirementItem}>
-              <Text style={[styles.requirementText, meetsRequirements.hasNumberOrSymbol && styles.requirementMet]}>
-                Contains a symbol or a number
-              </Text>
-            </View>
-          </View>
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.length && styles.requirementMet]}>
+      At least 8 characters
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasUppercase && styles.requirementMet]}>
+      Contains an uppercase letter
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasLowercase && styles.requirementMet]}>
+      Contains a lowercase letter
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasDigit && styles.requirementMet]}>
+      Contains a number
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasSymbol && styles.requirementMet]}>
+      Contains a symbol
+    </Text>
+  </View>
+</View>
+
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
@@ -175,14 +199,14 @@ const CreateNewPassword = ({ navigation, route }) => {
 
           {/* Submit Button */}
           <TouchableOpacity 
-            style={[styles.submitButton, !passwordsMatch && styles.disabledButton]}
+             style={[styles.submitButton, (!allValid) && styles.disabledButton]}
             onPress={handleSubmit}
-            disabled={!passwordsMatch}
-          >
-            <Text style={styles.submitButtonText}>
+           disabled={!allValid}
+           >
+         <Text style={styles.submitButtonText}>
               Change Password
-            </Text>
-          </TouchableOpacity>
+          </Text>
+       </TouchableOpacity>
 
           {/* Sign In Link */}
           <View style={styles.signInContainer}>

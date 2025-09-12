@@ -37,29 +37,57 @@ const [submitting, setSubmitting] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
     // Password requirements validation
-    const meetsRequirements = {
-      length: password.length >= 8,
-      hasNumberOrSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?0-9]/.test(password),
-    };
-   const passwordsMatch = password === confirmPassword && password !== '';
-    const allFilled =
-    businessName.trim().length > 1 &&
-    phoneNumber.trim().length > 0 &&
-    password.length > 0 &&
-    confirmPassword.length > 0;
-  
-    const isValid = allFilled && meetsRequirements.length && meetsRequirements.hasNumberOrSymbol && passwordsMatch;
-    
-    const getValidationErrors = () => {
+   const meetsRequirements = {
+  length: password.length >= 8,
+  hasUppercase: /[A-Z]/.test(password),
+  hasLowercase: /[a-z]/.test(password),
+  hasDigit: /\d/.test(password),
+  hasSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+};
+
+const passwordsMatch = password === confirmPassword && password !== '';
+
+const allFilled =
+  businessName.trim().length > 1 &&
+  phoneNumber.trim().length > 0 &&
+  password.length > 0 &&
+  confirmPassword.length > 0;
+
+const isValid =
+  allFilled &&
+  Object.values(meetsRequirements).every(Boolean) &&
+  passwordsMatch;
+
+const getValidationErrors = () => {
   const e = {};
+
   if (!businessName.trim()) e.businessName = 'Business name is required.';
   if (!phoneNumber.trim()) e.phoneNumber = 'Phone number is required.';
-  if (!password) e.password = 'Password is required.';
-  if (!confirmPassword) e.confirmPassword = 'Please confirm your password.';
 
-  if (password && !meetsRequirements.length) e.password = 'Password must be at least 8 characters.';
-  if (password && !meetsRequirements.hasNumberOrSymbol) e.password = 'Include at least one number or symbol.';
-  if (password && confirmPassword && !passwordsMatch) e.confirmPassword = 'Passwords do not match.';
+  if (!password) {
+    e.password = 'Password is required.';
+  } else {
+    // Build a human-friendly combined message for password requirements
+    const reqs = [];
+    if (!meetsRequirements.length) reqs.push('at least 8 characters');
+    if (!meetsRequirements.hasUppercase) reqs.push('an uppercase letter');
+    if (!meetsRequirements.hasLowercase) reqs.push('a lowercase letter');
+    if (!meetsRequirements.hasDigit) reqs.push('a digit');
+    if (!meetsRequirements.hasSymbol) reqs.push('a symbol');
+
+    if (reqs.length) {
+      const lastJoin = reqs.length > 1
+        ? reqs.slice(0, -1).join(', ') + ' and ' + reqs.slice(-1)
+        : reqs[0];
+      e.password = `Password must contain ${lastJoin}.`;
+    }
+  }
+
+  if (!confirmPassword) {
+    e.confirmPassword = 'Please confirm your password.';
+  } else if (password && !passwordsMatch) {
+    e.confirmPassword = 'Passwords do not match.';
+  }
 
   return e;
 };
@@ -198,20 +226,36 @@ const [submitting, setSubmitting] = useState(false);
                 </View>
 
 <View style={styles.requirementsContainer}>
-            <View style={styles.requirementItem}>
-              <Text style={styles.requirementText}>Must not contain your name or email</Text>
-            </View>
-            <View style={styles.requirementItem}>
-              <Text style={[styles.requirementText, meetsRequirements.length && styles.requirementMet]}>
-                At least 8 characters
-              </Text>
-            </View>
-            <View style={styles.requirementItem}>
-              <Text style={[styles.requirementText, meetsRequirements.hasNumberOrSymbol && styles.requirementMet]}>
-                Contains a symbol or a number
-              </Text>
-            </View>
-          </View>
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.length && styles.requirementMet]}>
+      At least 8 characters
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasUppercase && styles.requirementMet]}>
+      Contains an uppercase letter
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasLowercase && styles.requirementMet]}>
+      Contains a lowercase letter
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasDigit && styles.requirementMet]}>
+      Contains a number
+    </Text>
+  </View>
+
+  <View style={styles.requirementItem}>
+    <Text style={[styles.requirementText, meetsRequirements.hasSymbol && styles.requirementMet]}>
+      Contains a symbol
+    </Text>
+  </View>
+</View>
 
                 
         

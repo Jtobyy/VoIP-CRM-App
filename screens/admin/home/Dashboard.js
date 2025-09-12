@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useMemo} from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Image,Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Image,Modal, } from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -10,6 +10,8 @@ import { useError } from '../../../hooks/useError';
 import {formatChatTime} from '../../../utils/timeUtils'
 import { useUnread } from '../../shared/notifications/UnreadProvider';
 import { BellButton } from '../../../components/Bell';
+import { ActivityChartBlock } from '../../../components/ActivityChart';
+import TestBarChat from '../../../components/TestBarChat';
 
 const PREVIEW_LEN = 80;
 const cleanPreview = (s = '') =>
@@ -65,57 +67,54 @@ const RANGE_OPTIONS = [
   // { key: 'custom', label: 'Custom range' }, // wire up later if needed
 ];
 
+// helpers stay the same
+const pctArrow = (v) => (v > 0 ? '▲' : v < 0 ? '▼' : '•');
+const pctNumber = (v) => `${Math.abs(v).toFixed(1)}%`;
+const pctColor = (v) => (v > 0 ? '#16A34A' : v < 0 ? '#DC2626' : '#6B7280');
+
+const AvatarGroup = ({ items = [], max = 5, size = 32, onOverflowPress }) => {
+  const hasOverflow = items.length >= max;                   // show 4 + "+N" when len >= max
+  const visible = hasOverflow ? items.slice(0, max - 1) : items;
+  const extraCount = hasOverflow ? items.length - (max - 1) : 0;
+
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+      {visible.map((it, i) => (
+        <Avatar
+          key={i}
+          name={it?.name || it?.label || `#${i + 1}`}
+          image={it?.icon}
+          size={size}
+          style={{ marginRight: -5, marginBottom: 8 }}
+        />
+      ))}
+
+      {extraCount > 0 && (
+        <TouchableOpacity
+          onPress={onOverflowPress}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={[styles.plusBubble, { width: size, height: size, borderRadius: size / 2 }]}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.plusBubbleText}>{`+${extraCount}`}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+
+
 const AdminDashboard = ({ navigation }) => {
   const {company} = useAuth()
   const { canInviteUsers } = useAuth();
   console.log('company:',company)
-  // const activeCustomers = ['CL', 'AL', 'O', 'AL', 'AS'];
-  // const recentActivities = [
-  //   { 
-  //     id: '1',
-  //     name: '+234 905 332 4369',
-  //     type: 'call',
-  //     text: 'Missed call',
-  //     time: '10:33 PM',
-  //   },
-  //   { 
-  //     id: '2',
-  //     name: 'Shima Alidae',
-  //     type: 'call',
-  //     text: 'Outgoing call',
-  //     time: '4:33 PM',
-  //   },
-  //   { 
-  //     id: '3',
-  //     name: 'Chioma Okere',
-  //     type: 'message',
-  //     channel: 'instagram',
-  //     channel_icon: require('../../../assets/instagram.png'),
-  //     text: 'Hi Chichi! I\'d love to hear more about what...',
-  //     time: 'Yesterday',
-  //     profile_pic: require('../../../assets/sample1.png')
-  //   },
-  //   { 
-  //     id: '4',
-  //     name: 'Sade Adu',
-  //     type: 'message',
-  //     channel: 'telegram',
-  //     channel_icon: require('../../../assets/telegram.png'),
-  //     text: 'Hi Chichi! I\'d love to hear more about what...',
-  //     time: 'Yesterday',
-  //     profile_pic: require('../../../assets/sample2.png')
-  //   },
-  //   { 
-  //     id: '5',
-  //     name: 'Viv Ubochi',
-  //     type: 'call',
-  //     channel: 'facebook',
-  //     channel_icon: require('../../../assets/facebook.png'),
-  //     text: 'I\'m Vivian! My first investi...',
-  //     time: 'Yesterday',
-  //     profile_pic: require('../../../assets/sample3.png')
-  //   }
-  // ];
+
+  const goToCustomers = () => {
+  navigation.navigate('Main', { screen: 'Customers' });  // Tab screen name
+};
+ 
+  const [deltas, setDeltas] = useState({ calls_pct: 10.5, msgs_pct: 10.5 });
 
   const [rangeKey, setRangeKey] = useState('24h');
 const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
@@ -257,53 +256,51 @@ const handleActivityPress = (item) => {
         {/* Stats Grid */}
         <View style={styles.statsContainer}>
           <TouchableOpacity style={[styles.statCard, {backgroundColor: '#E0EDFF'}]}>
-            <Text style={styles.statTitle}>TOTAL NUMBER OF CALLS</Text>
+             <Text style={styles.statTitle}>TOTAL CALLS</Text>
             <Text style={styles.statValue}>{stats?.total_calls}</Text>
+          <View style={styles.deltaRow}>
+             <Text style={[styles.deltaNumber, { color: pctColor(deltas.calls_pct) }]}>
+                {pctArrow(deltas.calls_pct)} {pctNumber(deltas.calls_pct)}
+            </Text>
+            <Text style={styles.deltaSuffix}> vs yesterday</Text>
+          </View>
           </TouchableOpacity>
 
           <View style={[styles.statCard, {backgroundColor: '#EAF8E5'}]}>
-            <Text style={styles.statTitle}>TOTAL NUMBER OF MESSAGES</Text>
+                <Text style={styles.statTitle}>TOTAL MESSAGES</Text>
             <Text style={styles.statValue}>{stats?.total_messages}</Text>
+            <View style={styles.deltaRow}>
+             <Text style={[styles.deltaNumber, { color: pctColor(deltas.msgs_pct) }]}>
+                {pctArrow(deltas.msgs_pct)} {pctNumber(deltas.msgs_pct)}
+             </Text>
+              <Text style={styles.deltaSuffix}> vs yesterday</Text>
+          </View>
           </View>
 
-           {
-            activeChannels.length>0 && 
-            
-          <View style={[styles.statCard, {backgroundColor: '#F2F2F2'}]}>
-            <Text style={styles.statTitle}>MOST ACTIVE CHANNELS</Text>
-            <View style={styles.activeCustomers}>
-              {activeChannels?.map((channel, index) => (
-                <Avatar 
-                  key={index} 
-                  name={channel.name} 
-                  image={channel.icon}
-                  size={32} 
-                  style={{ marginRight: -5, marginBottom: 8 }}
-                />
-              ))}
-            </View>
-          </View>
-           }
+                  {activeChannels.length > 0 && (
+  <View style={[styles.statCard, { backgroundColor: '#F2F2F2' }]}>
+    <Text style={styles.statTitle}>MOST ACTIVE CHANNELS</Text>
+    <Text style={styles.bigCount}>{activeChannels.length}</Text>
+    <AvatarGroup items={activeChannels} max={5} size={32}  onOverflowPress={goToCustomers}/>
+  </View>
+)}
 
-          {
-            newLeads.length>0 && 
-            
-          <View style={[styles.statCard, {backgroundColor: 'white', borderColor: '#DFE1E6', borderWidth: 1}]}>
-            <Text style={styles.statTitle}>NEW</Text>
-            <Text style={styles.statTitle}>CUSTOMERS</Text>
-            <View style={styles.activeCustomers}>
-              {newLeads.map((customer, index) => (
-                <Avatar 
-                  key={index} 
-                  name={customer.name} 
-                  size={32} 
-                  style={{ marginRight: -5, marginBottom: 8 }}
-                />
-              ))}
-            </View>
-          </View>
-          }
+    {newLeads.length > 0 && (
+  <View style={[styles.statCard, { backgroundColor: 'white', borderColor: '#DFE1E6', borderWidth: 1 }]}>
+    <Text style={styles.statTitle}>NEW CUSTOMERS</Text>
+    <Text style={styles.bigCount}>{newLeads.length}</Text>
+    <AvatarGroup items={newLeads} max={5} size={32}  onOverflowPress={goToCustomers}/>
+  </View>
+)}
         </View>
+
+       {/* Activity chart */}
+        {/* <View style={{ marginTop: 8, marginBottom: 16 }}>
+             <ActivityChartBlock />
+         </View> */}
+           <View style={{ marginTop: 8, marginBottom: 16 }}>
+             <TestBarChat/>
+         </View>
 
         {/* Most Active Customers */}
         {
@@ -706,9 +703,32 @@ emptyBtnText: {
   color: '#FFFFFF',
   fontSize: 14,
   fontWeight: '600',
-}
+},
+deltaText: {
+  marginTop: 6,
+  fontSize: 12,
+  fontWeight: '600',
+},
+deltaRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center' },
+deltaNumber: { fontSize: 12, fontWeight: '700' },      // green/red/gray
+deltaSuffix: { fontSize: 12, fontWeight: '400', color: '#111827' }, // black
+bigCount: {
+  fontSize: typography.heading1.fontSize,
+  fontWeight: 'bold',
+  color: '#111827',
+  marginTop: 2,
+},
 
-
+plusBubble: {
+  backgroundColor: '#E5E7EB',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: -5,
+  marginBottom: 8,
+  borderWidth: 1,
+  borderColor: '#D1D5DB',
+},
+plusBubbleText: { fontSize: 12, fontWeight: '700', color: '#111827' },
 });
 
 export default AdminDashboard;
