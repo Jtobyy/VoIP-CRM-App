@@ -10,7 +10,7 @@ import { useError } from '../../../hooks/useError';
 import {formatChatTime} from '../../../utils/timeUtils'
 import { useUnread } from '../../shared/notifications/UnreadProvider';
 import { BellButton } from '../../../components/Bell';
-import { ActivityChartBlock } from '../../../components/ActivityChart';
+import ActivityChartCard, { ActivityChartBlock } from '../../../components/ActivityChart';
 import TestBarChat from '../../../components/TestBarChat';
 
 const PREVIEW_LEN = 80;
@@ -296,11 +296,11 @@ const handleActivityPress = (item) => {
 
        {/* Activity chart */}
         {/* <View style={{ marginTop: 8, marginBottom: 16 }}>
-             <ActivityChartBlock />
+             <ActivityChartCard/>
          </View> */}
-           <View style={{ marginTop: 8, marginBottom: 16 }}>
+           {/* <View style={{ marginTop: 8, marginBottom: 16 }}>
              <TestBarChat/>
-         </View>
+         </View> */}
 
         {/* Most Active Customers */}
         {
