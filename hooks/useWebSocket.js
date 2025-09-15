@@ -38,7 +38,7 @@ export const WebSocketProvider = ({ children }) => {
       };
 
       ws.onerror = (e) => {
-        console.error('❌ WebSocket error:', e.message);
+        // console.error('❌ WebSocket error:', e.message);
       };
     };
 
