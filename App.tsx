@@ -4,7 +4,7 @@
  */
 
 import React,{useEffect} from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { Platform, StatusBar, useColorScheme } from 'react-native';
 import AppNavigator from './navigation/AppNavigator';
 import { AuthProvider } from './hooks/useAuth';
 import { SnackbarProvider } from './hooks/useSnackbar';
@@ -16,6 +16,7 @@ import {initFcm} from './firebase/fcm'
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ensureAndroidChannel, attachForegroundHandler } from './firebase/notification';
 import messaging from '@react-native-firebase/messaging';
+import { IS_FIREBASE_CONFIGURED } from './firebase/fcm';
 import { UnreadProvider } from './screens/shared/notifications/UnreadProvider';
 import { incrementUnread, getUnreadCount } from './screens/shared/notifications/unread';
 import { useUnread } from './screens/shared/notifications/UnreadProvider';
@@ -40,23 +41,30 @@ function App() {
       unsubOnMessage = attachForegroundHandler(async(normalized: NormalizedNotification) => {
         // Optional: update badge counts / in-app list
         // console.log('[Notif] Foreground received:', normalized);
-        await incrementUnread(1);
-        // 2) Update in-memory state so the bell dot reacts immediately
-        const n = await getUnreadCount();
-        setUnreadCountState(n);
+        if (IS_FIREBASE_CONFIGURED && Platform.OS === 'android') {
+          await incrementUnread(1);
+          // 2) Update in-memory state so the bell dot reacts immediately
+          const n = await getUnreadCount();
+          setUnreadCountState(n);
+        }
       });
     })();
 
     // Taps from background -> foreground
-    const unsubOpened = messaging().onNotificationOpenedApp((rm) => {
-      routeByType(rm?.data || {});
-    });
+    const unsubOpened =
+      IS_FIREBASE_CONFIGURED
+        ? messaging().onNotificationOpenedApp((rm) => {
+            routeByType(rm?.data || {});
+          })
+        : () => {};
 
     // Taps from quit state
-    (async () => {
-      const initial = await messaging().getInitialNotification();
-      if (initial) routeByType(initial?.data || {});
-    })();
+    if (IS_FIREBASE_CONFIGURED) {
+      (async () => {
+        const initial = await messaging().getInitialNotification();
+        if (initial) routeByType(initial?.data || {});
+      })();
+    }
 
     return () => {
       unsubFcm?.();
@@ -92,7 +100,7 @@ function App() {
 
 export default App;
 
- function routeByType(d: Record<string, string | object>) {
+function routeByType(d: Record<string, string | object>) {
   switch (d.notification_type) {
     case 'new_message':
       // navigationRef.current?.navigate('ChatThread', { leadId: Number(d.lead_id) });
