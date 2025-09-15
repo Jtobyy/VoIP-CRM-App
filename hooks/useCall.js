@@ -8,12 +8,13 @@ import Sound from 'react-native-sound';
 const SIP_CFG = {
   NAME: '100',
   USERNAME: '100',
-  PASSWORD: 'dQ7uR5PE',
-  DOMAIN: 'nativetalkdemo383.dashboard.nativetalk.com.ng:5061', // you confirmed this works for your stack
-  TRANSPORT: 'udp',
+  PASSWORD: 'Tesojueh2',
+  DOMAIN: 'tesojueh481.dashboard.nativetalk.com.ng:5061',
+  TRANSPORT: 'tcp',
   REG_TIMEOUT: 7200,
   PROXY: null,
   REG_SERVER: null,
+  ENABLE_SRTP: false
 };
 
 const DIAL_CFG = {
@@ -86,10 +87,57 @@ export function CallProvider({ children }) {
   // ---- boot endpoint once ----
   const startEndpoint = useCallback(async () => {
     if (_startPromise) return _startPromise;
-    _startPromise = endpoint.start();
-    await _startPromise;
-    return _startPromise;
+    _startPromise = endpoint.start({
+      codecs: {
+        "PCMA/8000/1": 255,   // highest
+        "PCMU/8000/1": 254,   // next
+        "opus/48000/2": 0,
+        "G722/16000/1": 0, 
+        "GSM/8000/1": 0, 
+        "iLBC/8000/1": 0, 
+        "speex/8000/1": 0, 
+        "speex/16000/1": 0, 
+        "speex/32000/1": 0, 
+      },
+    });
+    const res = await _startPromise;
+    console.log('Endpoint started', res);
+    return res;
   }, [endpoint]);
+
+  // const startEndpoint = useCallback(async () => {
+  //   if (_startPromise) return _startPromise;
+  //   _startPromise = endpoint.start({
+  //     // Add STUN configuration like your web app
+  //     service: {
+  //       stun: [
+  //         'stun:stun.l.google.com:19302',
+  //         'stun:stun1.l.google.com:19302'
+  //       ]
+  //     },
+  //     codecs: {
+  //       "PCMA/8000/1": 255,
+  //       "PCMU/8000/1": 254,
+  //     },
+  //   });
+  
+  //   const res = await _startPromise;
+  //   console.log('Endpoint started', res);
+  //   return res;
+  // }, [endpoint]);
+  // const startEndpoint = useCallback(async () => {
+  //   if (_startPromise) return _startPromise;
+  //   _startPromise = endpoint.start({
+  //     codecs: {
+  //       "PCMA/8000/1": 255,
+  //       "PCMU/8000/1": 254,
+  //     },
+  //   });
+  
+  //   const res = await _startPromise;
+  //   console.log('Endpoint started', res);
+  //   return res;
+  // }, [endpoint]);
 
   // ---- permissions (Android mic) ----
   const askMicPerm = useCallback(async () => {
@@ -124,6 +172,7 @@ export function CallProvider({ children }) {
       regServer: SIP_CFG.REG_SERVER,
       transport: SIP_CFG.TRANSPORT,
       regTimeout:SIP_CFG.REG_TIMEOUT,
+      enableSRTP: SIP_CFG.ENABLE_SRTP,
     };
 
     try {
@@ -282,6 +331,7 @@ export function CallProvider({ children }) {
       };
   
       const onCallChanged = (call) => {
+        console.log('call is ', call)
         // progress / connected / etc
         setCurrentCall(call);
         console.log('call changed ', call)

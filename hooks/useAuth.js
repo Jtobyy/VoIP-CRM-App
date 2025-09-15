@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       const res = await axios.post('https://staging.core.nativetalkcrm.com/api/auth/mobile/signin/', {
         phone_number: formattedPhone,
         password,
-        fcm_token: fcmToken,
+        fcm_token: fcmToken || "",
       },{
            headers: {
             'User-Domain': '+2349167523634',

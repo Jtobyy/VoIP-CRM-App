@@ -154,7 +154,6 @@ useEffect(() => {
 
 
 const fetchDashboard = async ({ start_date, end_date }) => {
-  console.log('Fetching dashboard data for range:',start_date,end_date)
   try {
     setLoading(true);
     // 🔁 call your API. adjust URL/params to match your backend.
@@ -162,7 +161,6 @@ const fetchDashboard = async ({ start_date, end_date }) => {
       params: { start_date, end_date },
     });
      const d = res?.data?.data || {};
-     console.log('dashboard data:',d)
     setStats({
       total_calls: d.total_calls ?? 0,
       total_messages: d.total_messages ?? 0,
