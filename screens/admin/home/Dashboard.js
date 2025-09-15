@@ -12,6 +12,9 @@ import { useUnread } from '../../shared/notifications/UnreadProvider';
 import { BellButton } from '../../../components/Bell';
 import ActivityChartCard, { ActivityChartBlock } from '../../../components/ActivityChart';
 import TestBarChat from '../../../components/TestBarChat';
+import GroupedBars from '../../../components/GroupedBarCharts';
+import ActivityBreakdownChart from '../../../components/GroupedBarCharts';
+
 
 const PREVIEW_LEN = 80;
 const cleanPreview = (s = '') =>
@@ -295,12 +298,18 @@ const handleActivityPress = (item) => {
         </View>
 
        {/* Activity chart */}
-        {/* <View style={{ marginTop: 8, marginBottom: 16 }}>
-             <ActivityChartCard/>
-         </View> */}
-           {/* <View style={{ marginTop: 8, marginBottom: 16 }}>
-             <TestBarChat/>
-         </View> */}
+        <View style={{ marginTop: 8, marginBottom: 16 }}>
+             {/* <ActivityChartCard/> */}
+             {/* <TestBarChat/> */}
+             {/* <GroupedBars /> */}
+             <ActivityBreakdownChart 
+             hours={['8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM',]}
+             calls={[18,35,30,55,40,22,18,25,44,30,]}
+             messages={[30,28,40,80,60,48,32,55,60,52]}
+             maxY={100}
+             />
+         </View>
+          
 
         {/* Most Active Customers */}
         {
