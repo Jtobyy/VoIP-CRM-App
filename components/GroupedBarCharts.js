@@ -31,14 +31,12 @@ export default function ActivityBreakdownCard({
   const yTicks = useMemo(() => [0, 25, 50, 75, 100].map(v => Math.min(v, maxY)), [maxY]);
 
   return (
-    // OUTER: no margin/padding so it aligns with siblings. Parent controls spacing.
     <View
       onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
       style={[
         {
           backgroundColor: '#FFF',
           borderRadius: 16,
-          // keep elevation/shadow to match other cards, but **no margin here**
           shadowColor: '#000',
           shadowOpacity: 0.06,
           shadowRadius: 6,
@@ -50,7 +48,7 @@ export default function ActivityBreakdownCard({
       ]}
     >
       {/* HEADER: own padding; bottom divider & extra spacing */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
           <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#111827' }}>
             {title}

@@ -298,7 +298,7 @@ const handleActivityPress = (item) => {
         </View>
 
        {/* Activity chart */}
-        <View style={{ marginTop: 8, marginBottom: 16 }}>
+        <View style={{ marginTop: 8, marginBottom: 20 }}>
              {/* <ActivityChartCard/> */}
              {/* <TestBarChat/> */}
              {/* <GroupedBars /> */}
