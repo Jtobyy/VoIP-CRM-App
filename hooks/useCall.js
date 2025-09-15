@@ -14,7 +14,6 @@ const SIP_CFG = {
   REG_TIMEOUT: 7200,
   PROXY: null,
   REG_SERVER: null,
-  ENABLE_SRTP: false
 };
 
 const DIAL_CFG = {
@@ -172,7 +171,6 @@ export function CallProvider({ children }) {
       regServer: SIP_CFG.REG_SERVER,
       transport: SIP_CFG.TRANSPORT,
       regTimeout:SIP_CFG.REG_TIMEOUT,
-      enableSRTP: SIP_CFG.ENABLE_SRTP,
     };
 
     try {
