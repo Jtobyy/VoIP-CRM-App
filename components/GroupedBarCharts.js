@@ -73,7 +73,7 @@ export default function ActivityBreakdownCard({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: 16, paddingLeft: 8, paddingBottom: 12 }}
+        contentContainerStyle={{ paddingRight: 0, paddingLeft: 0, paddingBottom: 0 }}
       >
         <VictoryChart
           width={chartWidth}

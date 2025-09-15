@@ -26,7 +26,7 @@ const DialerScreen = ({ navigation }) => {
 
   const handleCall = async () => {
     try {
-      console.log('Call abojt to start', input);
+      console.log('Call about to start', input);
       const call = await dial(input);
       console.log('Call started', call);
       if (call) {
