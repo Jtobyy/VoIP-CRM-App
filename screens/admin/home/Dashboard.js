@@ -10,10 +10,8 @@ import { useError } from '../../../hooks/useError';
 import {formatChatTime} from '../../../utils/timeUtils'
 import { useUnread } from '../../shared/notifications/UnreadProvider';
 import { BellButton } from '../../../components/Bell';
-import ActivityChartCard, { ActivityChartBlock } from '../../../components/ActivityChart';
-import TestBarChat from '../../../components/TestBarChat';
-import GroupedBars from '../../../components/GroupedBarCharts';
 import ActivityBreakdownChart from '../../../components/GroupedBarCharts';
+import ChannelsDonutCard from '../../../components/ChannelsDonut';
 
 
 const PREVIEW_LEN = 80;
@@ -28,6 +26,17 @@ const cleanPreview = (s = '') =>
 // ---- date helpers ----
 const pad2 = n => (n < 10 ? `0${n}` : `${n}`);
 const toYMD = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+
+const channelStats = [
+  { name: 'WhatsApp', value: 69 },
+  { name: 'Facebook', value: 11 },
+  { name: 'Instagram', value: 11 },
+  { name: 'Live Chat', value: 7 },
+  { name: 'SMS', value: 4 },
+  // { name: 'Telegram', value: 3 },
+  // { name: 'Email', value: 2 },
+  // { name: 'Call Center', value: 1 },
+];
 
 // returns { label, start_date, end_date }
 const buildRange = (key) => {
@@ -182,6 +191,12 @@ const fetchDashboard = async ({ start_date, end_date }) => {
   }
 };
 
+const hasNew = (newLeads || []).length > 0;
+const hasReturning = (returningLeads|| []).length > 0;
+
+// choose card width based on data presence
+const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
+
 const handleActivityPress = (item) => {
   if (item.type !== 'message') return;  // only for messages (as requested)
 
@@ -280,28 +295,39 @@ const handleActivityPress = (item) => {
           </View>
           </View>
 
-                  {activeChannels.length > 0 && (
+                  {/* {activeChannels.length > 0 && (
   <View style={[styles.statCard, { backgroundColor: '#F2F2F2' }]}>
     <Text style={styles.statTitle}>MOST ACTIVE CHANNELS</Text>
     <Text style={styles.bigCount}>{activeChannels.length}</Text>
     <AvatarGroup items={activeChannels} max={5} size={32}  onOverflowPress={goToCustomers}/>
   </View>
-)}
+)} */}
 
-    {newLeads.length > 0 && (
-  <View style={[styles.statCard, { backgroundColor: 'white', borderColor: '#DFE1E6', borderWidth: 1 }]}>
-    <Text style={styles.statTitle}>NEW CUSTOMERS</Text>
+  {hasNew && (
+  <View style={halfOrFull(hasReturning)}>
+    <Text style={styles.statTitleCompact} numberOfLines={1}>NEW CUSTOMERS</Text>
     <Text style={styles.bigCount}>{newLeads.length}</Text>
-    <AvatarGroup items={newLeads} max={5} size={32}  onOverflowPress={goToCustomers}/>
+    <AvatarGroup items={newLeads} max={(hasReturning ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
   </View>
 )}
+
+{hasReturning && (
+  <View style={halfOrFull(hasNew)}>
+    <Text style={styles.statTitleCompact} numberOfLines={1}>RETURNING CUSTOMERS</Text>
+    <Text style={styles.bigCount}>{returningLeads.length}</Text>
+    <AvatarGroup items={returningLeads} max={(hasNew ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
+  </View>
+)}
+
+        </View>
+
+        {/* Channels Donut */ }
+        <View style={{ marginTop:8, marginBottom:20}} >
+          <ChannelsDonutCard channels={channelStats} />
         </View>
 
        {/* Activity chart */}
         <View style={{ marginTop: 8, marginBottom: 20 }}>
-             {/* <ActivityChartCard/> */}
-             {/* <TestBarChat/> */}
-             {/* <GroupedBars /> */}
              <ActivityBreakdownChart 
              hours={['8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM',]}
              calls={[18,35,30,55,40,22,18,25,44,30,]}
@@ -310,27 +336,18 @@ const handleActivityPress = (item) => {
              />
          </View>
           
+        {/* Insights  */}
+<View style={styles.insightsCard}>
+  <Text style={styles.insightsHeading}>Insights</Text>
+  <View style={styles.insightsContent}>
+    <View style={styles.insightsIconWrap}>
+      <Image source={require('../../../assets/instagram.png')} style={{ width: 18, height: 18 }} />
+    </View>
+    <Text style={styles.insightsMessage}>Instagram is your busiest channel today</Text>
+  </View>
+</View>
 
-        {/* Most Active Customers */}
-        {
-          returningLeads.length>0 &&
-          <View style={[styles.section, {backgroundColor: '#FAFAFA', borderColor: '#DFE1E6', borderWidth: 1, padding: 15}]}>
-          <View>
-            <Text style={styles.statTitle}>RETURNING</Text>
-            <Text style={styles.statTitle}>CUSTOMERS</Text>
-          </View>
-          <View style={styles.activeCustomers}>
-            {returningLeads.map((customer, index) => (
-              <Avatar 
-                key={index} 
-                name={customer.name} 
-                size={35} 
-                style={{ marginRight: -5, marginBottom: 8 }}
-              />
-            ))}
-          </View>
-        </View>
-        }
+  
 
         {/* Add User Button */}
         <View style={styles.usersCard}>
@@ -738,6 +755,56 @@ plusBubble: {
   borderColor: '#D1D5DB',
 },
 plusBubbleText: { fontSize: 12, fontWeight: '700', color: '#111827' },
+cardHalf: { width: '48%', backgroundColor: 'white', borderColor: '#DFE1E6', borderWidth: 1, padding: 15, borderRadius: 10, marginTop: 15 },
+cardFull: { width: '100%', backgroundColor: 'white', borderColor: '#DFE1E6', borderWidth: 1, padding: 15, borderRadius: 10, marginTop: 15 },
+insightsCard: {
+  backgroundColor: '#FFFFFF',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#DFE1E6',
+  paddingHorizontal: 16,
+  paddingVertical: 14,
+  marginBottom: 20,
+},
+
+insightsHeading: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#111827',
+  marginBottom: 10,
+},
+
+insightsContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',    // center the whole row like the Figma
+  gap: 10,
+  paddingVertical: 4,
+},
+
+insightsIconWrap: {
+  width: 34,
+  height: 34,
+  borderRadius: 17,
+  backgroundColor: '#F6F7FB',  // subtle oval/pill background
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderWidth: 1,
+  borderColor: '#E6E8EE',
+},
+
+insightsMessage: {
+  fontSize: 14,
+  color: '#111827',
+},
+statTitleCompact: {
+  fontSize: 11,      // smaller so it fits in one line
+  fontWeight: '700',
+  color: '#111827',
+  marginBottom: 6,
+  letterSpacing: 0.2,
+},
+
 });
 
 export default AdminDashboard;
