@@ -6,6 +6,7 @@ import AdminStackNavigator from './AdminStackNavigator';
 import { useAuth } from '../hooks/useAuth';
 import AgentStackNavigator from './AgentStackNavigator';
 import { trackScreen } from '../firebase/analytics';
+import { navigationRef } from './RootNavigation';
 
 const RootStack = createNativeStackNavigator();
 
@@ -13,20 +14,19 @@ const AppNavigator = () => {
   const { isAuthenticated, user } = useAuth();
 
   // refs to keep track of navigation state
-    const navRef = useRef(null);
-    const routeNameRef = useRef();
+  const routeNameRef = useRef();
 
   return (
     <NavigationContainer
-      ref={navRef}
+      ref={navigationRef}
       onReady={() => {
-        const name = navRef.current?.getCurrentRoute?.()?.name;
+        const name = navigationRef.current?.getCurrentRoute?.()?.name;
         routeNameRef.current = name;
         if (name) trackScreen(name); // log first screen
       }}
       onStateChange={async () => {
         const prev = routeNameRef.current;
-        const curr = navRef.current?.getCurrentRoute?.()?.name;
+        const curr = navigationRef.current?.getCurrentRoute?.()?.name;
         if (curr && prev !== curr) {
           routeNameRef.current = curr;
           await trackScreen(curr); // log subsequent screens

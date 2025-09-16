@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Alert, Platform, PermissionsAndroid } from 'react-native';
 import { Endpoint, Call as PJSIPCall } from '@aldiand/react-native-pjsip';
 import Sound from 'react-native-sound';
+import { navigate, replace } from '../navigation/RootNavigation';
+
 
 
 // ====== ALL CONFIG LIVES HERE ======
@@ -54,42 +56,154 @@ export function CallProvider({ children }) {
   // Call state
   const [currentCall, setCurrentCall] = useState(null);
   const [callStatus, setCallStatus] = useState('Idle');
+  const [incoming, setIncoming] = useState(false);          // <- drives the sheet
+  const [incomingInfo, setIncomingInfo] = useState(null)
 
   // Duration
   const [durationSec, setDurationSec] = useState(0);
   const tickRef = useRef(null);
   const startTsRef = useRef(null);
 
+  const isIncomingRef = useRef(false);
+  const incomingShownRef = useRef(false);
+  const endTonePlayedRef = useRef(false);
+  const ringOutRef = useRef(null);
+  const ringOutTimerRef = useRef(null);
+  
   const endToneRef = useRef(null);
+  const ringRef = useRef(null);
+  const ringTimerRef = useRef(null);
 
   useEffect(() => {
     Sound.setCategory('Playback', true);
-    const s = new Sound('end-ringtone.mp3', Sound.MAIN_BUNDLE, (err) => {
+  
+    // Load *end* tone once and keep a handle to it.
+    const s = new Sound('end_ringtone.mp3', Sound.MAIN_BUNDLE, (err) => {
       if (err) { console.warn('end tone load error', err); return; }
       endToneRef.current = s;
     });
-    return () => s.release();
+  
+    return () => {
+      // Make sure no timers keep firing if this component unmounts.
+      clearInterval(ringTimerRef.current);
+      clearInterval(ringOutTimerRef.current);
+      s.release();
+    };
+  }, []);
+
+  useEffect(() => {
+    Sound.setCategory('Playback', true);
+  
+    // Load *incoming* ringtone once, keep a handle for looping later.
+    const s = new Sound('incoming_ringtone.mp3', Sound.MAIN_BUNDLE, (err) => {
+      if (err) { console.warn('Incoming ring load error', err); return; }
+      ringRef.current = s;
+    });
+  
+    return () => {
+      clearInterval(ringTimerRef.current);
+      s.release();
+    };
+  }, []);
+
+  useEffect(() => {
+    const s = new Sound('ringtone.mp3', Sound.MAIN_BUNDLE, (err) => {
+      if (err) { /* If no outbound file, stay silent */ return; }
+      ringOutRef.current = s;
+    });
+    return () => {
+      clearInterval(ringOutTimerRef.current);
+      s.release?.();
+    };
+  }, []);
+
+  const startIncomingRingtone = useCallback(() => {
+    const s = ringRef.current;
+    if (!s) return;
+    try {
+      s.setCurrentTime?.(0); s.play();
+      const durSec = (typeof s.getDuration === 'function' ? s.getDuration() : 0) || 1.5;
+      clearInterval(ringTimerRef.current);
+      ringTimerRef.current = setInterval(() => {
+        try { s.stop(() => { s.setCurrentTime?.(0); s.play(); }); } catch {}
+      }, Math.round(durSec * 1000) + 1500);
+    } catch (e) { console.warn('startIncomingRingtone error', e); }
   }, []);
   
-  const playEndTone = useCallback(() => {
+  const stopIncomingRingtone = useCallback(() => {
+    const s = ringRef.current;
+    clearInterval(ringTimerRef.current);
+    if (!s) return;
+    try {
+      s.stop(() => {});
+      s.setCurrentTime?.(0);
+    } catch {}
+  }, []);
+  
+  const startOutgoingRingback = useCallback(() => {
+    const s = ringOutRef.current;
+    if (!s) return;                 // if file isn't in bundle, do nothing
+    try {
+      s.setCurrentTime?.(0); s.play();
+      const durSec = (typeof s.getDuration === 'function' ? s.getDuration() : 0) || 1.5;
+      clearInterval(ringOutTimerRef.current);
+      ringOutTimerRef.current = setInterval(() => {
+        try { s.stop(() => { s.setCurrentTime?.(0); s.play(); }); } catch {}
+      }, Math.round(durSec * 1000) + 1500);
+    } catch {}
+  }, []);
+
+  const stopOutgoingRingback = useCallback(() => {
+    const s = ringOutRef.current;
+    clearInterval(ringOutTimerRef.current);
+    if (!s) return;
+    try { s.stop(() => {}); s.setCurrentTime?.(0); } catch {}
+  }, []);
+
+  const stopAllRingtones = useCallback(() => {
+    stopIncomingRingtone();
+    stopOutgoingRingback();
+  }, [stopIncomingRingtone, stopOutgoingRingback]);
+
+  // Plays the end tone exactly once per call lifecycle no matter how many "end" events arrive.
+  const playEndToneOnce = useCallback(() => {
+    if (endTonePlayedRef.current) return;
+    endTonePlayedRef.current = true;
     const s = endToneRef.current;
     if (!s) return;
     try {
-      s.setCurrentTime?.(0);
-      s.play(() => {}); // fire-and-forget
+      s.setCurrentTime?.(0); s.play(() => {});
       setTimeout(() => { s.stop(() => {}); s.setCurrentTime?.(0); }, 1300);
-    } catch (e) {
-      console.warn('playEndTone error', e);
-    }
+    } catch {}
   }, []);
+
+  const deriveIncomingInfo = useCallback((call) => {
+  const name  = call?._remoteName || call?.remoteName || 'Unknown';
+  const numberFromField = call?._remoteNumber || call?.remoteNumber || '';
+  const uri  = call?._remoteUri || call?.remoteUri || ''; // e.g. "sip:anonymous@domain"
+  const m = /sip:([^@;>]+)/i.exec(uri);
+  const phone = numberFromField || (m?.[1] ?? '');
+  const initials = (name || phone || '??').slice(0,2).toUpperCase();
+    return { name, phone, initials };
+  }, []);
+
+  // --- helper: ensure the incoming sheet is shown only once per call ---
+  const ensureIncomingSheet = useCallback((call) => {
+    if (incomingShownRef.current) return;         // already shown for this call
+    const info = deriveIncomingInfo(call);        // name/phone/initials
+    setIncomingInfo(info);
+    setIncoming(true);
+    incomingShownRef.current = true;              // lock it
+    navigate('IncomingCall', info);               // open the UI
+  }, [deriveIncomingInfo]);
 
   // ---- boot endpoint once ----
   const startEndpoint = useCallback(async () => {
     if (_startPromise) return _startPromise;
     _startPromise = endpoint.start({
       codecs: {
-        "PCMA/8000/1": 255,   // highest
-        "PCMU/8000/1": 254,   // next
+        "PCMA/8000/1": 255, 
+        "PCMU/8000/1": 254, 
         "opus/48000/2": 0,
         "G722/16000/1": 0, 
         "GSM/8000/1": 0, 
@@ -103,40 +217,6 @@ export function CallProvider({ children }) {
     console.log('Endpoint started', res);
     return res;
   }, [endpoint]);
-
-  // const startEndpoint = useCallback(async () => {
-  //   if (_startPromise) return _startPromise;
-  //   _startPromise = endpoint.start({
-  //     // Add STUN configuration like your web app
-  //     service: {
-  //       stun: [
-  //         'stun:stun.l.google.com:19302',
-  //         'stun:stun1.l.google.com:19302'
-  //       ]
-  //     },
-  //     codecs: {
-  //       "PCMA/8000/1": 255,
-  //       "PCMU/8000/1": 254,
-  //     },
-  //   });
-  
-  //   const res = await _startPromise;
-  //   console.log('Endpoint started', res);
-  //   return res;
-  // }, [endpoint]);
-  // const startEndpoint = useCallback(async () => {
-  //   if (_startPromise) return _startPromise;
-  //   _startPromise = endpoint.start({
-  //     codecs: {
-  //       "PCMA/8000/1": 255,
-  //       "PCMU/8000/1": 254,
-  //     },
-  //   });
-  
-  //   const res = await _startPromise;
-  //   console.log('Endpoint started', res);
-  //   return res;
-  // }, [endpoint]);
 
   // ---- permissions (Android mic) ----
   const askMicPerm = useCallback(async () => {
@@ -200,6 +280,11 @@ export function CallProvider({ children }) {
 
   // ---- call controls (with fallbacks) ----
   const dial = useCallback(async (dest) => {
+    isIncomingRef.current = false;  
+    endTonePlayedRef.current = false; 
+    incomingShownRef.current = false; 
+    
+    stopAllRingtones();
     if (!account) { Alert.alert('SIP not registered', 'Please wait for registration'); return null; }
     if (!dest || dest.length < 3) { Alert.alert('Invalid Number', 'Enter a valid phone number'); return null; }
 
@@ -232,15 +317,15 @@ export function CallProvider({ children }) {
     } catch (e) { console.warn('decline error', e); }
   }, [currentCall]);
 
-  const hangup  = useCallback(async () => {
+  const hangup = useCallback(async () => {
     try {
         console.log('Hangin up ...'); 
         await endpoint.hangupCall(currentCall); 
-        playEndTone();
+        playEndToneOnce();
 
         return;
     } catch (e) { console.warn('hangup error', e); }
-  }, [endpoint, currentCall]);
+  }, [endpoint, currentCall, playEndToneOnce]);
 
   const toggleHold = useCallback(async (id) => {
     try {
@@ -271,11 +356,11 @@ export function CallProvider({ children }) {
   const toggleMute = useCallback(async () => {
     try {
       if (currentCall?._muted) {
-          console.log('unmuting call is ', currentCall)
+          // console.log('unmuting call is ', currentCall)
           await endpoint.unMuteCall(currentCall)
       }
       else {
-          console.log('muting call is ', currentCall)
+          // console.log('muting call is ', currentCall)
           await endpoint.muteCall(currentCall);
       }
       return;
@@ -319,41 +404,78 @@ export function CallProvider({ children }) {
         }
       };
   
+      // --- called when native layer notifies a brand-new incoming session ---
       const onCallReceived = (call) => {
-        // incoming ringing
+        isIncomingRef.current = true;          // direction is inbound
+        endTonePlayedRef.current = false;      // allow end tone for this call
+        incomingShownRef.current = false;      // UI sheet not shown yet for this call
+
         setCurrentCall(call);
         setCallStatus('Incoming');
         resetDuration();
-        // iOS: make sure audio is ready
+
+        ensureIncomingSheet(call);             // <-- derive {name, phone} and navigate once
+        startIncomingRingtone();               // start the in-app ringtone
+
+        // iOS: prepare audio route so we can hear early media
         endpoint.activateAudioSession?.().catch(() => {});
       };
+
   
       const onCallChanged = (call) => {
-        console.log('call is ', call)
-        // progress / connected / etc
         setCurrentCall(call);
-        console.log('call changed ', call)
+
         if (call?._state === 'PJSIP_INV_STATE_CONFIRMED') {
+          stopAllRingtones();
           setCallStatus('In progress');
           startDuration();
+          setIncoming(false);
         } else if (call?._state === 'PJSIP_INV_STATE_CONNECTING') {
+          stopAllRingtones();
           setCallStatus('Connecting…');
         } else if (call?._state === 'PJSIP_INV_STATE_EARLY') {
-          setCallStatus('Ringing…');
+          console.log('new call ringing, starting ringtone', call)
+          const isIncoming = isIncomingRef.current || call?._remoteOfferer === 1;
+
+          if (isIncoming) {
+            ensureIncomingSheet(call);
+            startIncomingRingtone();
+            setCallStatus('Ringing…');
+          } else {
+            stopIncomingRingtone(); 
+            startOutgoingRingback();
+            setCallStatus('Ringing…');
+          }
         } else {
           setCallStatus('Dialing...');
         }
+
         if (call?._state === 'PJSIP_INV_STATE_DISCONNECTED') {
-          // let terminated handler clean up
+          stopAllRingtones();
+          playEndToneOnce();
           clearTimer();
+
+          setIncoming(false);
+          setIncomingInfo(null);
+
+          incomingShownRef.current = false;
+          isIncomingRef.current = false;
+          endTonePlayedRef.current = false;
         }
       };
   
       const onCallTerminated = (call) => {
+        stopAllRingtones();
+        playEndToneOnce();
         setCallStatus('Ended');
         setCurrentCall(null);
         clearTimer();
-        // optional: end tone already handled in your hangup()
+
+        setIncoming(false);
+        setIncomingInfo(null);
+        incomingShownRef.current = false;
+        isIncomingRef.current = false;
+        endTonePlayedRef.current = false;
       };
   
       // --- subscribe to BOTH naming schemes ---
@@ -391,6 +513,7 @@ export function CallProvider({ children }) {
 
     // Call state
     currentCall, callStatus, durationSec, formattedDuration: fmt(durationSec),
+    incoming, incomingInfo,
     activeCallId, // in case a screen still wants the raw id
 
     // Controls (id-based)

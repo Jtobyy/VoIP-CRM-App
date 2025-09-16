@@ -8,7 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		180B6A292E4A42CF007CD034 /* end-ringtone.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 180B6A282E4A42CF007CD034 /* end-ringtone.mp3 */; };
+		185EB40E2E79BD190044C836 /* incoming_ringtone.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 185EB40D2E79BD190044C836 /* incoming_ringtone.mp3 */; };
+		185EB4102E79BD320044C836 /* end_ringtone.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 185EB40F2E79BD320044C836 /* end_ringtone.mp3 */; };
 		4BD17E0D761409BDAF5CDB2E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		72E1DEDA013E773AB46368D6 /* libPods-NativetalkBusiness.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8AA7DDBE7FB5082480A10FE5 /* libPods-NativetalkBusiness.a */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
@@ -20,7 +21,8 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = NativetalkBusiness/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = NativetalkBusiness/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = NativetalkBusiness/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		180B6A282E4A42CF007CD034 /* end-ringtone.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "end-ringtone.mp3"; sourceTree = "<group>"; };
+		185EB40D2E79BD190044C836 /* incoming_ringtone.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = incoming_ringtone.mp3; sourceTree = "<group>"; };
+		185EB40F2E79BD320044C836 /* end_ringtone.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = end_ringtone.mp3; sourceTree = "<group>"; };
 		65B71677C74E05171D397788 /* Pods-NativetalkBusiness.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NativetalkBusiness.release.xcconfig"; path = "Target Support Files/Pods-NativetalkBusiness/Pods-NativetalkBusiness.release.xcconfig"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = NativetalkBusiness/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = NativetalkBusiness/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -57,7 +59,8 @@
 		180B6A272E4A42A2007CD034 /* Sounds */ = {
 			isa = PBXGroup;
 			children = (
-				180B6A282E4A42CF007CD034 /* end-ringtone.mp3 */,
+				185EB40D2E79BD190044C836 /* incoming_ringtone.mp3 */,
+				185EB40F2E79BD320044C836 /* end_ringtone.mp3 */,
 			);
 			path = Sounds;
 			sourceTree = "<group>";
@@ -170,7 +173,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				180B6A292E4A42CF007CD034 /* end-ringtone.mp3 in Resources */,
+				185EB4102E79BD320044C836 /* end_ringtone.mp3 in Resources */,
+				185EB40E2E79BD190044C836 /* incoming_ringtone.mp3 in Resources */,
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				4BD17E0D761409BDAF5CDB2E /* PrivacyInfo.xcprivacy in Resources */,
