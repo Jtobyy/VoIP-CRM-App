@@ -6,7 +6,13 @@ import { colors } from '../../../styles/global';
 import useCall from '../../../hooks/useCall';
 
 const IncomingCallScreen = ({ navigation, route }) => {
-  const { incoming, incomingInfo, answerActive, declineActive } = useCall();
+  const { 
+    incoming, 
+    incomingInfo, 
+    answer, 
+    hangup,
+    callStatus
+  } = useCall();
 
   // Prefer live data from the hook; fall back to params so deep links still work
   const name     = incomingInfo?.name     ?? route.params?.name     ?? 'Unknown';
@@ -17,12 +23,15 @@ const IncomingCallScreen = ({ navigation, route }) => {
   useEffect(() => { if (!incoming) navigation.goBack(); }, [incoming, navigation]);
 
   const onAnswer = async () => {
-    try { await answerActive(); } catch {}
+    await answer();
     navigation.replace('OutgoingCall', { name, phone, initials });
   };
 
   const onDecline = async () => {
-    try { await declineActive(486); } catch {}
+    if (callStatus !== 'Ended') {
+      await hangup();
+      return;
+    }
     navigation.goBack();
   };
 

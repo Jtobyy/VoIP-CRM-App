@@ -280,6 +280,8 @@ export function CallProvider({ children }) {
 
   // ---- call controls (with fallbacks) ----
   const dial = useCallback(async (dest) => {
+    resetDuration();
+
     isIncomingRef.current = false;  
     endTonePlayedRef.current = false; 
     incomingShownRef.current = false; 
@@ -299,22 +301,15 @@ export function CallProvider({ children }) {
     setCurrentCall(call);
     console.log('Call initially made', call);
     return call;
-  }, [endpoint, account]);
+  }, [endpoint, account, resetDuration]);
 
   const answer  = useCallback(async (id) => {
     try {
-      if (PJSIPCall?.answer) return await PJSIPCall.answer(id, 200);
-      if (currentCall?.answer) return await currentCall.answer(200);
+      console.log('Answering call');
+
+      endpoint.answerCall(currentCall, 200);
       console.warn('No answer method available');
     } catch (e) { console.warn('answer error', e); }
-  }, [currentCall]);
-
-  const decline = useCallback(async (id, code=486) => {
-    try {
-      if (PJSIPCall?.decline) return await PJSIPCall.decline(id, code);
-      if (currentCall?.decline) return await currentCall.decline(code);
-      console.warn('No decline method available');
-    } catch (e) { console.warn('decline error', e); }
   }, [currentCall]);
 
   const hangup = useCallback(async () => {
@@ -323,9 +318,10 @@ export function CallProvider({ children }) {
         await endpoint.hangupCall(currentCall); 
         playEndToneOnce();
 
+        resetDuration();
         return;
     } catch (e) { console.warn('hangup error', e); }
-  }, [endpoint, currentCall, playEndToneOnce]);
+  }, [endpoint, currentCall, playEndToneOnce, resetDuration]);
 
   const toggleHold = useCallback(async (id) => {
     try {
@@ -381,10 +377,36 @@ export function CallProvider({ children }) {
 
   // ---- id-less helpers for active call (recommended for UI) ----
   const activeCallId = useMemo(() => getActiveId(), [getActiveId]);
-  const answerActive        = useCallback(async () => { const id = getActiveId(); if (id) await answer(id); }, [getActiveId, answer]);
-  const declineActive       = useCallback(async (code) => { const id = getActiveId(); if (id) await decline(id, code); }, [getActiveId, decline]);
+  const answerActive = useCallback(async () => {
+    // Gets the active call id safely and answers it.
+    // We also stop local ring immediately and (on iOS) activate the audio session so early media/voice can flow.
+    const id = getActiveId();
+    if (!id) return;
+    try {
+      stopAllRingtones();                         // stop local incoming/outgoing ring audio right away
+      endpoint.activateAudioSession?.().catch(() => {}); // iOS: prepare audio route before answer
+  
+      // Prefer the static helper if present; else call the instance method
+      if (PJSIPCall?.answer) {
+        await PJSIPCall.answer(id, 200);          // send 200/OK to remote → remote stops ringing
+      } else if (currentCall?.answer) {
+        await currentCall.answer(200);
+      } else if (endpoint?.answerCall) {
+        // some builds expose answer on the endpoint
+        await endpoint.answerCall(currentCall, 200);
+      } else {
+        console.warn('No answer method available');
+      }
+    } catch (e) {
+      console.warn('answerActive error', e);
+    }
+  }, [getActiveId, currentCall, stopAllRingtones, endpoint]);
 
-  const sendDTMFActive      = useCallback(async (d) => { const id = getActiveId(); if (id) await sendDTMF(id, d); }, [getActiveId, sendDTMF]);
+  const sendDTMFActive = useCallback(async (d) => {
+    const id = getActiveId();
+    if (id) await sendDTMF(id, d);
+  }, [getActiveId, sendDTMF]);
+  
 
   useEffect(() => {
     let subs = [];
@@ -455,6 +477,7 @@ export function CallProvider({ children }) {
           playEndToneOnce();
           clearTimer();
 
+          resetDuration();
           setIncoming(false);
           setIncomingInfo(null);
 
@@ -471,6 +494,7 @@ export function CallProvider({ children }) {
         setCurrentCall(null);
         clearTimer();
 
+        resetDuration();
         setIncoming(false);
         setIncomingInfo(null);
         incomingShownRef.current = false;
@@ -517,11 +541,11 @@ export function CallProvider({ children }) {
     activeCallId, // in case a screen still wants the raw id
 
     // Controls (id-based)
-    dial, answer, decline, hangup, sendDTMF,
+    dial, answer, hangup, sendDTMF,
     toggleMute, toggleHold, toggleSpeaker,
 
     // Controls (id-less; preferred in UI)
-    answerActive, declineActive, sendDTMFActive,
+    answerActive, sendDTMFActive,
   };
 
   return <CallCtx.Provider value={value}>{children}</CallCtx.Provider>;
