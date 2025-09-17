@@ -10,6 +10,7 @@ import AddUser from '../screens/shared/more/AddUser';
 import UsersList from '../screens/shared/more/UserList';
 import DialerScreen from '../screens/shared/home/Dialer';
 import OutgoingCallScreen from '../screens/shared/calls/OutgoingCall';
+import IncomingCallScreen from '../screens/shared/calls/IncomingCall';
 import EditCustomer from '../screens/shared/customers/EditCustomer';
 import EditProfile from '../screens/shared/more/EditProfile';
 import UserDetails from '../screens/shared/more/UserDetails';
@@ -38,7 +39,8 @@ const AgentStackNavigator = () => {
       <Stack.Screen name="AddUser" component={AddUser} />
       <Stack.Screen name="Dialer" component={DialerScreen} />
       <Stack.Screen name="OutgoingCall" component={OutgoingCallScreen} />
-
+      <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
+      
       <Stack.Screen name="EditProfile" component={EditProfile} />
       <Stack.Screen name="EditUser" component={EditUser} />
 
