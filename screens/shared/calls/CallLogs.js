@@ -1,201 +1,288 @@
-import React from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  FlatList,
   StatusBar,
   Image,
   ScrollView,
   Keyboard,
   ImageBackground,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  ActivityIndicator,
+  SectionList,
+  RefreshControl,
 } from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
+import { useApi } from '../../../hooks/useApi';
+import { useLoading } from '../../../hooks/useLoading';
+import { useError } from '../../../hooks/useError';
 
-const callLogsData = [
-  { 
-    id: '1',
-    name: '+234 905 332 4369',
-    type: 'missed',
-    time: '10:33 PM',
-    date: 'MON, MAY 6, 2023',
-    duration: null,
-  },
-  {
-    id: '2',
-    name: 'Customer Lekki 1',
-    type: 'outgoing',
-    time: '7:03 PM',
-    date: 'MON, MAY 6, 2023',
-    duration: '2:15',
-  },
-  {
-    id: '3',
-    name: 'Adrianna La Cerva',
-    type: 'outgoing',
-    time: '4:33 PM',
-    date: 'MON, MAY 6, 2023',
-    duration: '5:20',
-    count: 3,
-  },
-  {
-    id: '4',
-    name: 'Adetayo Cassandra',
-    type: 'outgoing',
-    time: '2:15 PM',
-    date: 'MON, MAY 6, 2023',
-    duration: '1:45',
-  },
-  {
-    id: '5',
-    name: 'Alidae Shimana',
-    type: 'incoming',
-    time: '2:15 PM',
-    date: 'SUN, MAY 5, 2023',
-    duration: '3:30',
-  },
-  {
-    id: '6',
-    name: 'Adedoyin Folakemi',
-    type: 'missed',
-    time: '10:33 PM',
-    date: 'SUN, MAY 5, 2023',
-    duration: null,
-  },
-];
+// ---- Helpers ---------------------------------------------------------------
+
+// Format a UTC ISO date to Africa/Lagos local date label, e.g. 'MON, MAY 6, 2023'
+const dateLabel = (iso) => {
+  try {
+    const d = new Date(iso);
+    // Weekday, Month, Day, Year (uppercase like your UI)
+    const opts = { timeZone: 'Africa/Lagos', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    const s = new Intl.DateTimeFormat('en-NG', opts).format(d);
+    // Convert "Mon, May 6, 2023" => "MON, MAY 6, 2023"
+    return s.toUpperCase();
+  } catch {
+    return '';
+  }
+};
+
+// Format time (e.g., '10:33 PM') in Africa/Lagos
+const timeLabel = (iso) => {
+  try {
+    const d = new Date(iso);
+    const opts = { timeZone: 'Africa/Lagos', hour: 'numeric', minute: '2-digit' };
+    return new Intl.DateTimeFormat('en-NG', opts).format(d);
+  } catch {
+    return '';
+  }
+};
+
+// Determine UI type: 'missed' | 'incoming' | 'outgoing'
+const computeType = (item) => {
+  const dir = (item.call_direction || '').toLowerCase();
+  if (dir === 'inbound' && (item.duration === '00:00' || item.duration === '0:00')) return 'missed';
+  if (dir === 'inbound') return 'incoming';
+  if (dir === 'outbound') return 'outgoing';
+  return 'outgoing';
+};
+
+// Pick the label we show as the "name/number"
+const displayName = (item) => {
+  // caller_id often looks like:  "Nativetalk_support <02014131234>" or "\"+234...\" <0916...>"
+  const cid = item.caller_id || '';
+  const called = item.called_number || '';
+  const dir = (item.call_direction || '').toLowerCase();
+
+  // Prefer: inbound => show caller_id; outbound => show called_number (or caller_id as fallback)
+  if (dir === 'inbound') return cid.replace(/"/g, '') || called;
+  return called || cid.replace(/"/g, '');
+};
+
+// Assets for icon row
+const getCallIconSource = (type) => {
+  switch (type) {
+    case 'missed': return require('../../../assets/missed.png');
+    case 'incoming': return require('../../../assets/incoming.png');
+    case 'outgoing': return require('../../../assets/outgoing.png');
+    default: return require('../../../assets/outgoing.png');
+  }
+};
+
+const getCallTypeText = (type) => {
+  if (type === 'missed') return 'Missed call';
+  if (type === 'incoming') return 'Incoming call';
+  return 'Outgoing call';
+};
+
+// Build absolute next URL when API returns "?page=2"
+const buildNextUrl = (base, next) => {
+  if (!next) return null;
+  if (next.startsWith('?')) return `${base}${next}`;
+  return next; // in case backend already returns absolute URL
+};
+
+// ---- Component -------------------------------------------------------------
 
 const CallLogs = ({ navigation }) => {
-  const [activeFilter, setActiveFilter] = React.useState('All calls');
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const { api } = useApi();
+  const { setLoading } = useLoading();
+  const { handleApiError } = useError();
 
-  const filteredCalls = callLogsData.filter(call => {
-    // Filter by search query
-    const matchesSearch = call.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Filter by active tab
-    if (activeFilter === 'All calls') return matchesSearch;
-    if (activeFilter === 'Missed') return matchesSearch && call.type === 'missed';
-    if (activeFilter === 'Incoming') return matchesSearch && call.type === 'incoming';
-    if (activeFilter === 'Outgoing') return matchesSearch && call.type === 'outgoing';
-    
-    return matchesSearch;
-  });
+  const ENDPOINT = '/call-center/cdrs/pbx/';
 
-  // Group calls by date
-  const groupedCalls = filteredCalls.reduce((groups, call) => {
-    const date = call.date;
-    if (!groups[date]) {
-      groups[date] = [];
+  const [activeFilter, setActiveFilter] = useState('All calls');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [items, setItems] = useState([]);          // raw items from API (all pages loaded so far)
+  const [nextUrl, setNextUrl] = useState(null);    // for pagination
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [fetchingMore, setFetchingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // ---- Fetch page (used for both first load and pagination)
+  const fetchPage = useCallback(async (url) => {
+    const res = await api.get(url);
+    // Expect: { success, count, next, previous, results: [] }
+    const { results = [], next = null } = res?.data || {};
+    // Results are already latest->oldest by call_start
+    setItems(prev => prev.concat(results));
+    setNextUrl(buildNextUrl(ENDPOINT, next));
+  }, []);
+
+  // ---- Initial load
+  useEffect(() => {
+    (async () => {
+      try {
+        setInitialLoading(true);
+        // Enforce ordering server-side if your API supports it:
+        // const url = `${ENDPOINT}?ordering=-call_start`;
+        const url = `${ENDPOINT}`;
+        await fetchPage(url);
+      } catch (e) {
+        handleApiError(e);
+      } finally {
+        setInitialLoading(false);
+      }
+    })();
+  }, [ENDPOINT, fetchPage]);
+
+  // ---- Infinite scroll
+  const loadMore = useCallback(async () => {
+    if (!nextUrl || fetchingMore || initialLoading) return;
+    try {
+      setFetchingMore(true);
+      await fetchPage(nextUrl);
+    } catch (e) {
+      handleApiError(e);
+    } finally {
+      setFetchingMore(false);
     }
-    groups[date].push(call);
-    return groups;
-  }, {});
+  }, [nextUrl, fetchingMore, initialLoading, fetchPage, handleApiError]);
 
-  const getCallIcon = (type) => {
-    switch (type) {
-      case 'missed':
-        return require('../../../assets/missed.png');
-      case 'incoming':
-        return require('../../../assets/incoming.png');
-      case 'outgoing':
-        return require('../../../assets/outgoing.png');
-      default:
-        return require('../../../assets/outgoing.png');
+  // ---- Pull to refresh (reload from first page)
+  const onRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      setItems([]);
+      setNextUrl(null);
+      const url = `${ENDPOINT}`;
+      await fetchPage(url);
+    } catch (e) {
+      handleApiError(e);
+    } finally {
+      setRefreshing(false);
     }
-  };
+  }, [ENDPOINT, fetchPage, handleApiError]);
 
-  const getCallTypeText = (type) => {
-    switch (type) {
-      case 'missed':
-        return 'Missed call';
-      case 'incoming':
-        return 'Incoming call';
-      case 'outgoing':
-        return 'Outgoing call';
-      default:
-        return 'Call';
+  // ---- Decorate items with UI fields (type, name, time, dateLabel)
+  const decorated = useMemo(() => {
+    return items.map((r) => {
+      const type = computeType(r);
+      return {
+        ...r,
+        __type: type,
+        __name: displayName(r),
+        __time: timeLabel(r.call_start || r.created_at),
+        __dateLabel: dateLabel(r.call_start || r.created_at),
+      };
+    });
+  }, [items]);
+
+  // ---- Filtering by tab + search
+  const filtered = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+
+    return decorated.filter((it) => {
+      const matchesSearch =
+        !q ||
+        it.__name.toLowerCase().includes(q) ||
+        (it.called_number || '').toLowerCase().includes(q) ||
+        (it.caller_id || '').toLowerCase().includes(q);
+
+      if (!matchesSearch) return false;
+
+      if (activeFilter === 'Missed')   return it.__type === 'missed';
+      if (activeFilter === 'Incoming') return it.__type === 'incoming';
+      if (activeFilter === 'Outgoing') return it.__type === 'outgoing';
+      return true; // All calls
+    });
+  }, [decorated, activeFilter, searchQuery]);
+
+  // ---- Group into sections by date header
+  const sections = useMemo(() => {
+    const map = new Map();
+    for (const it of filtered) {
+      const key = it.__dateLabel || 'UNKNOWN DATE';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(it);
     }
-  };
+    // Keep original order (already latest->oldest)
+    return Array.from(map.entries()).map(([title, data]) => ({ title, data }));
+  }, [filtered]);
 
-  const renderCallItem = ({ item }) => (
-    <TouchableOpacity style={styles.callItem}>
-      <Avatar 
-        name={item.name} 
-        size={50} 
-        style={{ marginRight: 10 }}
-      />
-      
-      <View style={styles.callContent}>
-        <View style={styles.callHeader}>
-          <Text 
-            style={[
-              styles.name, 
-              item.type === 'missed' && styles.missedName
-            ]}
-            numberOfLines={1}
-          >
-            {item.name}
-            {item.count && ` (${item.count})`}
-          </Text>
-          <View style={{flexDirection: 'row', gap: 8}}>
-            <Text style={styles.time}>{item.time}</Text>
-            <TouchableOpacity>
+  // ---- Renderers -----------------------------------------------------------
+
+  const renderItem = ({ item }) => {
+    return (
+      <TouchableOpacity style={styles.callItem}>
+        <Avatar name={item.__name} size={50} style={{ marginRight: 10 }} />
+        <View style={styles.callContent}>
+          <View style={styles.callHeader}>
+            <Text
+              style={[
+                styles.name,
+                item.__type === 'missed' && styles.missedName
+              ]}
+              numberOfLines={1}
+            >
+              {item.__name}
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <Text style={styles.time}>{item.__time}</Text>
+              <TouchableOpacity>
                 <Image
-                source={require('../../../assets/info.png')} 
-                style={styles.infoIcon}
-                resizeMode="contain"
+                  source={require('../../../assets/info.png')}
+                  style={styles.infoIcon}
+                  resizeMode="contain"
                 />
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.callDetails}>
+            <Image
+              source={getCallIconSource(item.__type)}
+              style={styles.callIcon}
+              resizeMode="contain"
+            />
+            <Text
+              style={[
+                styles.callType,
+                item.__type === 'missed' && styles.missedText
+              ]}
+            >
+              {getCallTypeText(item.__type)}
+            </Text>
+          </View>
         </View>
-        </View>
-        
-        <View style={styles.callDetails}>
-          <Image
-            source={getCallIcon(item.type)}
-            style={styles.callIcon}
-            resizeMode="contain"
-          />
-          <Text 
-            style={[
-              styles.callType,
-              item.type === 'missed' && styles.missedText
-            ]}
-          >
-            {getCallTypeText(item.type)}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSectionHeader = ({ section }) => (
+    <Text style={styles.dateHeader}>{section.title}</Text>
   );
 
-  const renderDateSection = (date, calls) => (
-    <View key={date}>
-      <Text style={styles.dateHeader}>{date}</Text>
-      <FlatList
-        data={calls}
-        renderItem={renderCallItem}
-        keyExtractor={item => item.id}
-        scrollEnabled={false}
-      />
+  const ListFooter = () => (
+    <View style={{ paddingVertical: 16 }}>
+      {fetchingMore ? <ActivityIndicator /> : null}
     </View>
   );
 
-  const dismissKeyboard = () => {
-    Keyboard.dismiss();
-  };
+  const dismissKeyboard = () => Keyboard.dismiss();
+
+  // ---- UI ------------------------------------------------------------------
 
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <View style={styles.container}>
         <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
-        
+
         {/* Header */}
-        <ImageBackground 
+        <ImageBackground
           source={require('../../../assets/header_bg.png')}
           style={styles.header}
           resizeMode="cover"
@@ -217,22 +304,22 @@ const CallLogs = ({ navigation }) => {
 
         {/* Filter Tabs */}
         <View style={styles.filterContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterScrollContent}
           >
             {['All calls', 'Missed', 'Incoming', 'Outgoing'].map((filter) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={filter}
                 style={[
-                  styles.filterButton, 
+                  styles.filterButton,
                   activeFilter === filter && styles.activeFilter
                 ]}
                 onPress={() => setActiveFilter(filter)}
               >
                 <Text style={[
-                  styles.filterButtonText, 
+                  styles.filterButtonText,
                   activeFilter === filter && styles.activeFilterText
                 ]}>
                   {filter}
@@ -242,19 +329,32 @@ const CallLogs = ({ navigation }) => {
           </ScrollView>
         </View>
 
-        {/* Call Logs List */}
-        <ScrollView 
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {Object.entries(groupedCalls).map(([date, calls]) => 
-            renderDateSection(date, calls)
-          )}
-        </ScrollView>
+        {/* List (grouped by date) */}
+        {initialLoading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderItem}
+            renderSectionHeader={renderSectionHeader}
+            contentContainerStyle={styles.listContent}
+            onEndReachedThreshold={0.4}
+            onEndReached={loadMore}
+            ListFooterComponent={ListFooter}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            stickySectionHeadersEnabled={false}
+          />
+        )}
       </View>
     </TouchableWithoutFeedback>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

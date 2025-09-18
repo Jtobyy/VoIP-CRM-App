@@ -239,6 +239,7 @@ export function CallProvider({ children }) {
 
   // ---- register/unregister (uses hardcoded config) ----
   const register = useCallback(async () => {
+    console.log('Registering SIP account', SIP_CFG);
     await startEndpoint();
     const ok = await askMicPerm(); if (!ok) throw new Error('Microphone permission denied');
 
