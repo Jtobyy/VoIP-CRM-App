@@ -10,7 +10,7 @@ const IncomingCallScreen = ({ navigation, route }) => {
     incoming, 
     incomingInfo, 
     answer, 
-    hangup,
+    decline,
     callStatus
   } = useCall();
 
@@ -18,6 +18,7 @@ const IncomingCallScreen = ({ navigation, route }) => {
   const name     = incomingInfo?.name     ?? route.params?.name     ?? 'Unknown';
   const phone    = incomingInfo?.phone    ?? route.params?.phone    ?? '';
   const initials = incomingInfo?.initials ?? route.params?.initials ?? (name.slice(0,2).toUpperCase());
+  const pretty = (s='') => s.includes('@') ? s.split('@')[0].replace(/^sip:/i,'') : s;
 
   // If user lands here without an incoming call, auto-close
   useEffect(() => { if (!incoming) navigation.goBack(); }, [incoming, navigation]);
@@ -29,7 +30,7 @@ const IncomingCallScreen = ({ navigation, route }) => {
 
   const onDecline = async () => {
     if (callStatus !== 'Ended') {
-      await hangup();
+      await decline();
       return;
     }
     navigation.goBack();
@@ -44,8 +45,9 @@ const IncomingCallScreen = ({ navigation, route }) => {
         <Avatar name={initials} size={80} textStyle={{ color: colors.primary }} />
       </View>
 
-      <Text style={styles.name}>{name}</Text>
-      {!!phone && <Text style={styles.phone}>{phone}</Text>}
+      <Text style={styles.name}>{pretty(name)}</Text>
+      <Text style={styles.phone}>{pretty(phone)}</Text>
+
       <Text style={styles.location}>Lagos, Nigeria</Text>
 
       <View style={styles.bottomRow}>
