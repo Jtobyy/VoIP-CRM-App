@@ -1,6 +1,45 @@
-pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+pluginManagement {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+  includeBuild("../node_modules/@react-native/gradle-plugin")
+}
+
 plugins { id("com.facebook.react.settings") }
+
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+
+    repositories {
+        google()
+        mavenCentral()
+
+        maven {
+            url = uri("https://jitpack.io")
+            content {
+                includeGroup ("com.github.chrisbanes")
+            }
+        }
+
+
+        maven {
+            println("Using CI built SDK from maven repository at https://download.linphone.org/maven_repository")
+            name = "linphone.org maven repository"
+            url = uri("https://download.linphone.org/maven_repository")
+            content {
+                includeGroup("org.linphone")
+            }
+        }
+
+        maven {
+            url(new File(['node', '--print', "require.resolve('@notifee/react-native/package.json')"].execute(null, rootDir).text.trim(), '../android/libs'))
+        }
+    }
+}
+
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
 rootProject.name = 'NativetalkBusiness'
 include ':app'
-includeBuild('../node_modules/@react-native/gradle-plugin')

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/call_background"
+    android:padding="24dp">
+
+    <!-- Background gradient or image can be added here -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- Profile picture placeholder -->
+        <ImageView
+            android:id="@+id/caller_avatar"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_marginBottom="32dp"
+            android:src="@drawable/default_avatar"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_background" />
+
+        <!-- Caller name -->
+        <TextView
+            android:id="@+id/caller_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="John Doe"
+            android:textSize="28sp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Caller number/info -->
+        <TextView
+            android:id="@+id/caller_number"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Incoming SIP Call"
+            android:textSize="16sp"
+            android:textColor="@color/call_subtitle_text"
+            android:gravity="center"
+            android:layout_marginBottom="48dp" />
+
+        <!-- Call status -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Incoming call..."
+            android:textSize="18sp"
+            android:textColor="@color/call_subtitle_text"
+            android:layout_marginBottom="64dp" />
+
+    </LinearLayout>
+
+    <!-- Bottom action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="48dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:weightSum="2">
+
+        <!-- Decline button -->
+        <Button
+            android:id="@+id/decline_button"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_weight="0"
+            android:layout_marginEnd="48dp"
+            android:background="@drawable/decline_button_background"
+            android:drawableTop="@drawable/ic_call_end"
+            android:text=""
+            android:textColor="@android:color/white"
+            android:padding="0dp" />
+
+        <!-- Answer button -->
+        <Button
+            android:id="@+id/answer_button"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_weight="0"
+            android:layout_marginStart="48dp"
+            android:background="@drawable/answer_button_background"
+            android:drawableTop="@drawable/ic_call_answer"
+            android:text=""
+            android:textColor="@android:color/white"
+            android:padding="0dp" />
+
+    </LinearLayout>
+
+</RelativeLayout>
