@@ -2,6 +2,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
+import { SafeAreaView } from 'react-native'; 
 import AdminDashboard from '../screens/admin/home/Dashboard';
 import CustomersList from '../screens/shared/customers/CustomersList';
 import MessagesList from '../screens/shared/messages/MessagesList';
@@ -15,6 +16,8 @@ const AdminTabNavigator = () => {
   const TAB_ICON_SIZE = 20;
 
   return (
+
+  <SafeAreaView style = {{flex: 1}}>
     <Tab.Navigator 
       screenOptions={{ 
         headerShown: false,
@@ -82,6 +85,7 @@ const AdminTabNavigator = () => {
         }}
       />
     </Tab.Navigator>
+          </SafeAreaView>
   );
 };
 
