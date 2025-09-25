@@ -3,47 +3,86 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Avatar from '../../../components/Avatar';
 import { colors } from '../../../styles/global';
 import useCall from '../../../hooks/useCall';
+import { goBack } from '../../../navigation/RootNavigation';
+
 
 const controlIcons = {
   mic: require('../../../assets/mic.png'),
-  dial2: require('../../../assets/dial2.png'),
   speaker: require('../../../assets/speaker.png'),
-  hold: require('../../../assets/hold.png'),
+  // dial2: require('../../../assets/dial2.png'),
+  // hold: require('../../../assets/hold.png'),
 };
 
 const OutgoingCallScreen = ({ navigation, route }) => {
   const {
     callStatus,
-    currentCall,
     hangup,
     toggleHold,
     toggleMute,
     toggleSpeaker,
 
-    durationSec,
     formattedDuration,
-    sendDTMFActive,
+
     isMuted,
     isHeld,
+    isSpeaker,
   } = useCall();
 
+  const uiStatus = (() => {
+    switch (callStatus) {
+      case 'OutgoingInit':
+      case 'OutgoingProgress':
+      case 'OutgoingEarlyMedia':
+        return 'Calling…';
+      case 'OutgoingRinging':
+        return 'Ringing…';
+      case 'Connected':
+      case 'StreamsRunning':
+        return 'In progress';
+      case 'Pausing':
+        return 'Pausing…';
+      case 'Paused':
+      case 'PausedByRemote':
+        return 'On hold';
+      case 'Resuming':
+        return 'Resuming…';
+      case 'End':
+      case 'Released':
+        return 'Call ended';
+      case 'Error':
+        return 'Call failed';
+      case 'IncomingReceived':
+      case 'PushIncomingReceived':
+      case 'IncomingEarlyMedia':
+        return 'Incoming call';
+      default:
+        return callStatus || 'Idle';
+    }
+  })();
+
+  const showTimer = ['In progress', 'On hold', 'Call ended'].includes(uiStatus);
+
   const {
-    name = 'Adedoyin Folakemi',
-    phone = '+234 803 567 0547',
-    location = 'Lagos, Nigeria',
-    initials = 'AF',
+    name = '',
+    phone = '',
+    location = '',
+    initials = '',
   } = route.params || {};
 
   // const [keypad, setKeypad] = useState(false);
 
-  const controlsDisabled = callStatus == 'Ended'; // lock buttons after termination
+  const controlsDisabled = uiStatus == 'Call ended'; // lock buttons after termination
+  const pretty = (s='') => s.includes('@') ? s.split('@')[0].replace(/^sip:/i,'') : s;
 
   const handleEndCall = async () => {
-    if (callStatus !== 'Ended') {
+    if (uiStatus !== 'Call ended') {
+      console.log("ending call", callStatus)
       await hangup();
       return;
     }
-    navigation.goBack();
+
+    console.log("navigating back")
+    goBack();
   };
   
 
@@ -51,28 +90,35 @@ const OutgoingCallScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <Image source={require('../../../assets/nativetalk1.png')} style={styles.logo} resizeMode="contain" />
 
-      <Text style={[styles.status, callStatus == 'Ended' && { color: 'red' }]}>
-        {callStatus == 'Ended' ? 'Call ended' : callStatus}
+      <Text style={[styles.status, uiStatus === 'Call ended' && { color: 'red' }]}>
+        {uiStatus}
       </Text>
-      {callStatus == "In progress" && <Text style={styles.duration}>{formattedDuration}</Text>}
-      {callStatus == "Ended" && <Text style={styles.duration}>{formattedDuration}</Text>}      
+      {showTimer && <Text style={styles.duration}>{formattedDuration}</Text>}
 
       <View style={styles.avatarWrap}>
         <Avatar name={initials} size={80} fontSize={32} textStyle={{ color: colors.primary }} />
       </View>
 
-      <Text style={styles.name}>{name}</Text>
-      <Text style={styles.phone}>{phone}</Text>
+      <Text style={styles.name}>{pretty(name)}</Text>
+      <Text style={styles.phone}>{pretty(phone)}</Text>
       <Text style={styles.location}>{location}</Text>
 
       <View style={styles.controlsGrid}>
         <CallControl
           icon="mic"
-          label={currentCall?.isMuted() ? 'Unmute' : 'Mute'}
-          active={currentCall?.isMuted()}
+          label={isMuted ? 'Unmute' : 'Mute'}
+          active={isMuted}
           disabled={controlsDisabled}
           onPress={toggleMute}
         />
+         <CallControl
+          icon="speaker"
+          label={isSpeaker ? 'Earpiece' : 'Speaker'}
+          active={isSpeaker}
+          disabled={controlsDisabled}
+          onPress={toggleSpeaker}
+        />
+        <CallControl/>
         {/* <CallControl
           icon="dial2"
           label={keypad ? 'Hide Keypad' : 'Keypad'}
@@ -80,20 +126,14 @@ const OutgoingCallScreen = ({ navigation, route }) => {
           disabled={controlsDisabled}
           onPress={() => setKeypad(k => !k)}
         /> */}
-        <CallControl
-          icon="speaker"
-          label={currentCall?.isSpeaker() ? 'Earipiece' : 'Speaker'}
-          active={currentCall?.isSpeaker()}
-          disabled={controlsDisabled}
-          onPress={toggleSpeaker}
-        />
-        <CallControl
+       
+        {/* <CallControl
           icon="hold"
-          label={currentCall?.isHeld() ? 'Resume' : 'Hold'}
-          active={currentCall?.isHeld()}
+          label={isHeld ? 'Resume' : 'Hold'}
+          active={isHeld}
           disabled={controlsDisabled}
           onPress={toggleHold}
-        />
+        /> */}
       </View>
 
       {/* {keypad && !ended && (
@@ -147,12 +187,16 @@ const styles = StyleSheet.create({
     width: '88%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between',
     alignSelf: 'center', marginTop: 30, marginBottom: 18,
   },
-  control: { width: '30%', alignItems: 'center', marginVertical: 16 },
+  control: { 
+    width: '30%', alignItems: 'center', marginVertical: 16 
+  },
   controlCircle: {
     width: 65, height: 65, borderRadius: 50, borderWidth: 0,
     alignItems: 'center', justifyContent: 'center', marginBottom: 7,
   },
-  controlLabel: { fontSize: 15, color: '#222', textAlign: 'center' },
+  controlLabel: { 
+    fontSize: 15, color: '#222', textAlign: 'center' 
+  },
   disabledControl: { opacity: 0.48 },
   disabledLabel: { color: '#aaa' },
 

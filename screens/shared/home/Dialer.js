@@ -2,11 +2,17 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ImageBackground, StatusBar,
-  Dimensions, Image, Alert
+  Dimensions, Image, Alert, TextInput
 } from 'react-native';
+
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../styles/global';
-import useCall from '../../../hooks/useCall'; // <-- your provider/hook with hardcoded config
+import useCall from '../../../hooks/useCall'; 
+import { useSnackbar } from '../../../hooks/useSnackbar';
+import Clipboard from '@react-native-clipboard/clipboard';
+
+
+
 
 const dialPad = [
   [{ number: '1', letters: '' }, { number: '2', letters: 'ABC' }, { number: '3', letters: 'DEF' }],
@@ -17,31 +23,30 @@ const dialPad = [
 
 const { width } = Dimensions.get('window');
 
+const sanitizeDial = (s = '') =>
+  s.replace(/[^\d+#*+]/g, '');
+
 const DialerScreen = ({ navigation }) => {
   const [input, setInput] = useState('');
-  const { dial } = useCall();
+  const { dial, Lin } = useCall();
 
-  const handlePress = (value) => setInput((prev) => prev + value);
+  const handlePress = (value) => {
+    Lin.playKeyTone(value); 
+    setInput((prev) => prev + value);
+  };
   const handleBackspace = () => setInput((prev) => prev.slice(0, -1));
+  const { showSnackbar } = useSnackbar();
+
 
   const handleCall = async () => {
     try {
       console.log('Call about to start', input);
       const call = await dial(input);
       console.log('Call started', call);
-      if (call) {
-        const initials = (input || 'NA').substring(0, 2).toUpperCase();
-        navigation.navigate('OutgoingCall', {
-          callId: call.id,
-          name: input,
-          phone: input,
-          location: 'Nigeria',
-          initials,
-        });
-      }
     } catch (err) {
       console.log('error is ', err)
       Alert.alert('Call Failed', err?.message || 'Failed to start call.');
+      showSnackbar(err?.message || 'Failed to start call.', 'error');
     }
   };
 
@@ -61,12 +66,38 @@ const DialerScreen = ({ navigation }) => {
 
       {/* Input display */}
       <View style={styles.inputContainer}>
-        <Text style={styles.inputText} numberOfLines={1} ellipsizeMode="head">
-          {input || <Text style={{ color: '#ccc' }}>Enter Number</Text>}
-        </Text>
-        {input.length > 0 && (
+        <TextInput
+          value={input}
+          placeholder="Enter Number"
+          placeholderTextColor="#ccc"
+          onChangeText={(t) => setInput(sanitizeDial(t))}
+          keyboardType="phone-pad"
+          inputMode="tel"
+          autoCorrect={false}
+          autoCapitalize="none"
+          maxLength={64}
+          style={styles.inputText}
+          returnKeyType="done"
+          onSubmitEditing={handleCall}
+          // long-press will show the native paste menu automatically
+        />
+
+        {input.length > 0 ? (
           <TouchableOpacity style={styles.clearButton} onPress={handleBackspace}>
             <Icon name="backspace" size={24} color="#999" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={async () => {
+              try {
+                const clip = await Clipboard.getString();
+                if (!clip) return;
+                setInput((prev) => sanitizeDial(prev + clip));
+              } catch {}
+            }}
+          >
+            <Icon name="content-paste" size={22} color="#999" />
           </TouchableOpacity>
         )}
       </View>
@@ -112,8 +143,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     minHeight: 100, marginTop: 10, marginBottom: 10, paddingHorizontal: 30, position: 'relative',
   },
-  inputText: { flex: 1, fontSize: 26, color: '#222', textAlign: 'center', fontWeight: '600', letterSpacing: 2 },
-  clearButton: { position: 'absolute', right: 35, padding: 6, zIndex: 10 },
+  inputText: { 
+    flex: 1, 
+    fontSize: 26, 
+    color: '#222', 
+    textAlign: 'center', 
+    fontWeight: '600', 
+    letterSpacing: 2,
+    paddingVertical: 12,
+  },
+  clearButton: { 
+    position: 'absolute', 
+    right: 35, 
+    padding: 6, 
+    zIndex: 10 
+  },
   dialPadContainer: {
     flex: 1, backgroundColor: '#fafafa', borderTopLeftRadius: 22, borderTopRightRadius: 22,
     paddingTop: 30, alignItems: 'center', justifyContent: 'flex-start',

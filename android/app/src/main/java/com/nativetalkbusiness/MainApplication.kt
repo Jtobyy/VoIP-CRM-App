@@ -10,15 +10,21 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 
-class MainApplication : Application(), ReactApplication {
+import com.nativetalkbusiness.linphone.LinphonePackage;
 
+
+class MainApplication : Application(), ReactApplication {
+      
   override val reactNativeHost: ReactNativeHost =
       object : DefaultReactNativeHost(this) {
-        override fun getPackages(): List<ReactPackage> =
-            PackageList(this).packages.apply {
-              // Packages that cannot be autolinked yet can be added manually here, for example:
-              // add(MyReactNativePackage())
-            }
+
+        override fun getPackages(): List<ReactPackage> {
+          // Autolinked packages
+          val packages = PackageList(this).packages
+          // Manually add packages that aren’t autolinked
+          packages.add(LinphonePackage())
+          return packages
+        }
 
         override fun getJSMainModuleName(): String = "index"
 

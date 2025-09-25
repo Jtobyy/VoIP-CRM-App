@@ -4,6 +4,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Avatar from '../../../components/Avatar';
 import { colors } from '../../../styles/global';
 import useCall from '../../../hooks/useCall';
+import { navigate } from '../../../navigation/RootNavigation';
+import { decline } from '../../../native/linphone';
+
 
 const IncomingCallScreen = ({ navigation, route }) => {
   const { 
@@ -18,18 +21,19 @@ const IncomingCallScreen = ({ navigation, route }) => {
   const name     = incomingInfo?.name     ?? route.params?.name     ?? 'Unknown';
   const phone    = incomingInfo?.phone    ?? route.params?.phone    ?? '';
   const initials = incomingInfo?.initials ?? route.params?.initials ?? (name.slice(0,2).toUpperCase());
+  const pretty = (s='') => s.includes('@') ? s.split('@')[0].replace(/^sip:/i,'') : s;
 
   // If user lands here without an incoming call, auto-close
   useEffect(() => { if (!incoming) navigation.goBack(); }, [incoming, navigation]);
 
   const onAnswer = async () => {
     await answer();
-    navigation.replace('OutgoingCall', { name, phone, initials });
+    navigate('OutgoingCall', { name, phone, initials });
   };
 
   const onDecline = async () => {
     if (callStatus !== 'Ended') {
-      await hangup();
+      await decline();
       return;
     }
     navigation.goBack();
@@ -44,8 +48,9 @@ const IncomingCallScreen = ({ navigation, route }) => {
         <Avatar name={initials} size={80} textStyle={{ color: colors.primary }} />
       </View>
 
-      <Text style={styles.name}>{name}</Text>
-      {!!phone && <Text style={styles.phone}>{phone}</Text>}
+      <Text style={styles.name}>{pretty(name)}</Text>
+      <Text style={styles.phone}>{pretty(phone)}</Text>
+
       <Text style={styles.location}>Lagos, Nigeria</Text>
 
       <View style={styles.bottomRow}>

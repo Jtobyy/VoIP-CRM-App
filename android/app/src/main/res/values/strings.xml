@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">NativetalkBusiness</string>
+    <string name="notification_channel_call_id" translatable="false">nativetalk_notification_call_id</string>
 </resources>

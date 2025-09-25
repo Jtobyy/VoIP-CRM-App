@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="call_background">#1a1a1a</color>
+    <color name="call_subtitle_text">#cccccc</color>
+    <color name="answer_button">#4CAF50</color>
+    <color name="decline_button">#F44336</color>
+</resources>
