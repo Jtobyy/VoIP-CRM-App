@@ -11,7 +11,6 @@ import android.os.Handler
 import android.os.Looper
 import android.telecom.DisconnectCause
 import android.telecom.PhoneAccount
-import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -37,11 +36,12 @@ import org.linphone.core.CoreListenerStub
 import org.linphone.core.Factory
 import org.linphone.core.LogCollectionState
 import org.linphone.core.Reason
+import org.linphone.core.MediaDirection
 import com.facebook.react.ReactActivity
 import com.nativetalkbusiness.voice.Compatibility
 import android.net.Uri
 import android.app.Service.STOP_FOREGROUND_REMOVE
-
+import com.nativetalkbusiness.voice.Utils
 
 /**
  * Process-wide owner of Linphone Core. No React dependency.
@@ -51,7 +51,6 @@ object CoreManager {
     // Core bits
     private var core: Core? = null
     private var listener: CoreListener? = null
-    private var phoneAccountHandle: PhoneAccountHandle? = null
 
     private val callNotificationsMap: HashMap<String, Notifiable> = HashMap()
     private val notificationsMap = HashMap<Int, Notification>()
@@ -64,7 +63,12 @@ object CoreManager {
     const val ACTION_DECLINE_CALL = "com.nativetalkbusiness.ACTION_DECLINE"
     
     private var callServiceForegroundNotificationPublished = false
+    private var currentInCallServiceNotificationId = -1
+    private var inCallServiceForegroundNotificationPublished = false
+
     private var callService: CallService? = null
+    private var waitForInCallServiceForegroundToStopIt = false
+
 
     // RN emitter (when RN is up)
     @Volatile
@@ -140,7 +144,13 @@ object CoreManager {
                     }
                     
                     Call.State.StreamsRunning -> {
-                        
+                        val notifiable = getNotifiableForCall(call)
+                        if (notifiable.notificationId == currentInCallServiceNotificationId) {
+                            Log.i(
+                                "CoreManager", "Update foreground service type in case video was enabled/disabled since last time"
+                            )
+                            startInCallForegroundService(call)
+                        }
                     }
 
                     Call.State.End, Call.State.Released, Call.State.Error -> {
@@ -190,66 +200,37 @@ object CoreManager {
         Log.i("CoreManger", "Call Service has been started")
         callService = service
     }
-    // fun startForegroundServiceWithCall(call: Call) {
-    //     // This is the correct place to start the service after permission is confirmed
-    //     context.startForegroundService(
-    //         Intent(context, CallService::class.java).apply {
-    //             action = "ACTION_SHOW_INCOMING"
-    //             putExtra("displayName", LinphoneUtils.getDisplayName(call.remoteAddress))
-    //             putExtra("remoteUri", call.remoteAddress.asStringUriOnly())
-    //             putExtra("callId", call.callLog.callId)
-    //         }
-    //     )
-    // }
 
     fun attachReact(react: ReactApplicationContext) {
+        Log.d("CoreManager", "Attaching React Context")
+        val call = core?.currentCall
+
+        if (call != null && call.dir == Call.Dir.Incoming) {
+            Log.d("CoreManager", "CallServiceForegroundNotificationPublished")
+
+            val addr = call?.remoteAddress
+            val disp = addr?.displayName ?: ""
+            val user = addr?.username ?: ""
+            val uri = addr?.asStringUriOnly() ?: addr?.asString() ?: ""
+            Log.d("CoreManager", "Emiting call event")
+
+            emit("CallIncoming", Arguments.createMap().apply {
+                putString("from", if (disp.isNotEmpty() && disp.lowercase() != "anonymous") disp else user)
+                putString("displayName", disp)
+                putString("username", user)
+                putString("uri", uri)
+            })
+        } else {
+            Log.d("CoreManager", "No ongoing call")
+
+        }
+
         reactContext = react
     }
     fun detachReact() {
+        Log.d("CoreManager", "Detaching React Context")
         reactContext = null
     }
-
-    // @MainThread
-    // private fun createIncomingCallNotificationChannel() {
-    //     val name = "Incoming Calls"
-
-    //     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-    //         val channel = NotificationChannel("incoming_calls", name, NotificationManagerCompat.IMPORTANCE_HIGH).apply {
-    //             description = name
-    //             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-    //         }
-
-    //         notificationManager?.createNotificationChannel(channel)
-
-    //         notificationManager?.createNotificationChannel(
-    //             NotificationChannel("ongoing_calls", "Ongoing Calls", NotificationManager.IMPORTANCE_LOW)
-    //                 .apply { lockscreenVisibility = Notification.VISIBILITY_PUBLIC }
-    //         )
-    //     }
-    // }
-    
-    // private fun registerPhoneAccount() {
-    //     if (phoneAccountHandle != null) return
-    //     val componentName = android.content.ComponentName(context!!, VoiceConnectionService::class.java)
-    //     phoneAccountHandle = PhoneAccountHandle(componentName, "LinphoneAccount")
-
-    //     val telecomManager = context!!.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-    //     val phoneAccount = PhoneAccount.Builder(phoneAccountHandle, "Nativetalk")
-    //         .setCapabilities(
-    //             PhoneAccount.CAPABILITY_CALL_PROVIDER or
-    //                     PhoneAccount.CAPABILITY_SUPPORTS_TRANSACTIONAL_OPERATIONS or
-    //                     PhoneAccount.CAPABILITY_SELF_MANAGED
-    //         )
-    //         .setSupportedUriSchemes(listOf(PhoneAccount.SCHEME_SIP, PhoneAccount.SCHEME_TEL))
-    //         .build()
-
-    //     try {
-    //         telecomManager.registerPhoneAccount(phoneAccount)
-    //         Log.d("CoreManager", "PhoneAccount registered successfully with TRANSACTIONAL_OPERATIONS")
-    //     } catch (e: SecurityException) {
-    //         Log.e("CoreManager", "SecurityException registering PhoneAccount: ${e.message}")
-    //     }
-    // }
 
     class Notifiable(val notificationId: Int) {
         var myself: String? = null
@@ -324,7 +305,7 @@ object CoreManager {
         val remoteAddress = call.callLog.remoteAddress
         Log.i("CoreManager", "createCallNotification 3")
         val caller = Person.Builder()
-                .setName(LinphoneUtils.getDisplayName(remoteAddress).ifEmpty { "Unknown" })
+                .setName(Utils.getDisplayName(remoteAddress).ifEmpty { "Unknown" })
                 .setImportant(false)
                 .build()
         val smallIcon = R.drawable.ic_stat_call
@@ -380,26 +361,14 @@ object CoreManager {
         Log.i("CoreManager", "Trying to start foreground Service using incoming call notification")
         val service = callService
         if (service != null) {
-            Log.i("CoreManager", "showIncomingCallForegroundServiceNotification 1")
-
             if (Compatibility.isPostNotificationsPermissionGranted(context)) {
-                Log.i("CoreManager", "showIncomingCallForegroundServiceNotification 2")
                 createCallNotificationChannel()
-                Log.i("CoreManager", "showIncomingCallForegroundServiceNotification 3")
                 Compatibility.startServiceForeground(
                     callService!!,
                     INCOMING_CALL_ID,
                     notification,
                     Compatibility.FOREGROUND_SERVICE_TYPE_PHONE_CALL
                 )
-                Log.i("CoreManager", "showIncomingCallForegroundServiceNotification 4")
-                // Intent(context, CallService::class.java).apply { 
-                //         action = "ACTION_SHOW_INCOMING"
-                //         putExtra("displayName", LinphoneUtils.getDisplayName(call.remoteAddress))
-                //         putExtra("remoteUri", call.remoteAddress.asStringUriOnly())
-                //         putExtra("callId", call.callLog.callId)
-                //     }
-                // )
             } else {
                 Log.e("CoreManager", "Post notifications permission not granted")
             }
@@ -410,8 +379,18 @@ object CoreManager {
 
     private fun showCallNotification(call: Call, isIncoming: Boolean) {
         val notifiable = getNotifiableForCall(call)
- 
-        val callUri = Uri.parse("nativetalk://call/outgoing?callId=${call.callLog.callId}&phone=${call.remoteAddress.asStringUriOnly()}")
+        val displayName = Utils.getDisplayName(call.callLog.remoteAddress).ifEmpty { "Unknown" }
+        val initials = displayName.take(2).uppercase()
+        val phone = call.remoteAddress.asStringUriOnly()
+
+        val path = if (isIncoming) "incoming" else "outgoing"
+        val callUri = Uri.parse(
+            "nativetalk://call/$path?callId=${call.callLog.callId}" +
+            "&phone=${phone}" +
+            "&displayName=${Uri.encode(displayName)}" +
+            "&initials=${initials}" +
+            "&name=${Uri.encode(displayName)}"
+        )
         val callNotificationIntent = Intent(Intent.ACTION_VIEW, callUri).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -440,74 +419,111 @@ object CoreManager {
             showIncomingCallForegroundServiceNotification(notification)
         } else {
             Log.i("CoreManager", "Not an incoming call")
-            // showInCallForegroundServiceNotification(call, notifiable, notification)
+            showInCallForegroundServiceNotification(call, notifiable, notification)
         }
     }
 
-    // private fun showInCallForegroundServiceNotification(call: Call, notifiable: Notifiable, notification: Notification) {
-    //     val service = callService
-    //     if (service == null) {
-    //         Log.d("CoreManager", "Core Foreground Service hasn't started yet...")
-    //         return
-    //     }
+    private fun showInCallForegroundServiceNotification(call: Call, notifiable: Notifiable, notification: Notification) {
+        val service = callService
+        if (service == null) {
+            Log.d("CoreManager", "Core Foreground Service hasn't started yet...")
+            return
+        }
 
-    //     var mask = Compatibility.FOREGROUND_SERVICE_TYPE_PHONE_CALL
-    //     val callState = call.state
-    //     if (!LinphoneUtils.isCallIncoming(callState) && !LinphoneUtils.isCallOutgoing(callState) && !LinphoneUtils.isCallEnding(
-    //             callState
-    //         )
-    //     ) {
-    //         if (ActivityCompat.checkSelfPermission(
-    //                 context,
-    //                 Manifest.permission.RECORD_AUDIO
-    //             ) == PackageManager.PERMISSION_GRANTED
-    //         ) {
-    //             mask = mask or Compatibility.FOREGROUND_SERVICE_TYPE_MICROPHONE
-    //             Log.i(
-    //                 "$TAG RECORD_AUDIO permission has been granted, adding FOREGROUND_SERVICE_TYPE_MICROPHONE to foreground Service types mask"
-    //             )
-    //         }
-    //         val isSendingVideo = when (call.currentParams.videoDirection) {
-    //             MediaDirection.SendRecv, MediaDirection.SendOnly -> true
-    //             else -> false
-    //         }
-    //         if (call.currentParams.isVideoEnabled && isSendingVideo) {
-    //             if (ActivityCompat.checkSelfPermission(
-    //                     context,
-    //                     Manifest.permission.CAMERA
-    //                 ) == PackageManager.PERMISSION_GRANTED
-    //             ) {
-    //                 mask = mask or Compatibility.FOREGROUND_SERVICE_TYPE_CAMERA
-    //                 Log.i(
-    //                     "$TAG CAMERA permission has been granted, adding FOREGROUND_SERVICE_TYPE_CAMERA to foreground Service types mask"
-    //                 )
-    //             }
-    //         }
-    //     }
+        var mask = Compatibility.FOREGROUND_SERVICE_TYPE_PHONE_CALL
+        val callState = call.state
+        
+        if (!Utils.isCallIncoming(callState) && !Utils.isCallOutgoing(callState) && !Utils.isCallEnding(
+                callState
+            )
+        ) {
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                mask = mask or Compatibility.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                Log.i(
+                    "CoreManager", "RECORD_AUDIO permission has been granted, adding FOREGROUND_SERVICE_TYPE_MICROPHONE to foreground Service types mask"
+                )
+            }
+        }
 
-    //     if (Compatibility.isPostNotificationsPermissionGranted(context)) {
-    //         Log.i(
-    //             "$TAG Service found, starting it as foreground using notification ID [${notifiable.notificationId}] with type(s) [${foregroundServiceTypeMaskToString(mask)}]($mask)"
-    //         )
-    //         Compatibility.startServiceForeground(
-    //             service,
-    //             notifiable.notificationId,
-    //             notification,
-    //             mask
-    //         )
-    //         notificationsMap[notifiable.notificationId] = notification
-    //         currentInCallServiceNotificationId = notifiable.notificationId
-    //         inCallServiceForegroundNotificationPublished = true
-    //         Log.i("$TAG Call notification with ID [${notifiable.notificationId}] has been used to start service as foreground")
+        if (Compatibility.isPostNotificationsPermissionGranted(context)) {
+            Log.i(
+                "CoreManager", "Service found, starting it as foreground using notification ID [${notifiable.notificationId}]"
+            )
+            Compatibility.startServiceForeground(
+                service,
+                notifiable.notificationId,
+                notification,
+                mask
+            )
+            notificationsMap[notifiable.notificationId] = notification
+            currentInCallServiceNotificationId = notifiable.notificationId
+            inCallServiceForegroundNotificationPublished = true
+            Log.i("CoreManager", "Call notification with ID [${notifiable.notificationId}] has been used to start service as foreground")
 
-    //         if (waitForInCallServiceForegroundToStopIt) {
-    //             Log.i("$TAG We were waiting for foreground service to be started to stop it, doing it")
-    //             stopInCallForegroundService()
-    //         }
-    //     } else {
-    //         Log.e("$TAG POST_NOTIFICATIONS permission isn't granted, don't start foreground service!")
-    //     }
-    // }
+            if (waitForInCallServiceForegroundToStopIt) {
+                Log.d("CoreManager", "We were waiting for foreground service to be started to stop it, doing it")
+                stopCallForegroundService()
+            }
+        } else {
+            Log.e("CoreManager", "POST_NOTIFICATIONS permission isn't granted, don't start foreground service!")
+        }
+    }
+
+    @WorkerThread
+    private fun startInCallForegroundService(call: Call) {
+        if (Utils.isCallIncoming(call.state)) {
+            val notification = notificationsMap[INCOMING_CALL_ID]
+            if (notification != null) {
+                showIncomingCallForegroundServiceNotification(notification)
+            } else {
+                Log.w(
+                    "CoreManager", "Failed to find notification for incoming call with ID [$INCOMING_CALL_ID]"
+                )
+            }
+            return
+        }
+
+        Log.i("CoreManager", "Trying to start/update foreground Service using call notification")
+        val service = callService
+        if (service == null) {
+            Log.w("CoreManager", "Core Foreground Service hasn't started yet...")
+            return
+        }
+
+        val channelId = context.getString(R.string.notification_channel_call_id)
+        val channel = notificationManager.getNotificationChannel(channelId)
+        val importance = channel?.importance ?: NotificationManagerCompat.IMPORTANCE_NONE
+        if (importance == NotificationManagerCompat.IMPORTANCE_NONE) {
+            Log.e("CoreManager", "Calls channel has been disabled, can't start foreground service!")
+            stopCallForegroundService()
+            return
+        }
+
+        val notifiable = getNotifiableForCall(call)
+        val notificationId = notifiable.notificationId
+        val notification = if (notificationsMap.containsKey(notificationId)) {
+            notificationsMap[notificationId]
+        } else if (notificationsMap.containsKey(INCOMING_CALL_ID)) {
+            notificationsMap[INCOMING_CALL_ID]
+        } else {
+            Log.w("CoreManager", "Failed to find a notification for call [${call.remoteAddress.asStringUriOnly()}] in map")
+            null
+        }
+        if (notification == null) {
+            Log.w(
+                "CoreManager", "existing notification (ID [$notificationId]) found for current call [${call.remoteAddress.asStringUriOnly()}], aborting"
+            )
+            stopCallForegroundService()
+            return
+        }
+        Log.i("CoreManager", "Found notification [$notificationId] for current Call")
+
+        showInCallForegroundServiceNotification(call, notifiable, notification)
+    }
 
     private fun stopCallForegroundService() {
         val service = callService
@@ -518,6 +534,8 @@ object CoreManager {
             service.stopForeground(STOP_FOREGROUND_REMOVE)
             // service.stopSelf()
             callServiceForegroundNotificationPublished = false
+            inCallServiceForegroundNotificationPublished = false
+            waitForInCallServiceForegroundToStopIt = false
         } else {
             Log.w("CoreManager", "Can't stop foreground Service & notif, no Service was found")
         }
