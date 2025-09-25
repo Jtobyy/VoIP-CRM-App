@@ -1,10 +1,13 @@
+
+package com.nativetalkbusiness.voice
+
 import android.annotation.SuppressLint
 import android.telecom.Connection
 import android.telecom.ConnectionRequest
 import android.telecom.ConnectionService
 import android.telecom.PhoneAccountHandle
 import android.util.Log
-import com.nativetalkbusiness.voice.LinphoneCoreManager
+import com.nativetalkbusiness.voice.CoreManager
 
 class VoiceConnectionService : ConnectionService() {
     companion object {
@@ -53,25 +56,25 @@ class VoiceConnectionService : ConnectionService() {
     class VoiceConnection : Connection() {
         override fun onDisconnect() {
             Log.d(TAG, "onDisconnect")
-            LinphoneCoreManager.decline()
+            CoreManager.decline()
             destroy()
         }
 
         override fun onAbort() {
             Log.d(TAG, "onAbort")
-            LinphoneCoreManager.decline()
+            CoreManager.decline()
             destroy()
         }
 
         override fun onReject() {
             Log.d(TAG, "onReject")
-            LinphoneCoreManager.decline()
+            CoreManager.decline()
             destroy()
         }
 
         override fun onAnswer() {
             Log.d(TAG, "onAnswer")
-            LinphoneCoreManager.answer()
+            CoreManager.answer()
             setActive()
         }
     }

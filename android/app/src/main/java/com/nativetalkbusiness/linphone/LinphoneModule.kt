@@ -4,7 +4,7 @@ import android.media.AudioManager
 import android.media.ToneGenerator
 import android.util.Log
 import com.facebook.react.bridge.*
-import com.nativetalkbusiness.voice.LinphoneCoreManager
+import com.nativetalkbusiness.voice.CoreManager
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class LinphoneModule(private val reactContext: ReactApplicationContext) :
@@ -27,17 +27,19 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
 
     try {
       // Ensure Linphone core is started from the service
-      LinphoneCoreManager.ensureStarted(reactContext.applicationContext)
-      LinphoneCoreManager.attachReactEmitter(reactContext)
+      // CoreManager.ensureStarted(reactContext.applicationContext)
+      CoreManager.attachReact(reactContext)
+
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("INIT_FAILED", e)
     }
   }
 
+
   @ReactMethod
   fun register(acc: ReadableMap) {
-    LinphoneCoreManager.register(
+    CoreManager.register(
       acc.getString("username") ?: "",
       acc.getString("password") ?: "",
       acc.getString("domain") ?: "",
@@ -45,17 +47,17 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
     )
   }
 
-  @ReactMethod fun call(sipUri: String) = LinphoneCoreManager.call(sipUri)
-  @ReactMethod fun answer() = LinphoneCoreManager.answer()
-  @ReactMethod fun decline(reason: String?) = LinphoneCoreManager.decline()
-  @ReactMethod fun end() = LinphoneCoreManager.end()
+  @ReactMethod fun call(sipUri: String) = CoreManager.call(sipUri)
+  @ReactMethod fun answer() = CoreManager.answer()
+  @ReactMethod fun decline(reason: String?) = CoreManager.decline()
+  @ReactMethod fun end() = CoreManager.end()
   @ReactMethod fun hangup() = end()
-  @ReactMethod fun mute(on: Boolean) = LinphoneCoreManager.mute(on)
-  @ReactMethod fun speaker(on: Boolean) = LinphoneCoreManager.speaker(on)
-  @ReactMethod fun sendDtmf(d: String) = LinphoneCoreManager.sendDtmf(d)
-  @ReactMethod fun hold() = LinphoneCoreManager.hold()
-  @ReactMethod fun resume() = LinphoneCoreManager.resume()
-  @ReactMethod fun setRegisterEnabled(on: Boolean) = LinphoneCoreManager.setRegisterEnabled(on)
+  @ReactMethod fun mute(on: Boolean) = CoreManager.mute(on)
+  @ReactMethod fun speaker(on: Boolean) = CoreManager.speaker(on)
+  @ReactMethod fun sendDtmf(d: String) = CoreManager.sendDtmf(d)
+  @ReactMethod fun hold() = CoreManager.hold()
+  @ReactMethod fun resume() = CoreManager.resume()
+  @ReactMethod fun setRegisterEnabled(on: Boolean) = CoreManager.setRegisterEnabled(on)
 
   @ReactMethod fun addListener(event: String) {}
   @ReactMethod fun removeListeners(count: Int) {}
@@ -84,7 +86,7 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
   }
 
   override fun onCatalystInstanceDestroy() {
+    CoreManager.detachReact()
     super.onCatalystInstanceDestroy()
-    LinphoneCoreManager.attachReactEmitter(null)
   }
 }

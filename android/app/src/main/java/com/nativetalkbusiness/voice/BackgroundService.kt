@@ -7,19 +7,22 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.nativetalkbusiness.R
+import com.nativetalkbusiness.voice.CallService
+import android.util.Log
 
-class LinphoneBackgroundService : Service() {
+
+class BackgroundService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 1000
-        private const val CHANNEL_ID = "linphone_background"
+        private const val CHANNEL_ID = "nativetalk_background"
         
         fun startService(context: Context) {
-            val intent = Intent(context, LinphoneBackgroundService::class.java)
+            val intent = Intent(context, BackgroundService::class.java)
             context.startForegroundService(intent)
         }
         
         fun stopService(context: Context) {
-            val intent = Intent(context, LinphoneBackgroundService::class.java)
+            val intent = Intent(context, BackgroundService::class.java)
             context.stopService(intent)
         }
     }
@@ -29,23 +32,26 @@ class LinphoneBackgroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        createIncomingCallChannel() 
         
         // Acquire wake lock to keep service alive
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
-            "NativeTalk::LinphoneBackgroundService"
+            "NativeTalk::BackgroundService"
         )
         wakeLock?.acquire(10*60*1000L /*10 minutes*/)
         // Initialize Linphone core
-        LinphoneCoreManager.ensureStarted(applicationContext)
+        // CoreManager.ensureStarted(applicationContext)
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
         
+        Log.i("BackgroundService", "CallService about to start")
+        applicationContext.startService(Intent(applicationContext, CallService::class.java))
+        Log.i("BackgroundService", "Started CallService")
+
         // Keep the service running
         return START_STICKY
     }
@@ -54,7 +60,7 @@ class LinphoneBackgroundService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Restart the service when app is swiped away
-        val restartServiceIntent = Intent(applicationContext, LinphoneBackgroundService::class.java)
+        val restartServiceIntent = Intent(applicationContext, BackgroundService::class.java)
         val restartPendingIntent = PendingIntent.getService(
             this, 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -76,31 +82,13 @@ class LinphoneBackgroundService : Service() {
         sendBroadcast(broadcastIntent)
     }
 
-    private fun createIncomingCallChannel() {
-        val channel = NotificationChannel(
-            "incoming_calls",
-            "Incoming Calls",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Notifications for incoming calls"
-            enableLights(true)
-            enableVibration(true)
-            setBypassDnd(true)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            setShowBadge(false)
-        }
-        
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
-    }
-
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Linphone Background Service",
+            "Nativetalk Background Service",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Keeps Linphone running to receive calls"
+            description = "Keeps Nativetalk running to receive calls"
             setShowBadge(false)
         }
         

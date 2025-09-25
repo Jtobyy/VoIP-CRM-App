@@ -5,24 +5,22 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
 
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
-    <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
-    <uses-permission android:name="android.permission.BIND_TELECOM_CONNECTION_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.START_FOREGROUND_SERVICE_FROM_BACKGROUND" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
       android:name=".MainApplication"
@@ -45,6 +43,13 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="nativetalk" android:host="call" />
+        </intent-filter>
       </activity>
 
       <activity
@@ -60,8 +65,7 @@
           android:name=".voice.CallService"
           android:enabled="true"
           android:exported="false"
-          android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
-          android:foregroundServiceType="microphone|connectedDevice|phoneCall">
+          android:foregroundServiceType="phoneCall|microphone">
           <intent-filter>
               <action android:name="com.nativetalkbusiness.voice.CallService" />
           </intent-filter>
@@ -77,10 +81,10 @@
       </service>
 
       <service
-          android:name=".voice.LinphoneBackgroundService"
+          android:name=".voice.BackgroundService"
           android:enabled="true"
           android:exported="false"
-          android:foregroundServiceType="microphone|phoneCall">
+          android:foregroundServiceType="phoneCall">
       </service>
 
       <receiver android:name=".voice.CallActionReceiver" android:exported="false">
@@ -88,18 +92,6 @@
             <action android:name="com.nativetalkbusiness.ACTION_ANSWER" />
             <action android:name="com.nativetalkbusiness.ACTION_DECLINE" />
         </intent-filter>
-      </receiver>
-
-      <receiver 
-          android:name=".voice.BootReceiver"
-          android:enabled="true"
-          android:exported="true">
-          <intent-filter android:priority="1000">
-              <action android:name="android.intent.action.BOOT_COMPLETED" />
-              <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-              <action android:name="android.intent.action.PACKAGE_REPLACED" />
-              <data android:scheme="package" />
-          </intent-filter>
       </receiver>
     </application>
 </manifest>
