@@ -4,13 +4,16 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Avatar from '../../../components/Avatar';
 import { colors } from '../../../styles/global';
 import useCall from '../../../hooks/useCall';
+import { navigate } from '../../../navigation/RootNavigation';
+import { decline } from '../../../native/linphone';
+
 
 const IncomingCallScreen = ({ navigation, route }) => {
   const { 
     incoming, 
     incomingInfo, 
     answer, 
-    decline,
+    hangup,
     callStatus
   } = useCall();
 
@@ -25,7 +28,7 @@ const IncomingCallScreen = ({ navigation, route }) => {
 
   const onAnswer = async () => {
     await answer();
-    navigation.replace('OutgoingCall', { name, phone, initials });
+    navigate('OutgoingCall', { name, phone, initials });
   };
 
   const onDecline = async () => {

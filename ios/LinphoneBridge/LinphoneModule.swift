@@ -8,10 +8,42 @@ class LinphoneModule: RCTEventEmitter {
 
   private var core: Core?
   private var coreDelegate: LinphoneCoreDelegate?
+  fileprivate var isEndingCall = false
   
   override static func requiresMainQueueSetup() -> Bool { true }
   override func supportedEvents() -> [String]! {
     return ["RegistrationChanged", "CallIncoming", "CallState", "CallEnded"]
+  }
+  
+  // Helper method to ensure audio session is properly activated
+  private func ensureAudioSessionActive() {
+      let session = AVAudioSession.sharedInstance()
+      
+      // Check if session is already active
+      guard !session.isOtherAudioPlaying else {
+          NSLog("Linphone: Other audio is playing, skipping audio session activation")
+          return
+      }
+      
+      do {
+          // Only reconfigure if necessary
+          if session.category != .playAndRecord {
+              try session.setCategory(.playAndRecord, options: [.allowBluetooth, .defaultToSpeaker])
+          }
+          
+          if session.mode != .voiceChat {
+              try session.setMode(.voiceChat)
+          }
+          
+          // Always ensure it's active
+          if !session.isOtherAudioPlaying {
+              try session.setActive(true)
+          }
+          
+          NSLog("Linphone: Audio session ensured active")
+      } catch {
+          NSLog("Linphone: Failed to ensure audio session active: \(error)")
+      }
   }
   
   private func startAudioSession() {
@@ -30,6 +62,18 @@ class LinphoneModule: RCTEventEmitter {
     "7": (852,1209), "8": (852,1336), "9": (852,1477),
     "*": (941,1209), "0": (941,1336), "#": (941,1477)
   ]
+  
+  private func stopUiTone() {
+    if let node = toneNode {
+      toneEngine?.disconnectNodeInput(node)
+      toneEngine?.detach(node)
+      toneNode = nil
+    }
+    if let eng = toneEngine, eng.isRunning {
+      eng.stop()
+    }
+    toneEngine = nil
+  }
 
   @objc(playKeyTone:)
   func playKeyTone(_ digit: NSString) {
@@ -111,6 +155,14 @@ class LinphoneModule: RCTEventEmitter {
   
   deinit {
     if let d = coreDelegate { core?.removeDelegate(delegate: d) }
+    // Clean tone engine
+    if let node = toneNode {
+      toneEngine?.disconnectNodeInput(node)
+      toneEngine?.detach(node)
+    }
+    toneNode = nil
+    toneEngine?.stop()
+    toneEngine = nil
   }
   
   @objc(register:)
@@ -171,41 +223,74 @@ class LinphoneModule: RCTEventEmitter {
     }
   }
   
+//  @objc(decline:)
+//  func decline(_ reasonStr: NSString?) {
+//    guard let call = core?.currentCall else {
+//      NSLog("Linphone: decline() — no active call"); return
+//    }
+//    let r: Reason
+//    switch (reasonStr as String?)?.lowercased() {
+//    case "busy","486": r = .Busy
+//    case "notacceptable","406": r = .NotAcceptable
+//    case "temporarilyunavailable","480": r = .TemporarilyUnavailable
+//    default: r = .Declined
+//    }
+//    do { try call.decline(reason: r) } catch {
+//      NSLog("Linphone: decline() failed: \(error)")
+//    }
+//  }
   @objc(decline:)
   func decline(_ reasonStr: NSString?) {
+    stopUiTone()
+    ensureAudioSessionActive()
+
     guard let call = core?.currentCall else {
       NSLog("Linphone: decline() — no active call")
       return
     }
 
-    // Map a friendly string to Linphone Reason
+    // Map friendly string to Linphone Reason
     let r: Reason
     switch (reasonStr as String?)?.lowercased() {
-    case "busy", "486":
-      r = .Busy                      // 486 Busy Here
-    case "notacceptable", "406":
-      r = .NotAcceptable             // 406 Not Acceptable
-    case "temporarilyunavailable", "480":
-      r = .TemporarilyUnavailable    // 480 Temporarily Unavailable
+    case "busy", "486":                     r = .Busy
+    case "notacceptable", "406":            r = .NotAcceptable
+    case "temporarilyunavailable", "480":   r = .TemporarilyUnavailable
+    default:                                r = .Declined
+    }
+
+    // Only use decline for actual incoming states; otherwise terminate
+    switch call.state {
+    case .IncomingReceived, .IncomingEarlyMedia, .PushIncomingReceived:
+      print("Linphone: declining call now")
+
+      do { try call.accept(); try call.terminate()}
+      catch { NSLog("Linphone: decline() failed: \(error)") }
     default:
-      r = .Declined                  // 603 Decline (default)
-    }
-
-    do {
-      try call.decline(reason: r)
-    } catch {
-      NSLog("Linphone: decline() failed: \(error)")
+      do { try call.terminate() }
+      catch { NSLog("Linphone: terminate() (fallback from decline) failed: \(error)") }
     }
   }
 
+
+  @objc(end)
+  func end() {
+    guard let call = core?.currentCall, !isEndingCall else { return }
+    isEndingCall = true
+    do {
+      switch call.state {
+      case .IncomingReceived, .PushIncomingReceived, .IncomingEarlyMedia:
+        try call.decline(reason: .Declined) // or .Busy if you prefer
+      default:
+        try call.terminate()
+      }
+    } catch {
+      isEndingCall = false
+      NSLog("Linphone: end() failed: \(error)")
+    }
+  }
+  
   @objc(hangup)
-  func hangup() {
-    do {
-      try core?.currentCall?.terminate()
-    } catch {
-      NSLog("Linphone: hangup() failed: \(error)")
-    }
-  }
+  func hangup() { end() }
   
   @objc(mute:)
   func mute(_ on: Bool) { core?.micEnabled = !on }
@@ -271,37 +356,35 @@ class LinphoneCoreDelegate: CoreDelegate {
     )
     
     switch state {
-      case .IncomingReceived:
-        print("call remote address is \(call.remoteAddress)")
-        print("call remote address as string \(call.remoteAddressAsString)")
-        print("call remote contact  \(call.remoteContact)")
-        print("call remote contact address \(call.remoteContactAddress)")
-        print("call remote remoteUserAgent \(call.remoteUserAgent)")
-        print("call remote remoteParams \(call.remoteParams)")
-        print("call remote toAddress \(call.toAddress)")
+      case .IncomingReceived, .PushIncomingReceived, .IncomingEarlyMedia:
+//        print("call remote address is \(call.remoteAddress)")
+//        print("call remote address as string \(call.remoteAddressAsString)")
+//        print("call remote contact  \(call.remoteContact)")
+//        print("call remote contact address \(call.remoteContactAddress)")
+//        print("call remote remoteUserAgent \(call.remoteUserAgent)")
+//        print("call remote remoteParams \(call.remoteParams)")
+//        print("call remote toAddress \(call.toAddress)")
 
         
         let addr = call.remoteAddress
         let display = addr?.displayName ?? ""
         let username = addr?.username ?? ""                  // user part before @
         let uri = addr?.asStringUriOnly() ?? addr?.asString() ?? ""  // "sip:user@domain"
-
-        // Prefer display name if present and not "anonymous", else the username.
-        let short =
-          (!display.isEmpty && display.lowercased() != "anonymous")
-          ? display
-          : username
       
-        let from = call.remoteAddress?.asStringUriOnly() ?? ""
+        // Prefer display name if present and not "anonymous", else the username.
+        let short = (!display.isEmpty && display.lowercased() != "anonymous") ? display : username
+
         module?.sendEvent(withName: "CallIncoming", body: [
-          "from": short,             // <- best short label for UI
-          "displayName": display,    // raw display-name
-          "username": username,      // user part
-          "uri": uri                 // full sip uri
+              "from": short,            // short label for UI
+              "displayName": display,   // raw display-name
+              "username": username,     // user part
+              "uri": uri                // full sip uri
         ])
       
       case .End, .Released, .Error:
+        module?.isEndingCall = false   // reset guard once call is finished
         module?.sendEvent(withName: "CallEnded", body: [:])
+  
       default:
         break
    }
@@ -309,10 +392,6 @@ class LinphoneCoreDelegate: CoreDelegate {
   
   func onRegistrationStateChanged(core: Core, proxyConfig: ProxyConfig, state: RegistrationState, message: String) {
     module?.sendEvent(withName: "RegistrationChanged", body: ["state": state.rawValue, "message": message])
-  }
-  
-  func onCallReceived(core: Core, call: Call) {
-    module?.sendEvent(withName: "CallIncoming", body: ["message": "Incoming call"])
   }
 }
 

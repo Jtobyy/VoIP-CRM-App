@@ -17,7 +17,6 @@ class Utils {
 
             val displayName = address.displayName
 
-            // Do not return an empty display name
             return if (displayName.isNullOrEmpty()) {
                 address.username ?: address.asString()
             } else {

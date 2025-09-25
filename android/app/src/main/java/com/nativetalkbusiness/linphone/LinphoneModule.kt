@@ -26,8 +26,6 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
     Log.i("LinphoneModule", "Ensuring registration")
 
     try {
-      // Ensure Linphone core is started from the service
-      // CoreManager.ensureStarted(reactContext.applicationContext)
       CoreManager.attachReact(reactContext)
 
       promise.resolve(null)

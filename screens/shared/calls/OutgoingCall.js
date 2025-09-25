@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Avatar from '../../../components/Avatar';
 import { colors } from '../../../styles/global';
 import useCall from '../../../hooks/useCall';
+import { goBack } from '../../../navigation/RootNavigation';
+
 
 const controlIcons = {
   mic: require('../../../assets/mic.png'),
@@ -74,10 +76,13 @@ const OutgoingCallScreen = ({ navigation, route }) => {
 
   const handleEndCall = async () => {
     if (uiStatus !== 'Call ended') {
+      console.log("ending call", callStatus)
       await hangup();
       return;
     }
-    navigation.goBack();
+
+    console.log("navigating back")
+    goBack();
   };
   
 

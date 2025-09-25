@@ -29,9 +29,9 @@ class Compatibility {
     companion object {
         private const val TAG = "[Compatibility]"
 
-        const val FOREGROUND_SERVICE_TYPE_PHONE_CALL = 4 // ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
-        const val FOREGROUND_SERVICE_TYPE_MICROPHONE = 128 // ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-        const val FOREGROUND_SERVICE_TYPE_SPECIAL_USE = 1073741824 // ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        const val FOREGROUND_SERVICE_TYPE_PHONE_CALL = 4
+        const val FOREGROUND_SERVICE_TYPE_MICROPHONE = 128
+        const val FOREGROUND_SERVICE_TYPE_SPECIAL_USE = 1073741824
 
         fun startServiceForeground(
             service: Service,

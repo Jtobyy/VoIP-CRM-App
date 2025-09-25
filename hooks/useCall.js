@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Alert, Platform, PermissionsAndroid } from 'react-native';
 import * as Lin from '../native/linphone';
 import { navigate, replace } from '../navigation/RootNavigation';
+import { queueIncoming, queueOutgoing } from '../navigation/RootNavigation';
+
 
 const CALL_STATE = {
   0: 'Idle',
@@ -71,6 +73,8 @@ export function CallProvider({ children }) {
   const tickRef = useRef(null); 
   const startTsRef = useRef(null);
   const latestDurationRef = useRef(0);
+  const [ending, setEnding] = useState(false);
+
   
   useEffect(() => { 
     latestDurationRef.current = durationSec; 
@@ -149,7 +153,8 @@ export function CallProvider({ children }) {
       setIncoming(true);
       setIncomingInfo({ name: phone, phone, initials });
       setCallStatus('Incoming');
-      navigate('IncomingCall', { name: phone, phone, initials });
+      // navigate('IncomingCall', { name: phone, phone, initials });
+      queueIncoming({ name: phone, phone, initials, callId: e?.callId });
     });
 
     const subState = Lin.on.CallState((e) => {
@@ -176,6 +181,7 @@ export function CallProvider({ children }) {
     });
 
     const subEnd = Lin.on.CallEnded(() => {
+      console.log("Call ended")
       clearTimer();
       setIncoming(false);
       setIncomingInfo(null);
@@ -204,17 +210,25 @@ export function CallProvider({ children }) {
     Lin.answer(); 
   }, [resetDuration]);
 
-  const hangup   = useCallback(async () => { 
-    setCallStatus('Ending…'); 
-    Lin.hangup(); 
+  // const hangup   = useCallback(async () => { 
+  //   setCallStatus('Ending…'); 
+  //   Lin.hangup(); 
 
-    const secondsNow = startTsRef.current
-    ? Math.max(0, Math.floor((Date.now() - startTsRef.current) / 1000))
-    : Math.max(0, Math.floor(latestDurationRef.current));
+  //   const secondsNow = startTsRef.current
+  //   ? Math.max(0, Math.floor((Date.now() - startTsRef.current) / 1000))
+  //   : Math.max(0, Math.floor(latestDurationRef.current));
     
-    clearTimer();
-    setDurationSec(secondsNow);
-  }, [clearTimer]);
+  //   clearTimer();
+  //   setDurationSec(secondsNow);
+  // }, [clearTimer]);
+  const hangup = useCallback(async () => {
+    if (ending) return;
+    setEnding(true);
+    try { Lin.end(); } finally {
+      // Let native reset on CallEnded; keep UI disabled briefly to avoid double taps
+      setTimeout(() => setEnding(false), 800);
+    }
+  }, [ending]);
 
   const decline   = useCallback(async () => { 
     setCallStatus('Declined…'); 
@@ -276,7 +290,7 @@ export function CallProvider({ children }) {
     dial, answer, hangup, decline,
     toggleMute, toggleHold, toggleSpeaker,
     sendDTMFActive,
-    Lin
+    Lin,
   };
 
   return <CallCtx.Provider value={value}>{children}</CallCtx.Provider>;

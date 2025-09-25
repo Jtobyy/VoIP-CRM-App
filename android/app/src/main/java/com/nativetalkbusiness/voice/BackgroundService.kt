@@ -40,8 +40,6 @@ class BackgroundService : Service() {
             "NativeTalk::BackgroundService"
         )
         wakeLock?.acquire(10*60*1000L /*10 minutes*/)
-        // Initialize Linphone core
-        // CoreManager.ensureStarted(applicationContext)
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -52,7 +50,7 @@ class BackgroundService : Service() {
         applicationContext.startService(Intent(applicationContext, CallService::class.java))
         Log.i("BackgroundService", "Started CallService")
 
-        // Keep the service running
+        // Keep the service running in background
         return START_STICKY
     }
 

@@ -48,7 +48,6 @@ import com.nativetalkbusiness.voice.Utils
  * Services and the RN module both talk to this.
  */
 object CoreManager {
-    // Core bits
     private var core: Core? = null
     private var listener: CoreListener? = null
 
@@ -69,7 +68,6 @@ object CoreManager {
     private var callService: CallService? = null
     private var waitForInCallServiceForegroundToStopIt = false
 
-
     // RN emitter (when RN is up)
     @Volatile
     private var reactContext: ReactApplicationContext? = null
@@ -77,14 +75,11 @@ object CoreManager {
     private lateinit var notificationManager: NotificationManagerCompat
     private lateinit var context: Context
 
-    // === Public surface for native & RN ===
     @Synchronized
     fun ensureStarted(ctx: Context) {
         if (::context.isInitialized) return
         context = ctx.applicationContext
         notificationManager = NotificationManagerCompat.from(context)
-
-        // registerPhoneAccount()
 
         val f = Factory.instance()
         f.setLogCollectionPath(context.filesDir.absolutePath)
@@ -156,12 +151,6 @@ object CoreManager {
                     Call.State.End, Call.State.Released, Call.State.Error -> {
                         Log.d("CoreManager", "Call Ended or Error - State: $state")
                         stopCallForegroundService()
-                        // val intent = Intent(context, CallService::class.java)
-                        // context.stopService(intent)
-
-                        // VoiceConnectionService.currentConnection?.setDisconnected(DisconnectCause(DisconnectCause.REMOTE))
-                        // VoiceConnectionService.currentConnection?.destroy()
-                        // VoiceConnectionService.currentConnection = null
 
                         emit("CallEnded", Arguments.createMap())
                     }
@@ -325,8 +314,6 @@ object CoreManager {
         Log.i("CoreManager", "createCallNotification 5")
         val channelId = if (isIncoming) "incoming_calls" else "ongoing_calls"
         Log.i("CoreManager", "createCallNotification 6")
-        // val channel = notificationManager?.getNotificationChannel(channelId)
-        // val importance = channel?.importance ?: NotificationManagerCompat.IMPORTANCE_NONE
 
         Log.i("CoreManager", "Creating notification for ${if (isIncoming) "[incoming]" else "[outgoing]"}")
         Log.i("CoreManager", "createCallNotification 7")
@@ -659,7 +646,7 @@ object CoreManager {
         if (rc != null && rc.hasActiveCatalystInstance()) {
           rc.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java).emit(event, body)
         } else {
-          // RN not ready; just skip (or buffer if you want)
+          // RN not ready; just skip
         }
     }
 }

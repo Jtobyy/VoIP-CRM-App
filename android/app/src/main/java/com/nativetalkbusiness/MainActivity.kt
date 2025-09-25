@@ -48,22 +48,6 @@ class MainActivity : ReactActivity() {
     }
   }
 
-//   fun checkAndRequestAudioPermission(call: Call) {
-//         pendingCall = call // Store the call for later
-//         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-//             Log.d("MainActivity", "RECORD_AUDIO permission not granted. Requesting it now.")
-//             ActivityCompat.requestPermissions(
-//                 this,
-//                 arrayOf(Manifest.permission.RECORD_AUDIO),
-//                 RECORD_AUDIO_PERMISSION_REQUEST_CODE
-//             )
-//         } else {
-//             Log.d("MainActivity", "RECORD_AUDIO permission already granted. Starting service.")
-//             CoreManager.startForegroundServiceWithCall(call)
-//             pendingCall = null 
-//         }
-//     }
-
     private val postNotificationsPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -71,7 +55,6 @@ class MainActivity : ReactActivity() {
             Log.i("MainActivity", "POST_NOTIFICATIONS permission granted")
         } else {
             Log.w("MainActivity", "POST_NOTIFICATIONS permission denied")
-            // Maybe show explanation to user
         }
     }
 
@@ -113,21 +96,6 @@ class MainActivity : ReactActivity() {
         }
     }
 
-    // override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-    //     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    //     if (requestCode == RECORD_AUDIO_PERMISSION_REQUEST_CODE) {
-    //         if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-    //             Log.d("MainActivity", "RECORD_AUDIO permission granted. Starting call service.")
-    //             pendingCall?.let {
-    //                 CoreManager.startForegroundServiceWithCall(it)
-    //             }
-    //         } else {
-    //             Log.w("MainActivity", "RECORD_AUDIO permission denied.")
-    //         }
-    //         pendingCall = null
-    //     }
-    // }
-
     override fun onResume() {
         super.onResume()
         updateMissingPermissionAlert()
@@ -141,7 +109,7 @@ class MainActivity : ReactActivity() {
 
     /**
      * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
-     * which allows you to enable New Architecture with a single boolean flags [fabricEnabled]
+     * which allows us to enable New Architecture with a single boolean flags [fabricEnabled]
      */
     override fun createReactActivityDelegate(): ReactActivityDelegate =
         DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
