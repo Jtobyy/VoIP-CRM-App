@@ -9,7 +9,9 @@ class LinphoneModule: RCTEventEmitter {
   private var core: Core?
   private var coreDelegate: LinphoneCoreDelegate?
   fileprivate var isEndingCall = false
-  
+  private var voipTokenHex: String?
+  private var observersInstalled = false
+
   override static func requiresMainQueueSetup() -> Bool { true }
   override func supportedEvents() -> [String]! {
     return ["RegistrationChanged", "CallIncoming", "CallState", "CallEnded"]
@@ -134,6 +136,21 @@ class LinphoneModule: RCTEventEmitter {
   }
   
   // MARK: - Bridge API
+  private func installObserversIfNeeded() {
+    guard !observersInstalled else { return }
+    observersInstalled = true
+
+    NotificationCenter.default.addObserver(forName: .linphoneRegisterVoipToken, object: nil, queue: .main) { [weak self] note in
+      guard let self = self,
+            let hex = (note.userInfo?["token"] as? String),
+            !hex.isEmpty else { return }
+      self.registerVoipToken(hex as NSString)
+    }
+
+    NotificationCenter.default.addObserver(forName: .linphoneEnsureInit, object: nil, queue: .main) { [weak self] _ in
+      self?.`init`([:]) // idempotent
+    }
+  }
   
   @objc(init:)
   func `init`(_ cfg: NSDictionary?) {
@@ -147,22 +164,11 @@ class LinphoneModule: RCTEventEmitter {
       let delegate = LinphoneCoreDelegate(module: self)
       coreDelegate = delegate
       core?.addDelegate(delegate: delegate)
+      core?.pushNotificationEnabled = true
       try core?.start()
     } catch {
       NSLog("Linphone: createCore/start failed: \(error)")
     }
-  }
-  
-  deinit {
-    if let d = coreDelegate { core?.removeDelegate(delegate: d) }
-    // Clean tone engine
-    if let node = toneNode {
-      toneEngine?.disconnectNodeInput(node)
-      toneEngine?.detach(node)
-    }
-    toneNode = nil
-    toneEngine?.stop()
-    toneEngine = nil
   }
   
   @objc(register:)
@@ -181,29 +187,55 @@ class LinphoneModule: RCTEventEmitter {
       )
       core.addAuthInfo(info: auth)
       
-      let identity = "sip:\(username)@\(domain)"
-      guard let idAddr = try? Factory.Instance.createAddress(addr: identity) else { return }
+      let identityUri = "sip:\(username)@\(domain)"
+      let identityAddr = try Factory.Instance.createAddress(addr: identityUri)
       
-      let proxy: ProxyConfig = try core.createProxyConfig()
+      let serverUri = "sip:\(domain)"
+      let serverAddr = try Factory.Instance.createAddress(addr: serverUri)
+      if let t = transport {
+        switch t {
+        case "tls": try serverAddr.setTransport(newValue: .Tls)
+        case "tcp": try serverAddr.setTransport(newValue: .Tcp)
+        default:    try serverAddr.setTransport(newValue: .Udp)
+        }
+      }
+
+      let params = try core.createAccountParams()
+      try params.setIdentityaddress(newValue: identityAddr)
+      try params.setServeraddress(newValue: serverAddr)
       
-      do {
-        try proxy.setIdentityaddress(newValue: idAddr)
-      } catch {
-        print("An error occurred when setting identity: \(error)")
+      params.pushNotificationAllowed = true
+      params.registerEnabled = true
+      
+      if let token = self.voipTokenHex, !token.isEmpty {
+        params.pushNotificationConfig?.param = token
       }
       
-      
-      var server = "sip:\(domain)"
-      if let t = transport { server += ";transport=\(t)" }
-      
-      try proxy.setServeraddr(newValue: server)
-      proxy.registerEnabled = true
-      
-      try core.addProxyConfig(config: proxy)
-      core.defaultProxyConfig = proxy
-      
+      let account = try core.createAccount(params: params)
+      try core.addAccount(account: account)
+      core.defaultAccount = account
     } catch {
       NSLog("Linphone: register() failed: \(error)")
+    }
+  }
+  
+  @objc(registerVoipToken:)
+  func registerVoipToken(_ tokenHex: NSString) {
+    self.voipTokenHex = tokenHex as String
+    print("Getting VoIP token")
+
+    // If the core/account already exists, update params now and refresh registers
+    guard let core = core, let account = core.defaultAccount else { return }
+    do {
+      // Clone current params, set the push param, re-apply
+      if let newParams = account.params?.clone() {
+        newParams.pushNotificationConfig?.param = self.voipTokenHex
+        account.params = newParams
+        try core.refreshRegisters()
+        print("Linphone: applied VoIP token and refreshed registers")
+      }
+    } catch {
+      print("Linphone: updating push token failed: \(error)")
     }
   }
   
@@ -223,22 +255,6 @@ class LinphoneModule: RCTEventEmitter {
     }
   }
   
-//  @objc(decline:)
-//  func decline(_ reasonStr: NSString?) {
-//    guard let call = core?.currentCall else {
-//      NSLog("Linphone: decline() — no active call"); return
-//    }
-//    let r: Reason
-//    switch (reasonStr as String?)?.lowercased() {
-//    case "busy","486": r = .Busy
-//    case "notacceptable","406": r = .NotAcceptable
-//    case "temporarilyunavailable","480": r = .TemporarilyUnavailable
-//    default: r = .Declined
-//    }
-//    do { try call.decline(reason: r) } catch {
-//      NSLog("Linphone: decline() failed: \(error)")
-//    }
-//  }
   @objc(decline:)
   func decline(_ reasonStr: NSString?) {
     stopUiTone()
@@ -339,6 +355,18 @@ class LinphoneModule: RCTEventEmitter {
     } catch {
       NSLog("Linphone: setRegisterEnabled(\(on)) failed: \(error)")
     }
+  }
+  
+  deinit {
+      if let d = coreDelegate { core?.removeDelegate(delegate: d) }
+
+      if let node = toneNode {
+        toneEngine?.disconnectNodeInput(node)
+        toneEngine?.detach(node)
+      }
+      toneNode = nil
+      toneEngine?.stop()
+      toneEngine = nil
   }
 }
 

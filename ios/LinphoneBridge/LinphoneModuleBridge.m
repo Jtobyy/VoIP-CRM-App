@@ -2,6 +2,7 @@
 #import <React/RCTEventEmitter.h>
 
 @interface RCT_EXTERN_MODULE(LinphoneModule, RCTEventEmitter)
+RCT_EXTERN_METHOD(registerVoipToken:(NSString *)hex)
 RCT_EXTERN_METHOD(init:(NSDictionary *)cfg)
 RCT_EXTERN_METHOD(register:(NSDictionary *)acc)
 RCT_EXTERN_METHOD(call:(NSString *)sipUri)
