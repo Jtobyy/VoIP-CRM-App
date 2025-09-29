@@ -8,14 +8,12 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import android.os.Bundle
 import com.nativetalkbusiness.voice.BackgroundService
 import com.nativetalkbusiness.voice.CoreManager
 import android.content.Context
 import android.provider.Settings
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.PowerManager
 import android.content.pm.PackageManager
 import android.util.Log
