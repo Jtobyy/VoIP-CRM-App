@@ -356,7 +356,134 @@ class LinphoneModule: RCTEventEmitter {
       NSLog("Linphone: setRegisterEnabled(\(on)) failed: \(error)")
     }
   }
+
+  private func sipUserPart(_ uri: String) -> String {
+    // "sip:100@domain" -> "100"
+    if let at = uri.firstIndex(of: "@") {
+      let start = uri.hasPrefix("sip:") ? uri.index(uri.startIndex, offsetBy: 4) : uri.startIndex
+      return String(uri[start..<at])
+    }
+    // "sip:100" or "100"
+    return uri.replacingOccurrences(of: "sip:", with: "")
+  }
+
+  private func mmss(_ seconds: Int) -> String {
+    let m = seconds / 60
+    let s = seconds % 60
+    return String(format: "%02d:%02d", m, s)
+  }
+
+  private func guessCallType(direction: String, called: String, mySipUser: String?) -> String {
+    // Heuristics: tweak to your business rules
+    if called.count <= 3 { return "LOCAL" }
+    if direction == "inbound", let me = mySipUser, called == me { return "DID" }
+    return "STANDARD"
+  }
+
+  private func dispositionFor(status: String) -> String {
+    // Map Linphone-ish statuses to your PBX wording (best-effort)
+    let s = status.lowercased()
+    if s.contains("success") || s.contains("ok") { return "NORMAL_CLEARING [16]" }
+    if s.contains("missed")                       { return "NO_USER_RESPONSE [18]" }
+    if s.contains("aborted") || s.contains("declined") || s.contains("cancel") {
+      return "ORIGINATOR_CANCEL [487]"
+    }
+    if s.contains("busy")                         { return "USER_BUSY [17]" }
+    if s.contains("notacceptable")                { return "NOT_ACCEPTABLE [406]" }
+    if s.contains("temporarily")                  { return "TEMPORARILY_UNAVAILABLE [480]" }
+    // Fallback
+    return "NORMAL_CLEARING [16]"
+  }
   
+  @objc(getCallLogs:rejecter:)
+  func getCallLogs(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+    guard let logs = core?.callLogs else {
+      resolve([])
+      return
+    }
+
+    let df = ISO8601DateFormatter()
+
+    // Try to get current account username for sip_user/call_type inference
+    var mySipUser: String? = nil
+    if let me = core?.defaultAccount?.params?.identityAddress?.username, !me.isEmpty {
+      mySipUser = me
+    }
+
+    var items: [[String: Any]] = []
+
+    for (idx, log) in logs.enumerated() {
+      let fromRaw = log.fromAddress?.asStringUriOnly() ?? log.fromAddress?.asString() ?? ""
+      let toRaw   = log.toAddress?.asStringUriOnly()   ?? log.toAddress?.asString()   ?? ""
+
+      let fromNum = sipUserPart(fromRaw)
+      let toNum   = sipUserPart(toRaw)
+
+      // Direction
+      let direction: String = {
+        let s = String(describing: log.dir).lowercased()
+        if s.contains("incoming") { return "inbound" }
+        if s.contains("outgoing") { return "outbound" }
+        return s // unknown/other
+      }()
+
+      // startDate is time_t (seconds since epoch)
+      let startISO: String = {
+        let seconds = TimeInterval(log.startDate)
+        return df.string(from: Date(timeIntervalSince1970: seconds))
+      }()
+
+      // Caller ID "Name <number>" — we don't always have a display name, so use the number
+      // If you have display names elsewhere, inject them here.
+      let callerID = "\(fromNum) <\(fromNum)>"
+
+      // Choose called_number:
+      // - Server examples for outbound use dialed PSTN ("called_number": '0813...')
+      // - For inbound, examples vary; we'll use the "to" user part consistently.
+      let calledNumber = toNum
+
+      // Type guess
+      let callType = guessCallType(direction: direction, called: calledNumber, mySipUser: mySipUser)
+
+      // Disposition map
+      let disp = dispositionFor(status: String(describing: log.status))
+
+      // Duration MM:SS
+      let durationStr = mmss(Int(log.duration))
+
+      // Destination: "Local" for LOCAL type, else ""
+      let destination = (callType == "LOCAL") ? "Local" : ""
+
+      // sip_user: your account username if known
+      let sipUser = mySipUser ?? ""
+
+      // ID: stable-ish hash from callId, fallback to index
+      let idVal: Int = {
+        if let cid = log.callId {
+          return abs(cid.hashValue) // not perfect across launches, but stable per build/run
+        }
+        return 100000 + idx
+      }()
+
+      items.append([
+        "id": idVal,
+        "call_start": startISO,
+        "call_type": callType,                 // "LOCAL" | "DID" | "STANDARD"
+        "caller_id": callerID,                 // "Name <number>" best-effort
+        "call_direction": direction,           // "inbound" | "outbound"
+        "called_number": calledNumber,         // user part of "to"
+        "disposition": disp,                   // mapped text + code
+        "debit": "0.0000 NGN",                 // device doesn't know billing
+        "duration": durationStr,               // "MM:SS"
+        "destination": destination,            // "" or "Local"
+        "sip_user": sipUser,                   // your SIP username
+        "created_at": startISO,
+        "updated_at": startISO
+      ])
+    }
+
+    resolve(items)
+  }
   deinit {
       if let d = coreDelegate { core?.removeDelegate(delegate: d) }
 
@@ -385,33 +512,25 @@ class LinphoneCoreDelegate: CoreDelegate {
     
     switch state {
       case .IncomingReceived, .PushIncomingReceived, .IncomingEarlyMedia:
-//        print("call remote address is \(call.remoteAddress)")
-//        print("call remote address as string \(call.remoteAddressAsString)")
-//        print("call remote contact  \(call.remoteContact)")
-//        print("call remote contact address \(call.remoteContactAddress)")
-//        print("call remote remoteUserAgent \(call.remoteUserAgent)")
-//        print("call remote remoteParams \(call.remoteParams)")
-//        print("call remote toAddress \(call.toAddress)")
 
-        
-        let addr = call.remoteAddress
-        let display = addr?.displayName ?? ""
-        let username = addr?.username ?? ""                  // user part before @
-        let uri = addr?.asStringUriOnly() ?? addr?.asString() ?? ""  // "sip:user@domain"
-      
-        // Prefer display name if present and not "anonymous", else the username.
-        let short = (!display.isEmpty && display.lowercased() != "anonymous") ? display : username
+      let addr = call.remoteAddress
+      let display = addr?.displayName ?? ""
+      let username = addr?.username ?? ""                           // user part before @
+      let uri = addr?.asStringUriOnly() ?? addr?.asString() ?? ""   // "sip:user@domain"
+    
+      // Prefer display name if present and not "anonymous", else the username.
+      let short = (!display.isEmpty && display.lowercased() != "anonymous") ? display : username
 
-        module?.sendEvent(withName: "CallIncoming", body: [
-              "from": short,            // short label for UI
-              "displayName": display,   // raw display-name
-              "username": username,     // user part
-              "uri": uri                // full sip uri
-        ])
-      
-      case .End, .Released, .Error:
-        module?.isEndingCall = false   // reset guard once call is finished
-        module?.sendEvent(withName: "CallEnded", body: [:])
+      module?.sendEvent(withName: "CallIncoming", body: [
+            "from": short,            // short label for UI
+            "displayName": display,   // raw display-name
+            "username": username,     // user part
+            "uri": uri                // full sip uri
+      ])
+    
+    case .End, .Released, .Error:
+      module?.isEndingCall = false   // reset guard once call is finished
+      module?.sendEvent(withName: "CallEnded", body: [:])
   
       default:
         break

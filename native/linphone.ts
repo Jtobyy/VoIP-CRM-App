@@ -1,6 +1,17 @@
 import { NativeModules, NativeEventEmitter, PermissionsAndroid, Platform } from 'react-native';
 const { LinphoneModule } = NativeModules;
 
+
+type CallLog = {
+  from: string;
+  to: string;
+  direction: 'incoming' | 'outgoing' | string;
+  duration: number;        // seconds
+  status: string;          // raw string from SDK
+  startDate: string;       // ISO 8601
+  callId: string;
+};
+
 const emitter = new NativeEventEmitter(LinphoneModule);
 
 export async function ensureMicPermission() {
@@ -26,6 +37,7 @@ export const resume = () => LinphoneModule.resume();
 export const setRegisterEnabled = (on:boolean) => LinphoneModule.setRegisterEnabled(on);
 export const playKeyTone = (d: string) => LinphoneModule.playKeyTone(d);
 
+export const getCallLogs = (): Promise<CallLog[]> => LinphoneModule.getCallLogs();
 
 
 export const on = {

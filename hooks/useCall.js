@@ -3,6 +3,7 @@ import { Alert, Platform, PermissionsAndroid } from 'react-native';
 import * as Lin from '../native/linphone';
 import { navigate, replace } from '../navigation/RootNavigation';
 import { queueIncoming, queueOutgoing } from '../navigation/RootNavigation';
+import CallLogs from '../screens/shared/calls/CallLogs';
 
 
 const CALL_STATE = {
@@ -284,6 +285,7 @@ export function CallProvider({ children }) {
     isMuted: muted,
     isSpeaker: speaker,
     isHeld: held,
+    callLogs: Lin.getCallLogs(), 
 
     // controls
     register: registerFn, unregister,
