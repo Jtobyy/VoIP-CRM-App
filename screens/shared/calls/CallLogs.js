@@ -213,6 +213,28 @@ const CallLogs = ({ navigation }) => {
               <Text style={[styles.name, item.__type === 'missed' && styles.missedName]} numberOfLines={1}>
                 {item.__name}
               </Text>
+              <View style={styles.callHeader}>
+            <Text
+              style={[
+                styles.name,
+                item.__type === 'missed' && styles.missedName
+              ]}
+              numberOfLines={1}
+            >
+              {item.__name}
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <Text style={styles.time}>{item.__time}</Text>
+              {/* <TouchableOpacity className="hidden">
+                <Image
+                  source={require('../../../assets/info.png')}
+                  style={styles.infoIcon}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity> */}
+            </View>
+          </View>
             </View>
             <View style={styles.callDetails}>
               <Image source={getCallIconSource(item.__type)} style={styles.callIcon} resizeMode="contain" />
