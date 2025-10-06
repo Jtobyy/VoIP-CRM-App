@@ -61,6 +61,17 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
   @ReactMethod fun removeListeners(count: Int) {}
 
   @ReactMethod
+  fun getCallLogs(promise: Promise) {
+      try {
+          val logs = CoreManager.getCallLogs()
+          promise.resolve(logs)
+      } catch (e: Exception) {
+          Log.e("LinphoneModule", "getCallLogs failed", e)
+          promise.reject("GET_CALL_LOGS_FAILED", e.message, e)
+      }
+  }
+
+  @ReactMethod
   fun playKeyTone(d: String) {
     if (dtmfTone == null) {
       dtmfTone = ToneGenerator(AudioManager.STREAM_VOICE_CALL, 60)

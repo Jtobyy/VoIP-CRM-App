@@ -11,8 +11,8 @@ import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
 import useCall from '../../../hooks/useCall';
 
-/* --------------------------- Formatting --------------------------- */
 
+/* --------------------------- Formatting --------------------------- */
 const dateLabel = (iso) => {
   try {
     const d = new Date(iso || '');
@@ -57,8 +57,8 @@ const getCallTypeText = (type) =>
 
 const buildNextUrl = (base, next) => (!next ? null : next.startsWith('?') ? `${base}${next}` : next);
 
-/* -------------------------------- Component ------------------------------- */
 
+/* -------------------------------- Component ------------------------------- */
 const CallLogs = ({ navigation }) => {
   const { api } = useApi();
   const { handleApiError } = useError();
@@ -74,7 +74,7 @@ const CallLogs = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
 
-  const { callLogs } = useCall();
+  const { callLogs, dial } = useCall();
   
   // Load local data - just store it as-is
   useEffect(() => {
@@ -176,8 +176,8 @@ const CallLogs = ({ navigation }) => {
       .sort((a, b) => b.__timestamp - a.__timestamp);
   }, [localItems, apiItems]);
 
+
   /* ------------------------- Filter ------------------------ */
-  
   const filteredData = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
     return allItems.filter((it) => {
@@ -195,18 +195,43 @@ const CallLogs = ({ navigation }) => {
     });
   }, [allItems, activeFilter, searchQuery]);
 
-  /* --------------------------------- Render ---------------------------------- */
 
+  /* --------------------------------- Render ---------------------------------- */
   const renderItem = ({ item, index }) => {
     // Show date header when date changes
     const showDateHeader = index === 0 || filteredData[index - 1].__dateLabel !== item.__dateLabel;
     
+    const getPhoneNumber = () => {
+      const dir = (item.call_direction || '').toLowerCase();
+      if (dir === 'outbound') {
+        // For outgoing, dial the called number
+        return item.called_number || '';
+      } else {
+        // For incoming/missed, extract number from caller_id or use called_number
+        const cid = item.caller_id || '';
+        
+        // Try to extract number from "Name <number>" format
+        const match = cid.match(/<([^>]+)>/);
+        if (match) return match[1];
+
+        // Otherwise use the raw caller_id or called_number
+        return cid.replace(/"/g, '') || item.called_number || '';
+      }
+    };
+
+    const handleCallPress = () => {
+      const number = getPhoneNumber();
+      if (number) {
+        dial(number);
+      }
+    };
+
     return (
       <>
         {showDateHeader && (
           <Text style={styles.dateHeader}>{item.__dateLabel}</Text>
         )}
-        <TouchableOpacity style={styles.callItem}>
+        <TouchableOpacity style={styles.callItem} onPress={handleCallPress}>
           <Avatar name={item.__name} size={50} style={{ marginRight: 10 }} />
           <View style={styles.callContent}>
             <View style={styles.callHeader}>
@@ -226,13 +251,6 @@ const CallLogs = ({ navigation }) => {
 
             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
               <Text style={styles.time}>{item.__time}</Text>
-              {/* <TouchableOpacity className="hidden">
-                <Image
-                  source={require('../../../assets/info.png')}
-                  style={styles.infoIcon}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity> */}
             </View>
           </View>
             </View>

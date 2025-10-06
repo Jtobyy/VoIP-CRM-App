@@ -27,17 +27,6 @@ const cleanPreview = (s = '') =>
 const pad2 = n => (n < 10 ? `0${n}` : `${n}`);
 const toYMD = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 
-const channelStats = [
-  { name: 'WhatsApp', value: 69 },
-  { name: 'Facebook', value: 11 },
-  { name: 'Instagram', value: 11 },
-  { name: 'Live Chat', value: 7 },
-  { name: 'SMS', value: 4 },
-  // { name: 'Telegram', value: 3 },
-  // { name: 'Email', value: 2 },
-  // { name: 'Call Center', value: 1 },
-];
-
 // returns { label, start_date, end_date }
 const buildRange = (key) => {
   const now = new Date();
@@ -115,103 +104,104 @@ const AvatarGroup = ({ items = [], max = 5, size = 32, onOverflowPress }) => {
   );
 };
 
-
-
 const AdminDashboard = ({ navigation }) => {
   const {company} = useAuth()
   const { canInviteUsers } = useAuth();
-  console.log('company:',company)
 
   const goToCustomers = () => {
-  navigation.navigate('Main', { screen: 'Customers' });  // Tab screen name
-};
+    navigation.navigate('Main', { screen: 'Customers' });  // Tab screen name
+  };
  
   const [deltas, setDeltas] = useState({ calls_pct: 10.5, msgs_pct: 10.5 });
 
   const [rangeKey, setRangeKey] = useState('24h');
-const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
+  const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
 
   const {api} = useApi()
   const { loading,setLoading } = useLoading();
   const { handleApiError } = useError();
   const [stats, setStats] = useState({
-  total_calls: 0, total_messages: 0, total_users: 0
-});
-const [activeChannels, setActiveChannels] = useState([]);     // array of {id,name,icon,...}
-const [newLeads, setNewLeads] = useState([]);                 // array of leads
-const [returningLeads, setReturningLeads] = useState([]);     // array of leads
-const [recentConversations, setRecentConversations] = useState([]);
-const recentActivities = useMemo(() => {
-  return (recentConversations || []).map(c => ({
-    id: String(c.conversation_id),
-    conversation_id: c.conversation_id,          // 👈 keep for convenience
-    lead_id: c.lead_id,                           // 👈 needed for contactId
-    name: c.lead_name || `Lead #${c.lead_id}`,
-    type: 'message',
-    text: cleanPreview(c?.latest_message?.content || ''),
-    time: formatChatTime(c?.latest_message?.created_at),
-    rawTimestamp: c?.latest_message?.created_at,  // optional
-    profile_pic: undefined,                       // add when you have it
-    channel_icon: c?.channel?.icon ? { uri: c.channel.icon } : undefined,
-    channel: { image: c?.channel?.icon ? { uri: c.channel.icon } : undefined }, // 👈 matches MessageList shape
-  }));
-}, [recentConversations]);
-
-
-useEffect(() => {
-  const { start_date, end_date } = buildRange(rangeKey);
-  fetchDashboard({ start_date, end_date });
-}, [rangeKey]);
-
-
-const fetchDashboard = async ({ start_date, end_date }) => {
-  try {
-    setLoading(true);
-    // 🔁 call your API. adjust URL/params to match your backend.
-    const res = await api.get('analytics/summary/mobile/', {
-      params: { start_date, end_date },
-    });
-     const d = res?.data?.data || {};
-    setStats({
-      total_calls: d.total_calls ?? 0,
-      total_messages: d.total_messages ?? 0,
-      total_users: d.total_users ?? 0,
-    });
-    setActiveChannels(Array.isArray(d.active_channels) ? d.active_channels : []);
-    setNewLeads(Array.isArray(d.new_leads) ? d.new_leads : []);
-    setReturningLeads(Array.isArray(d.returning_leads) ? d.returning_leads : []);
-    setRecentConversations(Array.isArray(d.recent_conversations) ? d.recent_conversations: []);
-    console.log('stats:',stats)
-  } catch (e) {
-    handleApiError?.(e);
-  } finally {
-    setLoading(false);
-  }
-};
-
-const hasNew = (newLeads || []).length > 0;
-const hasReturning = (returningLeads|| []).length > 0;
-
-// choose card width based on data presence
-const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
-
-const handleActivityPress = (item) => {
-  if (item.type !== 'message') return;  // only for messages (as requested)
-
-  navigation.navigate('ConversationScreen', {
-    contactId: item.lead_id,   // 👈 same key name your MessageList uses
-    contact: {
-      id: item.lead_id,
-      name: item.name,
-      image: item.profile_pic,
-      channel: item.channel,                 // { image: { uri: ... } }
-      lastMessageData: { content: item.text },
-      last_message_at: item.rawTimestamp,
-    },
-    // optional if ConversationScreen supports it:
-    conversationId: item.conversation_id,
+    total_calls: 0, total_messages: 0, total_users: 0
   });
-};
+  const [activeChannels, setActiveChannels] = useState([]);     // array of {id,name,icon,...}
+  const [newLeads, setNewLeads] = useState([]);                 // array of leads
+  const [returningLeads, setReturningLeads] = useState([]);     // array of leads
+  const [recentConversations, setRecentConversations] = useState([]);
+  const [channelsStats, setChannelsStats] = useState([]);
+
+  const recentActivities = useMemo(() => {
+    return (recentConversations || []).map(c => ({
+        id: String(c.conversation_id),
+        conversation_id: c.conversation_id,
+        lead_id: c.lead_id,
+        name: c.lead_name || `Lead #${c.lead_id}`,
+        type: 'message',
+        text: cleanPreview(c?.latest_message?.content || ''),
+        time: formatChatTime(c?.latest_message?.created_at),
+        rawTimestamp: c?.latest_message?.created_at,
+        profile_pic: undefined,
+        channel_icon: c?.channel?.icon ? { uri: c.channel.icon } : undefined,
+        channel: { image: c?.channel?.icon ? { uri: c.channel.icon } : undefined },
+  }));}, [recentConversations]);
+
+  useEffect(() => {
+    const { start_date, end_date } = buildRange(rangeKey);
+    fetchDashboard({ start_date, end_date });
+  }, [rangeKey]);
+
+  const fetchDashboard = async ({ start_date, end_date }) => {
+    try {
+      setLoading(true);
+
+      const res = await api.get('analytics/summary/mobile/', {
+        params: { start_date, end_date },
+      });
+      const d = res?.data?.data || {};
+      setStats({
+        total_calls: d.total_calls ?? 0,
+        total_messages: d.total_messages ?? 0,
+        total_users: d.total_users ?? 0,
+      });
+      setChannelsStats(Array.isArray(d.active_channels) ? d.active_channels.map(c => ({
+        name: c.name,
+        value: c.message_count,
+        icon: c.icon,
+      })) : []);
+      setActiveChannels(Array.isArray(d.active_channels) ? d.active_channels : []);
+      setNewLeads(Array.isArray(d.new_leads) ? d.new_leads : []);
+      setReturningLeads(Array.isArray(d.returning_leads) ? d.returning_leads : []);
+      setRecentConversations(Array.isArray(d.recent_conversations) ? d.recent_conversations: []);
+      console.log('stats:',stats)
+    } catch (e) {
+      handleApiError?.(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasNew = (newLeads || []).length > 0;
+  const hasReturning = (returningLeads|| []).length > 0;
+
+  // choose card width based on data presence
+  const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
+
+  const handleActivityPress = (item) => {
+    if (item.type !== 'message') return;  // only for messages (as requested)
+
+    navigation.navigate('ConversationScreen', {
+      contactId: item.lead_id,
+      contact: {
+        id: item.lead_id,
+        name: item.name,
+        image: item.profile_pic,
+        channel: item.channel,                 // { image: { uri: ... } }
+        lastMessageData: { content: item.text },
+        last_message_at: item.rawTimestamp,
+      },
+      // optional if ConversationScreen supports it:
+      conversationId: item.conversation_id,
+    });
+  };
 
 
   const handleSeeAllPress = () => {
@@ -222,64 +212,63 @@ const handleActivityPress = (item) => {
     navigation.navigate('Dialer');
   };
 
- const RecentEmpty = ({ onPress }) => (
-  <View style={styles.emptyWrap}>
-    <Text style={styles.emptyEmoji}>💬</Text>
-    <Text style={styles.emptyTitle}>No recent activity</Text>
-    <Text style={styles.emptySub}>
-      New messages and calls will show up here.
-    </Text>
-{/* 
-    <TouchableOpacity style={styles.emptyBtn} onPress={onPress}>
-      <Text style={styles.emptyBtnText}>View messages</Text>
-    </TouchableOpacity> */}
-  </View>
-);
+  const RecentEmpty = ({ onPress }) => (
+    <View style={styles.emptyWrap}>
+      <Text style={styles.emptyEmoji}>💬</Text>
+      <Text style={styles.emptyTitle}>No recent activity</Text>
+      <Text style={styles.emptySub}>
+        New messages and calls will show up here.
+      </Text>
+    {/* 
+      <TouchableOpacity style={styles.emptyBtn} onPress={onPress}>
+        <Text style={styles.emptyBtnText}>View messages</Text>
+      </TouchableOpacity> */}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       {/* Header */}
-         <View style={styles.headerRow}>
-            <Text
-              style={styles.greeting}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+      <View style={styles.headerRow}>
+        <Text
+          style={styles.greeting}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          Hi, {company?.name} 😊
+        </Text>
+
+        <View style={styles.headerActions}>
+          {/* Range dropdown trigger */}
+          <TouchableOpacity
+            onPress={() => setRangeMenuOpen(true)}
+            style={styles.rangePill}
+              activeOpacity={0.85}
             >
-              Hi, {company?.name} 😊
-          </Text>
+            <Text style={styles.rangePillText}>
+                  {RANGE_OPTIONS.find(o => o.key === rangeKey)?.label}
+            </Text>
+              {/* caret without needing an asset */}
+                  <Text style={styles.caretText}>▾</Text>
+          </TouchableOpacity>
 
-         <View style={styles.headerActions}>
-             {/* Range dropdown trigger */}
-             <TouchableOpacity
-                onPress={() => setRangeMenuOpen(true)}
-                style={styles.rangePill}
-                 activeOpacity={0.85}
-               >
-              <Text style={styles.rangePillText}>
-                   {RANGE_OPTIONS.find(o => o.key === rangeKey)?.label}
-              </Text>
-               {/* caret without needing an asset */}
-                   <Text style={styles.caretText}>▾</Text>
-            </TouchableOpacity>
-
-              {/* Bell (your bell.png already has the red dot) */}
-            <BellButton style={styles.BellButton} hitSlop={{top:10,left:10,bottom:10,right:10}} navigation={navigation}/>
-           </View>
+          {/* Bell (your bell.png already has the red dot) */}
+          <BellButton style={styles.BellButton} hitSlop={{top:10,left:10,bottom:10,right:10}} navigation={navigation}/>
         </View>
-
+      </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Stats Grid */}
         <View style={styles.statsContainer}>
           <TouchableOpacity style={[styles.statCard, {backgroundColor: '#E0EDFF'}]}>
-             <Text style={styles.statTitle}>TOTAL CALLS</Text>
+            <Text style={styles.statTitle}>TOTAL CALLS</Text>
             <Text style={styles.statValue}>{stats?.total_calls}</Text>
-          <View style={styles.deltaRow}>
-             <Text style={[styles.deltaNumber, { color: pctColor(deltas.calls_pct) }]}>
-                {pctArrow(deltas.calls_pct)} {pctNumber(deltas.calls_pct)}
-            </Text>
-            <Text style={styles.deltaSuffix}> vs yesterday</Text>
-          </View>
+            <View style={styles.deltaRow}>
+              <Text style={[styles.deltaNumber, { color: pctColor(deltas.calls_pct) }]}>
+                  {pctArrow(deltas.calls_pct)} {pctNumber(deltas.calls_pct)}
+              </Text>
+              <Text style={styles.deltaSuffix}> vs yesterday</Text>
+            </View>
           </TouchableOpacity>
 
           <View style={[styles.statCard, {backgroundColor: '#EAF8E5'}]}>
@@ -291,22 +280,22 @@ const handleActivityPress = (item) => {
              </Text>
               <Text style={styles.deltaSuffix}> vs yesterday</Text>
           </View>
+        </View>
+
+        {/* {activeChannels.length > 0 && (
+          <View style={[styles.statCard, { backgroundColor: '#F2F2F2' }]}>
+            <Text style={styles.statTitle}>MOST ACTIVE CHANNELS</Text>
+            <Text style={styles.bigCount}>{activeChannels.length}</Text>
+            <AvatarGroup items={activeChannels} max={5} size={32}  onOverflowPress={goToCustomers}/>
           </View>
+        )} */}
 
-                  {/* {activeChannels.length > 0 && (
-  <View style={[styles.statCard, { backgroundColor: '#F2F2F2' }]}>
-    <Text style={styles.statTitle}>MOST ACTIVE CHANNELS</Text>
-    <Text style={styles.bigCount}>{activeChannels.length}</Text>
-    <AvatarGroup items={activeChannels} max={5} size={32}  onOverflowPress={goToCustomers}/>
-  </View>
-)} */}
-
-  {hasNew && (
-  <View style={halfOrFull(hasReturning)}>
-    <Text style={styles.statTitleCompact} numberOfLines={1}>NEW CUSTOMERS</Text>
-    <Text style={styles.bigCount}>{newLeads.length}</Text>
-    <AvatarGroup items={newLeads} max={(hasReturning ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
-  </View>
+      {hasNew && (
+      <View style={halfOrFull(hasReturning)}>
+        <Text style={styles.statTitleCompact} numberOfLines={1}>NEW CUSTOMERS</Text>
+        <Text style={styles.bigCount}>{newLeads.length}</Text>
+        <AvatarGroup items={newLeads} max={(hasReturning ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
+      </View>
 )}
 
 {hasReturning && (
@@ -317,50 +306,49 @@ const handleActivityPress = (item) => {
   </View>
 )}
 
-        </View>
-
-        {/* Channels Donut */ }
-        <View style={{ marginTop:8, marginBottom:20}} >
-          <ChannelsDonutCard channels={channelStats} />
-        </View>
-
-       {/* Activity chart */}
-        <View style={{ marginTop: 8, marginBottom: 20 }}>
-             <ActivityBreakdownChart 
-             hours={['8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM',]}
-             calls={[18,35,30,55,40,22,18,25,44,30,]}
-             messages={[30,28,40,80,60,48,32,55,60,52]}
-             maxY={100}
-             />
-         </View>
-          
-        {/* Insights  */}
-<View style={styles.insightsCard}>
-  <Text style={styles.insightsHeading}>Insights</Text>
-  <View style={styles.insightsContent}>
-    <View style={styles.insightsIconWrap}>
-      <Image source={require('../../../assets/instagram.png')} style={{ width: 18, height: 18 }} />
-    </View>
-    <Text style={styles.insightsMessage}>Instagram is your busiest channel today</Text>
-  </View>
 </View>
+  {/* Channels Donut */ }
+  <View style={{ marginTop:8, marginBottom:20}} >
+    <ChannelsDonutCard channels={channelsStats} />
+  </View>
+
+  {/* Activity chart */}
+  <View style={{ marginTop: 8, marginBottom: 20 }}>
+      <ActivityBreakdownChart 
+      hours={['8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM',]}
+      calls={[18,35,30,55,40,22,18,25,44,30,]}
+      messages={[30,28,40,80,60,48,32,55,60,52]}
+      maxY={100}
+      />
+  </View>
+            
+  {/* Insights  */}
+  <View style={styles.insightsCard}>
+    <Text style={styles.insightsHeading}>Insights</Text>
+    <View style={styles.insightsContent}>
+      <View style={styles.insightsIconWrap}>
+        <Image source={require('../../../assets/instagram.png')} style={{ width: 18, height: 18 }} />
+      </View>
+      <Text style={styles.insightsMessage}>Instagram is your busiest channel today</Text>
+    </View>
+  </View>
 
   
 
-        {/* Add User Button */}
-        <View style={styles.usersCard}>
-          <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
-            <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
-            <Text style={styles.statValue}>{stats?.total_users}</Text>
-          </TouchableOpacity>
-          {
-            canInviteUsers && (
-          <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
-            <Text style={styles.addUserText}>Invite users</Text>
-          </TouchableOpacity>
-            )
-          }
-        </View>
+  {/* Add User Button */}
+  <View style={styles.usersCard}>
+    <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
+      <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
+      <Text style={styles.statValue}>{stats?.total_users}</Text>
+    </TouchableOpacity>
+    {
+      canInviteUsers && (
+    <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
+      <Text style={styles.addUserText}>Invite users</Text>
+    </TouchableOpacity>
+      )
+    }
+  </View>
 
         {/* Recent Activities */}
         <View style={styles.section}>
@@ -373,7 +361,7 @@ const handleActivityPress = (item) => {
             </TouchableOpacity>
           </View>
         {recentActivities.length > 0 ? (
-   <FlatList
+        <FlatList
             data={recentActivities}
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
@@ -455,34 +443,35 @@ const handleActivityPress = (item) => {
           resizeMode="contain"
         />
       </TouchableOpacity>
+
       <Modal
-  visible={rangeMenuOpen}
-  transparent
-  animationType="fade"
-  onRequestClose={() => setRangeMenuOpen(false)}
->
-  <TouchableOpacity
-    style={styles.modalBackdrop}
-    activeOpacity={1}
-    onPress={() => setRangeMenuOpen(false)}
-  >
-    <View style={styles.menuCard}>
-      {RANGE_OPTIONS.map(opt => (
+        visible={rangeMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRangeMenuOpen(false)}
+      >
         <TouchableOpacity
-          key={opt.key}
-          style={[styles.menuItem, opt.key === rangeKey && styles.menuItemActive]}
-          onPress={() => { setRangeKey(opt.key); setRangeMenuOpen(false); }}
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setRangeMenuOpen(false)}
         >
-          <Text
-            style={[styles.menuItemText, opt.key === rangeKey && styles.menuItemTextActive]}
-          >
-            {opt.label}
-          </Text>
+          <View style={styles.menuCard}>
+            {RANGE_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.menuItem, opt.key === rangeKey && styles.menuItemActive]}
+                onPress={() => { setRangeKey(opt.key); setRangeMenuOpen(false); }}
+              >
+                <Text
+                  style={[styles.menuItemText, opt.key === rangeKey && styles.menuItemTextActive]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </TouchableOpacity>
-      ))}
-    </View>
-  </TouchableOpacity>
-</Modal>
+        </Modal>
 
     </View>
   );
@@ -507,7 +496,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 0,
     paddingBottom: 20,
   },
   statsContainer: {
@@ -519,6 +508,7 @@ const styles = StyleSheet.create({
   statCard: {
     width: '48%',
     borderRadius: 10,
+    borderColor: '#DFE1E6',
     padding: 15,
     marginTop: 15,
   },
@@ -621,7 +611,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
   paddingHorizontal: 20,
-  paddingTop: 80,
+  paddingTop: 30,
   paddingBottom: 20,
   backgroundColor: '#F7F7F7',
   flexDirection: 'row',

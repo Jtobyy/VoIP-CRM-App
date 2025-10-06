@@ -42,6 +42,12 @@ import com.nativetalkbusiness.voice.Compatibility
 import android.net.Uri
 import android.app.Service.STOP_FOREGROUND_REMOVE
 import com.nativetalkbusiness.voice.Utils
+import com.facebook.react.bridge.WritableArray
+import com.facebook.react.bridge.WritableNativeArray
+import com.facebook.react.bridge.WritableNativeMap
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.math.abs
 
 /**
  * Process-wide owner of Linphone Core. No React dependency.
@@ -629,6 +635,157 @@ object CoreManager {
             proxy.isRegisterEnabled = on; c.refreshRegisters()
         } catch (_: Exception) {
         }
+    }
+
+    // Helper function to extract SIP user part
+    private fun sipUserPart(sipUri: String): String {
+        // Extract user part from sip:user@domain or just return the string
+        val match = Regex("sip:([^@]+)@").find(sipUri)
+        return match?.groupValues?.get(1) ?: sipUri.removePrefix("sip:")
+    }
+
+    // Helper function to guess call type
+    private fun guessCallType(direction: String, called: String, mySipUser: String?): String {
+        return when {
+            direction == "inbound" && called == mySipUser -> "LOCAL"
+            direction == "outbound" && called.startsWith("0") -> "DID"
+            else -> "STANDARD"
+        }
+    }
+
+    // Helper function to map call status to disposition
+    private fun dispositionFor(status: String): Map<String, Any> {
+        return when {
+            status.contains("Success", ignoreCase = true) -> mapOf(
+                "text" to "ANSWERED",
+                "code" to 0
+            )
+            status.contains("Missed", ignoreCase = true) -> mapOf(
+                "text" to "NO ANSWER",
+                "code" to 3
+            )
+            status.contains("Declined", ignoreCase = true) || 
+            status.contains("Busy", ignoreCase = true) -> mapOf(
+                "text" to "BUSY",
+                "code" to 5
+            )
+            status.contains("Aborted", ignoreCase = true) || 
+            status.contains("EarlyAborted", ignoreCase = true) -> mapOf(
+                "text" to "CANCEL",
+                "code" to 4
+            )
+            else -> mapOf(
+                "text" to "FAILED",
+                "code" to 8
+            )
+        }
+    }
+
+    // Helper function to format duration as MM:SS
+    private fun formatDuration(seconds: Int): String {
+        val mins = seconds / 60
+        val secs = seconds % 60
+        return String.format("%02d:%02d", mins, secs)
+    }
+
+    // Main getCallLogs function
+    fun getCallLogs(): WritableArray {
+        val c = core
+        val logs = c?.callLogs
+        
+        if (logs == null || logs.isEmpty()) {
+            return WritableNativeArray()
+        }
+
+        // ISO8601 formatter
+        val isoFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+
+        // Try to get current account username
+        var mySipUser: String? = null
+        c.defaultProxyConfig?.identityAddress?.username?.let { username ->
+            if (username.isNotEmpty()) {
+                mySipUser = username
+            }
+        }
+
+        val items = WritableNativeArray()
+
+        logs.forEachIndexed { idx, log ->
+            val fromRaw = log.fromAddress?.asStringUriOnly() ?: log.fromAddress?.asString() ?: ""
+            val toRaw = log.toAddress?.asStringUriOnly() ?: log.toAddress?.asString() ?: ""
+
+            val fromNum = sipUserPart(fromRaw)
+            val toNum = sipUserPart(toRaw)
+
+            // Direction
+            val direction = when {
+                log.dir.toString().contains("Incoming", ignoreCase = true) -> "inbound"
+                log.dir.toString().contains("Outgoing", ignoreCase = true) -> "outbound"
+                else -> log.dir.toString().lowercase()
+            }
+
+            // Start date as ISO8601
+            val startISO = try {
+                val date = Date(log.startDate * 1000L) // Convert seconds to milliseconds
+                isoFormatter.format(date)
+            } catch (e: Exception) {
+                isoFormatter.format(Date())
+            }
+
+            // Caller ID
+            val callerID = "$fromNum <$fromNum>"
+
+            // Called number
+            val calledNumber = toNum
+
+            // Call type
+            val callType = guessCallType(direction, calledNumber, mySipUser)
+
+            // Disposition
+            val disposition = dispositionFor(log.status.toString())
+
+            // Duration
+            val durationStr = formatDuration(log.duration)
+
+            // Destination
+            val destination = if (callType == "LOCAL") "Local" else ""
+
+            // SIP user
+            val sipUser = mySipUser ?: ""
+
+            // Generate stable ID
+            val idVal = log.callId?.let { abs(it.hashCode()) } ?: (100000 + idx)
+
+            // Build the map
+            val item = WritableNativeMap().apply {
+                putInt("id", idVal)
+                putString("call_start", startISO)
+                putString("call_type", callType)
+                putString("caller_id", callerID)
+                putString("call_direction", direction)
+                putString("called_number", calledNumber)
+                
+                // Disposition as nested object
+                val dispMap = WritableNativeMap().apply {
+                    putString("text", disposition["text"] as String)
+                    putInt("code", disposition["code"] as Int)
+                }
+                putMap("disposition", dispMap)
+                
+                putString("debit", "0.0000 NGN")
+                putString("duration", durationStr)
+                putString("destination", destination)
+                putString("sip_user", sipUser)
+                putString("created_at", startISO)
+                putString("updated_at", startISO)
+            }
+
+            items.pushMap(item)
+        }
+
+        return items
     }
 
     @Synchronized

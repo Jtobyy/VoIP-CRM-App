@@ -140,6 +140,7 @@ export const useApi = () => {
       }
 
       // Generic error handling
+      console.log('error is ', error)
       const errorMsg = error.response?.data?.detail || 'Something went wrong.';
       showSnackbar(errorMsg, 'error');
       return Promise.reject(error);

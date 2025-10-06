@@ -1,4 +1,3 @@
-// ActivityBreakdownCard.tsx
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { VictoryChart, VictoryAxis, VictoryGroup, VictoryBar } from 'victory-native';

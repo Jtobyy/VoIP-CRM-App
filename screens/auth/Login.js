@@ -26,7 +26,7 @@ const { width } = Dimensions.get('window');
 const Login = ({ navigation }) => {
   const { login, isAuthenticated } = useAuth();
   const {company} = useAuth()
-  const [username, setUsername] = React.useState('0803 567 0547');
+  const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const { showSnackbar } = useSnackbar();
@@ -104,9 +104,8 @@ const handleLogin = async () => {
           >
             <View style={styles.container}>              
               {/* Header */}
-              <View styles={styles.header}>
+              <View >
                 <Text style={styles.welcomeText}>Welcome Back,</Text>
-                <Text style={styles.companyText}>Eze and Sons LTD</Text>
               </View>
 
               {/* Username Input */}
@@ -118,7 +117,7 @@ const handleLogin = async () => {
                   onChangeText={setUsername}
                   // keyboardType="phone-pad"
                   keyboardType="email"
-                  placeholder="Enter your phone number"
+                  placeholder="0803 567 0547"
                 />
               </View>
 
@@ -136,7 +135,7 @@ const handleLogin = async () => {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
-                    placeholder="Enter your password"
+                    placeholder="**********"
                   />
                   <TouchableOpacity 
                     style={styles.showButton}
@@ -183,9 +182,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     paddingHorizontal: 24,
-  },
-  header: {
-    marginBottom: 40,
   },
   welcomeText: {
     fontSize: 24,

@@ -48,7 +48,6 @@ export default function ChannelsDonutCard({ channels }) {
         borderWidth: 1,
         borderColor: '#DFE1E6',
         paddingTop: 15,
-        marginTop: 15,
       }}
     >
       {/* Header */}
