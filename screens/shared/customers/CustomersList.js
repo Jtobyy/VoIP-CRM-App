@@ -61,36 +61,36 @@ const CustomersList = ({ navigation }) => {
   const sortedGroups = Object.keys(groups)
     .sort()
     .map(letter => ({
-      title: letter,
-      data: groups[letter].sort((a, b) => a.name.localeCompare(b.name))
+        title: letter,
+        data: groups[letter].sort((a, b) => a.name.localeCompare(b.name))
     }));
 
-  return sortedGroups;
-};
-
-useEffect(() => {
-  const fetchCustomers = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/customers/', {
-        params: { page_size: 1000 }  
-      });
-
-      if (res?.data?.results) {
-        const grouped = groupCustomersAlphabetically(res.data.results);
-        setCustomersData(grouped);
-        setFilteredData(grouped);
-      }
-    } catch (error) {
-      console.error('Failed to fetch customers:', error);
-       handleApiError(error);
-    }finally{
-      setLoading(false);
-    }
+    return sortedGroups;
   };
 
-  fetchCustomers();
-}, []);
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get('/customers/', {
+          params: { page_size: 1000 }  
+        });
+
+        if (res?.data?.results) {
+          const grouped = groupCustomersAlphabetically(res.data.results);
+          setCustomersData(grouped);
+          setFilteredData(grouped);
+        }
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+        handleApiError(error);
+      }finally{
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
 
 
   // Toggle delete mode
@@ -116,35 +116,34 @@ useEffect(() => {
 
   // Handle search
  const handleSearch = async (query) => {
-  setSearchQuery(query);
+    setSearchQuery(query);
 
-  // Empty query? Show full cached list
-  if (!query.trim()) {
-    setFilteredData(customersData);
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const res = await api.get('/customers/', {
-      params: {
-        search: query,
-      },
-    });
-
-    if (res?.data?.results) {
-      const grouped = groupCustomersAlphabetically(res.data.results);
-      setFilteredData(grouped);
+    // Empty query? Show full cached list
+    if (!query.trim()) {
+      setFilteredData(customersData);
+      return;
     }
-  } catch (error) {
-    console.error('Search failed:', error);
-    handleApiError(error);
-  } finally {
-    setLoading(false);
-  }
-};
 
+    try {
+      setLoading(true);
+
+      const res = await api.get('/customers/', {
+        params: {
+          search: query,
+        },
+      });
+
+      if (res?.data?.results) {
+        const grouped = groupCustomersAlphabetically(res.data.results);
+        setFilteredData(grouped);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      handleApiError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Delete selected customers
   const deleteCustomers = async () => {
@@ -164,8 +163,7 @@ useEffect(() => {
         }
       } catch (error) {
         if (
-          error?.message === 'Network Error' &&
-          error?.config?.url?.includes('/customers/')
+          error?.message === 'Network Error' && error?.config?.url?.includes('/customers/')
         ) {
           // Assume success on network error for this specific request
           return { id: customerId, success: true };
@@ -176,7 +174,7 @@ useEffect(() => {
     })
   );
 
-  // ✅ Filter out successfully deleted IDs
+  // Filter out successfully deleted IDs
   const successfulIds = results
     .filter(result => result.success)
     .map(result => result.id);
@@ -193,12 +191,12 @@ useEffect(() => {
   setSelectedCustomers([]);
   setIsDeleteMode(false);
 
-  // ✅ Show success modal if at least one success
+  // Show success modal if at least one success
   if (successfulIds.length > 0) {
     setShowSuccessModal(true);
   }
 
-  // ❗ Optional: handle failed deletions
+  // handle failed deletions
   const failed = results.filter(result => !result.success);
   if (failed.length > 0) {
     console.warn(`${failed.length} deletions failed.`);
@@ -225,27 +223,27 @@ useEffect(() => {
       }}
       onLongPress={() => !isDeleteMode && (setIsDeleteMode(true), toggleCustomerSelection(item.id))}
     >
-      {isDeleteMode && (
+      {isDeleteMode ? (
         <View style={styles.checkboxContainer}>
           <View style={[
             styles.checkbox,
             selectedCustomers.includes(item.id) && styles.checkedBox
           ]}>
-            {selectedCustomers.includes(item.id) && (
+            {selectedCustomers.includes(item.id) ? (
               <FontAwesome6 name="check" size={14} iconStyle='solid' color="#fff" />
-            )}
+            ) : null}
           </View>
         </View>
-      )}
+      ) : null}
       
       <Avatar name={item.name} size={50} style={{ marginRight: 12 }}  image={item.image}/>
       <View style={styles.customerContent}>
         <Text style={styles.customerName}>{item.name}</Text>
       </View>
       
-      {!isDeleteMode && (
+      {!isDeleteMode ? (
         <FontAwesome6 name="chevron-right" iconStyle='solid' size={16} color="#999" />
-      )}
+      ): null}
     </TouchableOpacity>
   );
 
@@ -265,7 +263,6 @@ useEffect(() => {
       <View style={styles.container}>
         <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
         
-        {/* Header */}
         <ImageBackground 
           source={require('../../../assets/header_bg.png')}
           style={styles.header}
@@ -296,7 +293,7 @@ useEffect(() => {
               </View>
             ) : (
               <View style={[styles.headerContent]}>
-                <View style={{ width: 24 }} /> {/* Empty view for balance */}
+                <View style={{ width: 24 }} />
                 
                 <Text style={[styles.headerTitle, { textAlign: 'center' }]}>
                   Customers
@@ -317,7 +314,7 @@ useEffect(() => {
         </ImageBackground>
 
          {/* Popup Menu */}
-         {showFilterMenu && (
+         {showFilterMenu ? (
           <View style={styles.popupMenu}>
             <TouchableOpacity style={styles.popupMenuItem}>
               <Text style={styles.popupMenuText}>Export Customers</Text>
@@ -332,7 +329,7 @@ useEffect(() => {
               <Text style={styles.popupMenuText}>Send Message</Text>
             </TouchableOpacity>
           </View>
-        )}
+        ): null}
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>

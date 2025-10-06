@@ -8,7 +8,7 @@ const ErrorContext = createContext();
 export const ErrorProvider = ({ children }) => {
   const [error, setError] = useState('');
   const { showSnackbar } = useSnackbar();
-  const { logout } = useAuth(); // ← make sure this is a function call
+  const { logout } = useAuth();
 
   const handleApiError = (error) => {
     console.error('API Error:', error);
@@ -33,7 +33,7 @@ export const ErrorProvider = ({ children }) => {
     showSnackbar(errorMessage, 'error');
     setError(errorMessage);
 
-    // Optional: logout on 401
+    // logout on 401
     if (error?.response?.status === 401) {
       logout();
     }

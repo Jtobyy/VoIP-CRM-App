@@ -20,52 +20,44 @@ import Clipboard from '@react-native-clipboard/clipboard';
 
 const More = ({ navigation }) => {
   const { logout } = useAuth();
-   const {company} = useAuth()
-   const [user, setUser] = useState(null);
-   const [balance, setBalance] = useState('0.00')
-   const { api } = useApi();
-   const { setLoading } = useLoading();
+  const {company} = useAuth()
+  const [user, setUser] = useState(null);
+  const [balance, setBalance] = useState('0.00')
+  const { api } = useApi();
+  const { setLoading } = useLoading();
 
-  useEffect(() => {
-  fetchUserProfile();
-  fetchWalletBalance();
-}, []);
+    useEffect(() => {
+    fetchUserProfile();
+    fetchWalletBalance();
+  }, []);
 
-const fetchUserProfile = async () => {
-  setLoading(true);
-  try {
-    const res = await api.get(`/users/me`);
-    const data = res.data.user;
-    console.log('Fetched user data:',data)
-    setUser(data);
-    console.log;('User profile fetched:',data)
-  } catch (error) {
-    console.error('Failed to fetch user profile:', error);
-    
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchUserProfile = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/users/me`);
+      const data = res.data.user;
+      console.log('Fetched user data:',data)
+      setUser(data);
+      console.log;('User profile fetched:',data)
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const fetchWalletBalance = async () => {
-  setLoading(true);
-  try {
-    const res = await api.get(`/billings/wallet/`);
-    const data = res.data.wallet;
-    setBalance(data?.balance);
-  } catch (error) {
-    console.error('Failed to fetch wallet balance:', error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-  const userProfile = {
-    name: 'Chioma and Sons',
-    phone: '0803 567 0547',
-    balance: '₦38,000.00',
-    profileImage: require('../../../assets/sample1.png'), // Add your profile image
+  const fetchWalletBalance = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/billings/wallet/`);
+      const data = res.data.wallet;
+      setBalance(data?.balance);
+    } catch (error) {
+      console.error('Failed to fetch wallet balance:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const menuItems = [
@@ -149,7 +141,7 @@ const fetchWalletBalance = async () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await logout(); // Clear AsyncStorage, context, etc.
+              await logout(); 
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Login' }],
@@ -163,9 +155,7 @@ const fetchWalletBalance = async () => {
     );
   };
   
-
   const handleCopyNumber = (phoneNumber) => {
-    // Handle copy to clipboard functionality
     Clipboard.setString(phoneNumber || '');
     Alert.alert('Copied', 'Phone number copied to clipboard');
   };
@@ -211,44 +201,43 @@ const fetchWalletBalance = async () => {
         resizeMode="cover"
       >
         <View style={styles.headerInner}>
-            <View style={[styles.headerContent]}>
-              <View style={{ width: 24 }} /> {/* Empty view for balance */}
+          <View style={[styles.headerContent]}>
+            <View style={{ width: 24 }} />
+          
+            <Text style={[styles.headerTitle, { textAlign: 'center' }]}>
+              More
+            </Text>
             
-              <Text style={[styles.headerTitle, { textAlign: 'center' }]}>
-                More
-              </Text>
-              
-              <TouchableOpacity style={styles.editButton}>
-                <FontAwesome6 
-                  name="pen" 
-                  size={13} 
-                  color="white" 
-                  iconStyle='solid'
-                />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.editButton}>
+              <FontAwesome6 
+                name="pen" 
+                size={13} 
+                color="white" 
+                iconStyle='solid'
+              />
+            </TouchableOpacity>
+          </View>
 
           {/* Profile Section */}
           <View style={styles.profileSection}>
-          <View style={styles.profileImageContainer}>
-    {user?.image ? (
-      <Image
-        source={{ uri: user.image }}
-        style={styles.profileImage}
-        resizeMode="cover"
-      />
-    ) : (
-      <View style={styles.avatarFallback}>
-        <Text style={styles.avatarText}>
-          {`${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}`.toUpperCase()}
-        </Text>
-      </View>
-    )}
-  </View>
+            <View style={styles.profileImageContainer}>
+              {user?.image ? (
+                <Image
+                  source={{ uri: user.image }}
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarText}>
+                    {`${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}`.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
 
-            
             <Text style={styles.profileName}>{company?.name}</Text>
-            
+          
             <View style={styles.phoneContainer}>
               <Text style={styles.phoneLabel}>MY NATIVETALK NUMBER</Text>
               <TouchableOpacity 

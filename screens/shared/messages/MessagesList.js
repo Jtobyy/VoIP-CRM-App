@@ -30,7 +30,7 @@ const MessagesList = ({ navigation }) => {
   const { setLoading } = useLoading();
   const { api } = useApi();
   const [connectedChannels, setConnectedChannels] = useState([])
-  const [selectedChannel, setSelectedChannel] = useState(null); // null means "All"
+  const [selectedChannel, setSelectedChannel] = useState(null); 
   const [allChannels, setAllChannels] = useState([]);
   const { handleApiError } = useError();
 
@@ -81,10 +81,12 @@ const MessagesList = ({ navigation }) => {
               unread: true,
               unreadCount: (updated[index].unreadCount || 0) + 1,
             };
-            updated.splice(index, 1); // remove from old position
+
+            // remove from old position
+            updated.splice(index, 1); 
             return [updatedItem, ...updated]; 
           } else {
-            // 👇 insert new chat
+            // insert new chat
             const newItem = {
               id: contactId,
               name: fallbackName,
@@ -140,7 +142,6 @@ const MessagesList = ({ navigation }) => {
     return Array.from(map.values());
   };
 
-  // --- DATA FETCHERS ---
   const fetchMessages = async ({ reset = false } = {}) => {
     const endpoint = buildFirstPageEndpoint();
     if (reset) {
@@ -162,13 +163,10 @@ const MessagesList = ({ navigation }) => {
 
   const fetchNextPage = async () => {
     if (!nextUrl || isFetchingMore) return;
-    // optional: don’t paginate during search since list is filtered
     if (searchTerm.trim()) return;
 
     setIsFetchingMore(true);
     try {
-      // axios can fetch absolute URLs; if your api client enforces baseURL only,
-      // swap to: await api.get(nextUrl.replace(api.defaults.baseURL, ''))
       const res = await api.get(nextUrl);
       const { results = [], next = null } = res.data || {};
       setMessagesData((prev) => mergeUniqueById(prev, results));
@@ -266,7 +264,6 @@ const MessagesList = ({ navigation }) => {
       <View style={styles.container}>
         <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
 
-        {/* Header */}
         <ImageBackground
           source={require('../../../assets/header_bg.png')}
           style={styles.header}
@@ -275,7 +272,6 @@ const MessagesList = ({ navigation }) => {
           <Text style={styles.headerTitle}>Messages</Text>
         </ImageBackground>
 
-        {/* Search */}
         <View style={styles.searchContainer}>
           <FontAwesome6 name="magnifying-glass" iconStyle='solid' size={20} color={colors.gray} />
           <TextInput
@@ -294,8 +290,7 @@ const MessagesList = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        // Filter Menu (Dropdown)
-        {showFilterMenu && (
+        {showFilterMenu ? (
           <View style={styles.filterMenu}>
             <TouchableOpacity
               style={[
@@ -307,9 +302,9 @@ const MessagesList = ({ navigation }) => {
                 setShowFilterMenu(false);
               }}>
               <Text style={styles.filterMenuText}>All Channels</Text>
-              {selectedChannel === null && (
+              {selectedChannel === null ? (
                 <FontAwesome6 name="check" size={16} iconStyle='solid' color={colors.primary} style={styles.filterMenuIcon} />
-              )}
+              ) : null}
             </TouchableOpacity>
 
             {connectedChannels.map((channel) => (
@@ -324,15 +319,14 @@ const MessagesList = ({ navigation }) => {
                   setShowFilterMenu(false);
                 }}>
                 <Text style={styles.filterMenuText}>{channel.name}</Text>
-                {selectedChannel?.id === channel.id && (
-                  <FontAwesome6 name="check" size={16} color={colors.primary} style={styles.filterMenuIcon} />
-                )}
+                {selectedChannel?.id === channel.id ? (
+                  <FontAwesome6 name="check" size={16} iconStyle='solid' color={colors.primary} style={styles.filterMenuIcon} />
+                ) : null}
               </TouchableOpacity>
             ))}
           </View>
-        )}
+        ) : null}
 
-        {/* Top Filters */}
         <View style={styles.filterContainer}>
           <ScrollView
             horizontal
@@ -348,19 +342,9 @@ const MessagesList = ({ navigation }) => {
             >
               <Text style={[styles.filterButtonText, styles.activeFilterText]}>All</Text>
             </TouchableOpacity>
-            {/* <TouchableOpacity
-              style={styles.filterButton}
-              onPress={() => {
-                setActiveFilter('Unread');
-                setShowFilterMenu(false);
-              }}
-            >
-              <Text style={styles.filterButtonText}>Unread</Text>
-            </TouchableOpacity> */}
           </ScrollView>
         </View>
 
-        {/* List or Empty */}
         {isEmpty ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
             <Image
@@ -401,7 +385,6 @@ const MessagesList = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
                  refreshing={refreshing}
             onRefresh={onRefresh}
-            // NEW: infinite scroll
             onEndReachedThreshold={0.5}
             onMomentumScrollBegin={() => {
               onEndReachedCalledDuringMomentum.current = false;
@@ -416,11 +399,6 @@ const MessagesList = ({ navigation }) => {
           />
         )}
 
-        {/* {!isEmpty && (
-          <TouchableOpacity style={styles.fab} onPress={handlePlusPress}>
-            <Icon name="add" size={30} color="#fff" />
-          </TouchableOpacity>
-        )} */}
       </View>
     </TouchableWithoutFeedback>
   );
@@ -495,7 +473,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   listContent: {
-    paddingBottom: 80, // Space for bottom nav
+    paddingBottom: 80,
   },
   messageItem: {
     flexDirection: 'row',

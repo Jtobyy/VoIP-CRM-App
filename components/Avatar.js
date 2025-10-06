@@ -17,7 +17,7 @@ const getRandomColor = (seed) => {
     return colors[index];
 };
 
-// Helper to lighten/darken colors
+// lighten/darken colors
 const adjustColor = (color, amount = 0) => {
     // Convert HEX to RGB
     let r = parseInt(color.substring(1, 3), 16);
@@ -63,11 +63,11 @@ const Avatar = ({
     const initials = getInitials(name);
     
     const baseColor = useMemo(() => color || getRandomColor(name), [name, color]);
-    const bgColor = adjustColor(baseColor, lightenAmount); // Lightened background
-    const textColor = adjustColor(baseColor, -darkenAmount); // Darkened text
+    const bgColor = adjustColor(baseColor, lightenAmount);
+    const textColor = adjustColor(baseColor, -darkenAmount);
     
     
-    const badgeIconSize = size * 0.45; // Badge icon is 35% of avatar size
+    const badgeIconSize = size * 0.45;
     
     return (
         <View style={[styles.avatarContainer, style]}>
@@ -83,7 +83,6 @@ const Avatar = ({
                 ]}
             >
                 {image ? (
-                    // Show main image if provided
                     <Image
                         source={typeof image === 'string' ? { uri: image } : image}
                         style={{
@@ -94,7 +93,6 @@ const Avatar = ({
                         resizeMode="cover"
                     />
                 ) : (
-                    // Show initials if no main image
                     <Text
                         style={{
                             color: textColor,
@@ -124,7 +122,7 @@ const Avatar = ({
                     <Image
                         source={typeof badge === 'string' ? { uri: badge } : badge}
                         style={{
-                            width: badgeIconSize - 4, // Slightly smaller to account for border
+                            width: badgeIconSize - 4,
                             height: badgeIconSize - 4,
                             borderRadius: (badgeIconSize - 4) / 2,
                         }}
