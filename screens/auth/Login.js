@@ -34,15 +34,52 @@ const Login = ({ navigation }) => {
 
   const { setLoading } = useLoading();
 
+  const handlePhoneChange = (text) => {
+    let input = text.replace(/\s/g, '');
+    input = input.replace(/(?!^)\+/g, ''); 
+    input = input.replace(/(?!^\+)[^\d]/g, ''); 
 
-const handleLogin = async () => {
-  try {
-    setLoading(true);
-    await login(username, password, navigation); // login() shows its own toasts
-  } finally {
-    setLoading(false);
-  }
-};
+    if (input === '+') {
+      setUsername('+');
+      return;
+    }
+
+    if (input.startsWith('+234')) {
+      const n = input.slice(4); 
+      let out = '+234';
+
+      if (n.length > 0) out += ' ' + n.slice(0, 3);
+      if (n.length > 3) out += ' ' + n.slice(3, 6);
+      if (n.length > 6) out += ' ' + n.slice(6, 10);
+
+      if (n.length > 10) {
+        const extra = n.slice(10).match(/\d{1,3}/g)?.join(' ') ?? '';
+        out += ' ' + extra;
+      }
+
+      setUsername(out.trim());
+      return;
+    }
+
+    if (input.startsWith('+')) {
+      const rest = input.slice(1);                      
+      const groups = rest.match(/\d{1,3}/g) || []; 
+      setUsername('+' + groups.join(' '));
+      return;
+    }
+
+    const groups = input.match(/\d{1,4}/g) || [];
+    setUsername(groups.join(' '));
+  };
+
+  const handleLogin = async () => {
+    try {
+      setLoading(true);
+      await login(formatPhoneNumber(username), password, navigation);
+    } finally {
+      setLoading(false);
+    }
+  };
 
  const handleForgotPassword = async () => {
   if (!username || username.trim() === '') {
@@ -114,10 +151,9 @@ const handleLogin = async () => {
                 <TextInput
                   style={styles.input}
                   value={username}
-                  onChangeText={setUsername}
-                  // keyboardType="phone-pad"
-                  keyboardType="email"
-                  placeholder="0803 567 0547"
+                  onChangeText={handlePhoneChange}
+                  keyboardType="phone-pad"
+                  placeholder="+234 803 567 0547"
                 />
               </View>
 

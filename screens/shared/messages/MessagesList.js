@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   },
   filterMenu: {
     position: 'absolute',
-    top: 180, // Adjust based on your header height
+    top: 180,
     right: 20,
     backgroundColor: 'white',
     borderRadius: 8,

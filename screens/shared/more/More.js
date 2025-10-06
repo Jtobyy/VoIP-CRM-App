@@ -62,14 +62,6 @@ const More = ({ navigation }) => {
 
   const menuItems = [
     {
-      id: 'edit-profile',
-      title: 'Edit Profile',
-      icon: require('../../../assets/ic_moreprofile.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('EditProfile'),
-    },
-    {
       id: 'link-social',
       title: 'Link Social Media',
       icon: require('../../../assets/ic_link.png'),
@@ -208,7 +200,7 @@ const More = ({ navigation }) => {
               More
             </Text>
             
-            <TouchableOpacity style={styles.editButton}>
+            <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditProfile')}>
               <FontAwesome6 
                 name="pen" 
                 size={13} 

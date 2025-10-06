@@ -66,6 +66,9 @@ object CoreManager {
 
     const val ACTION_ANSWER_CALL = "com.nativetalkbusiness.ACTION_ANSWER"
     const val ACTION_DECLINE_CALL = "com.nativetalkbusiness.ACTION_DECLINE"
+
+    private const val CH_INCOMING = "incoming_calls"
+    private const val CH_ONGOING  = "ongoing_calls"
     
     private var callServiceForegroundNotificationPublished = false
     private var currentInCallServiceNotificationId = -1
@@ -132,6 +135,13 @@ object CoreManager {
                         })
                     }
 
+                    Call.State.OutgoingInit -> {
+                        Log.i(
+                            "CoreManager", "Showing outgoing call notification"
+                        )
+                        showCallNotification(call, false)
+                    }
+
                     Call.State.Connected -> {
                         if (call.dir == Call.Dir.Incoming) {
                             Log.i(
@@ -173,27 +183,26 @@ object CoreManager {
     }
 
     private fun createCallNotificationChannel() {
-        val name = "Calls"
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel("incoming_calls", name, NotificationManagerCompat.IMPORTANCE_HIGH).apply {
-                description = name
+            val incoming_channel = NotificationChannel("incoming_calls", "Incoing Calls", NotificationManagerCompat.IMPORTANCE_HIGH).apply {
+                description = "Incoing Calls"
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
+            notificationManager!!.createNotificationChannel(incoming_channel)
 
-            notificationManager!!.createNotificationChannel(channel)
-
-            notificationManager!!.createNotificationChannel(
-                NotificationChannel("ongoing_calls", "Ongoing Calls", NotificationManager.IMPORTANCE_LOW)
-                    .apply { lockscreenVisibility = Notification.VISIBILITY_PUBLIC }
-            )
+            val ongoing_channel = NotificationChannel("ongoing_calls", "Ongoing Calls", NotificationManagerCompat.IMPORTANCE_LOW).apply {
+                description = "Ongoing Calls"
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            notificationManager!!.createNotificationChannel(ongoing_channel)
         }
-    }
+    } 
 
     @MainThread
     fun onCallServiceStarted(service: CallService) {
         Log.i("CoreManger", "Call Service has been started")
         callService = service
+        createCallNotificationChannel()
     }
 
     fun attachReact(react: ReactApplicationContext) {

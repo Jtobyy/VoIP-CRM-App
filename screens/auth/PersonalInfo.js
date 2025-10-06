@@ -18,125 +18,159 @@ import axios from 'axios';
 import { Alert, ActivityIndicator } from 'react-native';
 
 const PersonalInfo = ({ navigation }) => {
-  const [businessName, setBusinessName] = useState('Eze & Sons NG LTD');
-  const [phoneNumber, setPhoneNumber] = useState('+234 803 567 0547');
+  const [businessName, setBusinessName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   const [touched, setTouched] = useState({
-  businessName: false,
-  phoneNumber: false,
-  password: false,
-  confirmPassword: false,
-});
-const [errors, setErrors] = useState({});
-const [showFormBanner, setShowFormBanner] = useState(false);
-const [submitting, setSubmitting] = useState(false);
+    businessName: false,
+    phoneNumber: false,
+    password: false,
+    confirmPassword: false,
+  });
+  const [errors, setErrors] = useState({});
+  const [showFormBanner, setShowFormBanner] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-   const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-    // Password requirements validation
-   const meetsRequirements = {
-  length: password.length >= 8,
-  hasUppercase: /[A-Z]/.test(password),
-  hasLowercase: /[a-z]/.test(password),
-  hasDigit: /\d/.test(password),
-  hasSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
-};
+  const meetsRequirements = {
+    length: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasDigit: /\d/.test(password),
+    hasSymbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+  };
 
-const passwordsMatch = password === confirmPassword && password !== '';
+  const passwordsMatch = password === confirmPassword && password !== '';
 
-const allFilled =
-  businessName.trim().length > 1 &&
-  phoneNumber.trim().length > 0 &&
-  password.length > 0 &&
-  confirmPassword.length > 0;
+  const allFilled =
+    businessName.trim().length > 1 &&
+    phoneNumber.trim().length > 0 &&
+    password.length > 0 &&
+    confirmPassword.length > 0;
 
-const isValid =
-  allFilled &&
-  Object.values(meetsRequirements).every(Boolean) &&
-  passwordsMatch;
+  const isValid =
+    allFilled &&
+    Object.values(meetsRequirements).every(Boolean) &&
+    passwordsMatch;
 
-const getValidationErrors = () => {
-  const e = {};
+  const getValidationErrors = () => {
+    const e = {};
 
-  if (!businessName.trim()) e.businessName = 'Business name is required.';
-  if (!phoneNumber.trim()) e.phoneNumber = 'Phone number is required.';
+    if (!businessName.trim()) e.businessName = 'Business name is required.';
+    if (!phoneNumber.trim()) e.phoneNumber = 'Phone number is required.';
 
-  if (!password) {
-    e.password = 'Password is required.';
-  } else {
-    // Build a human-friendly combined message for password requirements
-    const reqs = [];
-    if (!meetsRequirements.length) reqs.push('at least 8 characters');
-    if (!meetsRequirements.hasUppercase) reqs.push('an uppercase letter');
-    if (!meetsRequirements.hasLowercase) reqs.push('a lowercase letter');
-    if (!meetsRequirements.hasDigit) reqs.push('a digit');
-    if (!meetsRequirements.hasSymbol) reqs.push('a symbol');
+    if (!password) {
+      e.password = 'Password is required.';
+    } else {
+      const reqs = [];
+      if (!meetsRequirements.length) reqs.push('at least 8 characters');
+      if (!meetsRequirements.hasUppercase) reqs.push('an uppercase letter');
+      if (!meetsRequirements.hasLowercase) reqs.push('a lowercase letter');
+      if (!meetsRequirements.hasDigit) reqs.push('a digit');
+      if (!meetsRequirements.hasSymbol) reqs.push('a symbol');
 
-    if (reqs.length) {
-      const lastJoin = reqs.length > 1
-        ? reqs.slice(0, -1).join(', ') + ' and ' + reqs.slice(-1)
-        : reqs[0];
-      e.password = `Password must contain ${lastJoin}.`;
+      if (reqs.length) {
+        const lastJoin = reqs.length > 1
+          ? reqs.slice(0, -1).join(', ') + ' and ' + reqs.slice(-1)
+          : reqs[0];
+        e.password = `Password must contain ${lastJoin}.`;
+      }
     }
-  }
 
-  if (!confirmPassword) {
-    e.confirmPassword = 'Please confirm your password.';
-  } else if (password && !passwordsMatch) {
-    e.confirmPassword = 'Passwords do not match.';
-  }
+    if (!confirmPassword) {
+      e.confirmPassword = 'Please confirm your password.';
+    } else if (password && !passwordsMatch) {
+      e.confirmPassword = 'Passwords do not match.';
+    }
 
-  return e;
-};
+    return e;
+  };
+
+  const handlePhoneChange = (text) => {
+    let input = text.replace(/\s/g, '');
+    input = input.replace(/(?!^)\+/g, ''); 
+    input = input.replace(/(?!^\+)[^\d]/g, ''); 
   
+    if (input === '+') {
+      setPhoneNumber('+');
+      return;
+    }
+  
+    if (input.startsWith('+234')) {
+      const n = input.slice(4); 
+      let out = '+234';
+  
+      if (n.length > 0) out += ' ' + n.slice(0, 3);
+      if (n.length > 3) out += ' ' + n.slice(3, 6);
+      if (n.length > 6) out += ' ' + n.slice(6, 10);
+  
+      if (n.length > 10) {
+        const extra = n.slice(10).match(/\d{1,3}/g)?.join(' ') ?? '';
+        out += ' ' + extra;
+      }
+  
+      setPhoneNumber(out.trim());
+      return;
+    }
+  
+    if (input.startsWith('+')) {
+      const rest = input.slice(1);                      
+      const groups = rest.match(/\d{1,3}/g) || []; 
+      setPhoneNumber('+' + groups.join(' '));
+      return;
+    }
+  
+    const groups = input.match(/\d{1,4}/g) || [];
+    setPhoneNumber(groups.join(' '));
+  };
 
   const handleProceed = async () => {
-  const vErrors = getValidationErrors();
-  setErrors(vErrors);
-  setTouched({ businessName: true, phoneNumber: true, password: true, confirmPassword: true });
+    const vErrors = getValidationErrors();
+    setErrors(vErrors);
+    setTouched({ businessName: true, phoneNumber: true, password: true, confirmPassword: true });
 
-  if (Object.keys(vErrors).length > 0) {
-    setShowFormBanner(true);
-    return;
-  }
-  setShowFormBanner(false);
-
-  if (!isValid) return;
-
-  try {
-    setSubmitting(true);
-    console.log('[Proceed] submitting…');
-    
-    const formattedPhone = formatPhoneNumber(phoneNumber);
-    const res = await axios.post(
-      'https://staging.core.nativetalkcrm.com/api/auth/mobile/register/',
-      { phone_number: formattedPhone, password }
-    );
-    console.log('Phone number:',formatPhoneNumber,'Password:',password)
-    console.log('[Proceed] response:', res?.status, res?.data);
-
-    if (res?.data?.success) {
-      navigation.navigate('OTPVerification', {
-        phoneNumber: formattedPhone,
-        companyName: businessName.trim(),
-        password,
-        flowType: 'signup',
-      });
-    } else {
-      Alert.alert('Sign up', res?.data?.message || 'Failed to send OTP.');
+    if (Object.keys(vErrors).length > 0) {
+      setShowFormBanner(true);
+      return;
     }
-  } catch (err) {
-    console.log('[Proceed] error:', err?.response || err);
-    const msg = err?.response?.data?.message || err?.message || 'Failed to send OTP.';
-    Alert.alert('Sign up', msg);
-  } finally {
-    setSubmitting(false);
-  }
-};
+    setShowFormBanner(false);
 
+    if (!isValid) return;
+
+    try {
+      setSubmitting(true);
+      console.log('[Proceed] submitting…');
+      
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      const res = await axios.post(
+        'https://staging.core.nativetalkcrm.com/api/auth/mobile/register/',
+        { phone_number: formattedPhone, password }
+      );
+      console.log('Phone number:',formatPhoneNumber,'Password:',password)
+      console.log('[Proceed] response:', res?.status, res?.data);
+
+      if (res?.data?.success) {
+        navigation.navigate('OTPVerification', {
+          phoneNumber: formattedPhone,
+          companyName: businessName.trim(),
+          password,
+          flowType: 'signup',
+        });
+      } else {
+        Alert.alert('Sign up', res?.data?.message || 'Failed to send OTP.');
+      }
+    } catch (err) {
+      console.log('[Proceed] error:', err?.response || err);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to send OTP.';
+      Alert.alert('Sign up', msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSignIn = () => {
     navigation.navigate('Login');
@@ -167,15 +201,14 @@ const getValidationErrors = () => {
             style={styles.input}
             value={businessName}
             onChangeText={setBusinessName}
-            placeholder="Enter your business name"
+            placeholder="Eze & Sons NG LTD"
             onBlur={() => setTouched(s => ({...s, businessName: true}))}
-            editable={true} // Assuming this is pre-filled and not editable
+            editable={true}
           />
           {(touched.businessName && errors.businessName) && (
-  <Text style={styles.errorText}>{errors.businessName}</Text>
-)}
+            <Text style={styles.errorText}>{errors.businessName}</Text>
+          )}
         </View>
-        
 
         {/* Phone Number Input */}
         <View style={styles.inputContainer}>
@@ -183,8 +216,8 @@ const getValidationErrors = () => {
           <TextInput
             style={styles.input}
             value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            placeholder="Enter your phone number"
+            onChangeText={handlePhoneChange}
+            placeholder="+234 803 567 0547"
             onBlur={() => setTouched(s => ({...s, phoneNumber: true}))}
             keyboardType="phone-pad"
             editable={true} // Assuming this is pre-filled and not editable
@@ -208,7 +241,7 @@ const getValidationErrors = () => {
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
-                      placeholder="Enter your password"
+                      placeholder="**********"
                       autoCapitalize="none"
                       onBlur={() => setTouched(s => ({...s, password: true}))}
                     />
@@ -268,7 +301,7 @@ const getValidationErrors = () => {
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                       secureTextEntry={!showConfirmPassword}
-                      placeholder="Confirm your password"
+                      placeholder="**********"
                       autoCapitalize="none"
                       onBlur={() => setTouched(s => ({...s, confirmPassword: true}))}
                     />
