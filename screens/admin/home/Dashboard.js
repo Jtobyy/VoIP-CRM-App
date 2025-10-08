@@ -1,5 +1,7 @@
 import React,{useState,useEffect,useMemo} from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Image,Modal, } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, 
+  FlatList, ScrollView, Image,
+  Modal, RefreshControl } from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -49,9 +51,6 @@ const buildRange = (key) => {
     case '30d':
       start.setDate(start.getDate() - 30);
       return { label: 'Last 30 days', start_date: toYMD(start), end_date: toYMD(end) };
-    // case 'thisMonth':
-    //   start = new Date(now.getFullYear(), now.getMonth(), 1);
-    //   return { label: 'This month', start_date: toYMD(start), end_date: toYMD(end) };
     default:
       start.setDate(start.getDate() - 1);
       return { label: 'Last 24 hrs', start_date: toYMD(start), end_date: toYMD(end) };
@@ -175,6 +174,19 @@ const AdminDashboard = ({ navigation }) => {
   const [recentConversations, setRecentConversations] = useState([]);
   const [channelsStats, setChannelsStats] = useState([]);
   const [insight, setInsight] = useState();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const { start_date, end_date } = buildRange(rangeKey);
+      await fetchDashboard({ start_date, end_date });
+    } catch (error) {
+      // Error is already handled in fetchDashboard
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const [hourlyActivity, setHourlyActivity] = useState({
     hours: [],
@@ -321,7 +333,16 @@ const AdminDashboard = ({ navigation }) => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Stats Grid */}
         <View style={styles.statsContainer}>
           <TouchableOpacity style={[styles.statCard, {backgroundColor: '#E0EDFF'}]}>

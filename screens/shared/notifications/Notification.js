@@ -8,7 +8,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   StatusBar,
   SectionList,
   FlatList,
@@ -25,15 +24,12 @@ import {formatChatTime} from '../../../utils/timeUtils'
 
 
 // --------- helpers ----------
-// ---------------- helpers ----------------
 function receiverNameFromNotification(n) {
   const r = n?.receiver || {};
   if (r.first_name) return `${r.first_name} ${r.last_name ?? ''}`.trim();
   return r.email || 'System';
 }
 
-// Pull a name from activity description like
-// "New message received from Awesome Urch"
 function nameFromDescription(desc) {
   if (!desc) return 'System';
   const m = desc.match(/from\s+(.+)$/i);
@@ -46,7 +42,6 @@ function titleFromAction(log) {
   if (a === 'new_message') return `New Message`;
   if (a === 'message_read' || a === 'read') return 'Message marked as read';
   if (a === 'badge_cleared') return 'Notification badge cleared';
-  // Fallback: pretty-print action
   return a.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
 }
 
@@ -56,14 +51,22 @@ function groupByWeek(items) {
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   monday.setHours(0, 0, 0, 0);
 
+  // console.log("Current Monday:", monday);
+  // console.log("Items are ", items);
+  
   const thisWeek = [];
   const earlier = [];
-  for (const it of items) (new Date(it.created_at) >= monday ? thisWeek : earlier).push(it);
+  
+  for (const it of items) {
+    const itemDate = new Date(it.created_at);
+    // console.log(`Item ${it.id}: ${it.created_at} -> ${itemDate >= monday ? 'This Week' : 'Earlier'}`);
+    (itemDate >= monday ? thisWeek : earlier).push(it);
+  }
 
   const sortDesc = (a, b) => new Date(b.created_at) - new Date(a.created_at);
   const sections = [];
   if (thisWeek.length) sections.push({ title: 'This Week', data: thisWeek.sort(sortDesc) });
-  if (earlier.length) sections.push({ title: 'Earlier', data: earlier.sort(sortDesc) });
+  if (earlier.length) sections.push({ title: 'Earlier than this week', data: earlier.sort(sortDesc) });
   return sections;
 }
 
@@ -84,21 +87,13 @@ const Notifications = ({navigation}) => {
   const { handleApiError } = useError();
 
   const openActivityConversation = (item) => {
-  const contactId = item.contactId;
-  if (!contactId) return; // nothing to open
+    const contactId = item.contactId;
+    if (!contactId) return;
 
-  navigation.navigate('ConversationScreen', {
-    contactId,
-    // contact: {
-    //   id: contactId,
-    //   name: item.seedName,                     // initials show immediately
-    //   image: null,
-    //   channel: item.channelName ? { name: item.channelName, image: null } : null,
-    //   lastMessageData: { content: item.preview },
-    //   last_message_at: item.created_at,
-    // },
-  });
-};
+    navigation.navigate('ConversationScreen', {
+      contactId,
+    });
+  };
 
   // Primary state
   const [primaryData, setPrimaryData] = useState([]);
@@ -130,25 +125,22 @@ const Notifications = ({navigation}) => {
     }
   }, []);
 
-  // Lazy-load Activity the first time user taps it
   useEffect(() => {
     if (tab === Tabs.ACTIVITY && !activityHasLoadedRef.current) {
       loadActivity(true);
     }
   }, [tab]);
 
-    // ---------- API loaders ----------
   async function loadPrimary(initial = false, urlOverride = null) {
     const url = urlOverride || '/notifications';
     try {
       if (initial) setLoading(true);
       const res = await api.get(url);
-      // payload: { success, notifications, count, next, previous, unread_count }
       const { notifications = [], next = null } = res.data || {};
       const mapped = notifications.map((n) => ({
-        id: String(n.id),
+        id: `primary-${n.id}`, // Add prefix to ensure uniqueness
         title: n.title || 'Notification',
-        preview: n.description || '', // best-effort
+        preview: n.description || '',
         created_at: n.created_at || n.updated_at || n.timestamp || new Date().toISOString(),
         receiver: n.receiver || null,
         unread_count: n.unread_count || 0,
@@ -168,7 +160,6 @@ const Notifications = ({navigation}) => {
   async function loadMorePrimary() {
     if (!primaryNext || primaryMoreLoading) return;
     setPrimaryMoreLoading(true);
-    // next can be absolute; axios instance can handle it, else fall back to page param
     try {
       await loadPrimary(false, primaryNext);
     } catch {
@@ -178,7 +169,7 @@ const Notifications = ({navigation}) => {
 
   async function refreshPrimary() {
     setPrimaryRefreshing(true);
-    await loadPrimary(false, '/notifications'); // reset to first page
+    await loadPrimary(false, '/notifications');
   }
 
   async function loadActivity(initial = false, urlOverride = null) {
@@ -186,20 +177,46 @@ const Notifications = ({navigation}) => {
     try {
       if (initial) setLoading(true);
       const res = await api.get(url);
-      // payload: { success, logs, count, next, previous }
       const { logs = [], next = null } = res.data || {};
-      const mapped = logs.map((log) => ({
-        id: String(log.id),
-        title: titleFromAction(log),
-        preview: log.description || '',
-        created_at: log.created_at,
-        receiver: { email: nameFromDescription(log.description) }, // for Avatar initials
-        contactId: log?.metadata?.lead_id ?? null,
-        channelName: log?.metadata?.channel ?? null,
-        seedName: nameFromDescription(log.description) || 'Unknown',
-      }));
+      
+      // Use a Set to track unique IDs and filter duplicates
+      const seenIds = new Set();
+      const mapped = logs
+        .filter((log) => {
+          if (seenIds.has(log.id)) {
+            console.warn(`Duplicate activity log ID found: ${log.id}`);
+            return false;
+          }
+          seenIds.add(log.id);
+          return true;
+        })
+        .map((log) => ({
+          id: `activity-${log.id}`, // Add prefix to ensure uniqueness
+          title: titleFromAction(log),
+          preview: log.description || '',
+          created_at: log.created_at,
+          receiver: { email: nameFromDescription(log.description) },
+          contactId: log?.metadata?.lead_id ?? null,
+          channelName: log?.metadata?.channel ?? null,
+          seedName: nameFromDescription(log.description) || 'Unknown',
+        }));
+      
       activityHasLoadedRef.current = true;
-      setActivityItems(prev => (urlOverride ? [...prev, ...mapped] : mapped));
+      
+      if (urlOverride) {
+        // When loading more, merge and deduplicate
+        setActivityItems(prev => {
+          const combined = [...prev, ...mapped];
+          const uniqueMap = new Map();
+          combined.forEach(item => {
+            uniqueMap.set(item.id, item);
+          });
+          return Array.from(uniqueMap.values());
+        });
+      } else {
+        setActivityItems(mapped);
+      }
+      
       setActivityNext(next);
     } catch (e) {
       handleApiError(e);
@@ -225,50 +242,44 @@ const Notifications = ({navigation}) => {
     await loadActivity(false, '/activity-logs/');
   }
 
- // ---------- derived ----------
   const activitySections = useMemo(() => groupByWeek(activityItems), [activityItems]);
 
- const renderItem = ({ item }) => {
-  const content = (
-    <View style={styles.row}>
-      <View style={styles.avatarWrap}>
-        <Avatar
-          name={receiverNameFromNotification(item)}
-          size={40}
-          image={null}
-          badge={null}
-        />
+  const renderItem = ({ item }) => {
+    const content = (
+      <View style={styles.row}>
+        <View style={styles.avatarWrap}>
+          <Avatar
+            name={receiverNameFromNotification(item)}
+            size={40}
+            image={null}
+            badge={null}
+          />
+        </View>
+
+        <View style={styles.rowCenter}>
+          <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+          {!!item.preview && (
+            <Text style={styles.preview} numberOfLines={2}>{item.preview}</Text>
+          )}
+        </View>
+
+        <View style={styles.rowRight}>
+          <Text style={styles.time}>{formatChatTime?.(item.created_at) || ''}</Text>
+          {item.unread_count > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{item.unread_count}</Text>
+            </View>
+          )}
+        </View>
       </View>
+    );
 
-      <View style={styles.rowCenter}>
-        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-        {!!item.preview && (
-          <Text style={styles.preview} numberOfLines={1}>{item.preview}</Text>
-        )}
-      </View>
-
-      <View style={styles.rowRight}>
-        <Text style={styles.time}>{formatChatTime?.(item.created_at) || ''}</Text>
-        {item.unread_count > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{item.unread_count}</Text>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-
-  // Only Activity log rows should navigate
-  return tab === Tabs.ACTIVITY
-    ? (
-        <TouchableOpacity activeOpacity={0.7} onPress={() => openActivityConversation(item)}>
-          {content}
-        </TouchableOpacity>
-      )
-    : content;
-};
-
-
+    return tab === Tabs.ACTIVITY ? (
+      <TouchableOpacity activeOpacity={0.7} onPress={() => openActivityConversation(item)}>
+        {content}
+      </TouchableOpacity>
+    ) : content;
+  };
 
   const ListFooter = ({ loading }) =>
     loading ? (
@@ -276,31 +287,30 @@ const Notifications = ({navigation}) => {
         <ActivityIndicator />
       </View>
     ) : <View style={{ height: 24 }} />;
-  return (
-        <View style={styles.container}>
-          <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
-    
-          {/* Header */}
-          <ImageBackground 
-                source={require('../../../assets/header_bg.png')}
-                style={styles.header}
-                resizeMode="cover"
-              >
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}>
-                <Image
-                  source={require('../../../assets/backWhite.png')} 
-                  style={styles.backButtonIcon}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-    
-              <Text style={styles.headerTitle}>Notifications</Text>
-              <View style={styles.headerRight} />
-          </ImageBackground>
 
-           {/* Tabs */}
+  return (
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#4CAF50" barStyle="light-content" />
+
+      <ImageBackground 
+        source={require('../../../assets/header_bg.png')}
+        style={styles.header}
+        resizeMode="cover"
+      >
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}>
+          <Image
+            source={require('../../../assets/backWhite.png')} 
+            style={styles.backButtonIcon}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>Notifications</Text>
+        <View style={styles.headerRight} />
+      </ImageBackground>
+
       <View style={styles.tabs}>
         {[Tabs.PRIMARY, Tabs.ACTIVITY].map(label => {
           const active = tab === label;
@@ -316,7 +326,6 @@ const Notifications = ({navigation}) => {
         })}
       </View>
 
-      {/* Lists */}
       {tab === Tabs.PRIMARY ? (
         <FlatList
           data={primaryData}
@@ -382,7 +391,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   headerRight: {
-    width: 34, // Same width as back button for centering
+    width: 34,
   },
   tabs: {
     flexDirection: 'row',
@@ -404,67 +413,60 @@ const styles = StyleSheet.create({
   tabText: { color: '#475569', fontWeight: '600' },
   tabTextActive: { color: '#15803D' },
 
-  sectionHeader: {
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 6,
-    fontWeight: '700',
-    color: '#0F172A',
+    paddingVertical: 16,
+    backgroundColor: '#fff',
   },
 
- row: {
-  flexDirection: 'row',
-  alignItems: 'flex-start',     // top align like Figma
-  paddingHorizontal: 16,
-  paddingVertical: 16,          // more vertical air
-  backgroundColor: '#fff',
-},
+  avatarWrap: {
+    marginTop: 2,
+  },
 
-avatarWrap: {
-  marginTop: 2,                 // nudge to align with title baseline
-},
+  rowCenter: {
+    flex: 1,
+    marginLeft: 12,
+    paddingRight: 12,
+    flexShrink: 1,
+  },
 
-rowCenter: {
-  flex: 1,
-  marginLeft: 12,
-  paddingRight: 12,             // keep space from the time
-  flexShrink: 1,
-},
+  rowRight: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+    alignSelf: 'flex-start',
+    minWidth: 72,
+  },
 
-rowRight: {
-  alignItems: 'flex-end',
-  flexShrink: 0,
-  alignSelf: 'flex-start',      // lock time to top
-  minWidth: 72,                 // keeps layout stable
-},
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    lineHeight: 22,
+    marginBottom: 6,
+  },
 
-title: {
-  fontSize: 16,
-  fontWeight: '700',
-  color: '#0F172A',
-  lineHeight: 22,               // taller line for clarity
-  marginBottom: 6,              // space between title & preview (key change)
-},
+  preview: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 20,
+  },
 
-preview: {
-  fontSize: 12,
-  color: '#64748B',
-  lineHeight: 20,
-},
+  time: {
+    fontSize: 12,
+    color: '#94A3B8',
+    lineHeight: 18,
+    marginTop: 2,
+  },
 
-time: {
-  fontSize: 12,
-  color: '#94A3B8',
-  lineHeight: 18,
-  marginTop: 2,
-},
+  separator: {
+    height: 1,
+    backgroundColor: '#EEF2F6',
+    marginLeft: 68,
+    marginRight: 16,
+  },
 
-separator: {
-  height: 1,
-  backgroundColor: '#EEF2F6',  // slightly lighter than before
-  marginLeft: 68,               // skip under avatar to match Figma feel
-  marginRight: 16,
-},
   badge: {
     marginTop: 6,
     backgroundColor: '#22C55E',
@@ -476,22 +478,16 @@ separator: {
   },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
-  // separator: { height: 1, backgroundColor: '#F1F5F9', marginHorizontal: 16 },
-
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 6 },
-  emptyText: { fontSize: 13, color: '#64748B', textAlign: 'center' },
   sectionHeaderWrap: {
-  backgroundColor: '#fff',
-  paddingHorizontal: 16,
-  paddingTop: 12,
-  paddingBottom: 6,
-  borderTopWidth: 1,
-  borderTopColor: '#F1F5F9',
-  zIndex: 1,            // avoids visual overlap during stickiness
-},
-sectionHeaderText: { fontWeight: '700', color: '#0F172A' },
-
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    zIndex: 1,
+  },
+  sectionHeaderText: { fontWeight: '700', color: '#0F172A' },
 })
 
 export default Notifications
