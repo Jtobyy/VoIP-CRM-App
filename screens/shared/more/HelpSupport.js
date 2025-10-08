@@ -14,7 +14,9 @@ import {
   Linking,
 } from 'react-native';
 import { useLoading } from '../../../hooks/useLoading';
-import SuccessModal from '../../../components/Modals/more/HelpAndSupport';
+import SuccessModal from '../../../components/Modals/more/HelpAndSupport'
+import { colors } from '../../../styles/global';
+
 
 const SUPPORT_PHONE = '+234 803 567 0547';
 const SUPPORT_EMAIL = 'hello@nativetalk.io';
@@ -127,7 +129,6 @@ export default function HelpSupport({ navigation }) {
             activeOpacity={0.9}
           >
             <Text style={styles.btnText}>{loading ? 'Sending…' : 'Send'}</Text>
-            <View style={styles.btnBottomEdge} />
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -198,7 +199,7 @@ const styles = StyleSheet.create({
   btn: {
     marginTop: 18,
     height: 52,
-    backgroundColor: '#34C759',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',

@@ -70,14 +70,6 @@ const More = ({ navigation }) => {
       onPress: () => navigation.navigate('ConnectChannels'),
     },
     {
-      id: 'manage-customers',
-      title: 'Manage Customers',
-      icon: require('../../../assets/ic_customers.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('Customers'),
-    },
-    {
       id: 'users',
       title: 'Users',
       icon: require('../../../assets/ic_customers.png'),
@@ -85,22 +77,22 @@ const More = ({ navigation }) => {
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('Users'),
     },
-    {
-      id: 'native-number',
-      title: 'My Nativetalk Number',
-      icon: require('../../../assets/ic_manage.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('NativetalkNumber'),
-    },
-    {
-      id: 'settings',
-      title: 'Settings',
-      icon: require('../../../assets/ic_lock.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('Settings'),
-    },
+    // {
+    //   id: 'native-number',
+    //   title: 'My Nativetalk Number',
+    //   icon: require('../../../assets/ic_manage.png'),
+    //   iconColor: '#22C55E',
+    //   backgroundColor: '#DCFCE7',
+    //   onPress: () => navigation.navigate('NativetalkNumber'),
+    // },
+    // {
+    //   id: 'settings',
+    //   title: 'Settings',
+    //   icon: require('../../../assets/ic_lock.png'),
+    //   iconColor: '#22C55E',
+    //   backgroundColor: '#DCFCE7',
+    //   onPress: () => navigation.navigate('Settings'),
+    // },
     {
       id: 'help',
       title: 'Help & Support',
@@ -134,10 +126,6 @@ const More = ({ navigation }) => {
           onPress: async () => {
             try {
               await logout(); 
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
             } catch (e) {
               console.error('Logout failed', e);
             }
@@ -236,7 +224,7 @@ const More = ({ navigation }) => {
                 style={styles.phoneNumberContainer}
                 onPress={()=>handleCopyNumber(user?.phone_number)}
               >
-                <Text style={styles.phoneNumber}>{user?.phone_number || 'N/A'}</Text>
+                <Text style={styles.phoneNumber}>{user?.did || 'N/A'}</Text>
                 <FontAwesome6 
                   name="copy" 
                   size={16} 

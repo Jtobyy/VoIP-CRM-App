@@ -185,33 +185,33 @@ const handleEditProfile = async () => {
             value={form.lastName}
             onChangeText={(val) => handleChange('lastName', val)}
           />
-          
-
-           <Text style={styles.label}>Phone number</Text>
-                 <TextInput
-                      style={styles.input}
-                      value={form.phone}
-                      onChangeText={(val) => handleChange('phone', val)}
-                  />
 
           <Text style={styles.label}>Gender</Text>
-         <View style={styles.input}>
-           <RNPickerSelect
-               onValueChange={(value) => handleChange('gender', value)}
-               items={[
-                    { label: 'Male', value: 'male' },
-                    { label: 'Female', value: 'female' },
-                  ]}
-               value={form.gender}
-               
-               placeholder={{ label: 'Select gender', value: null }}
-               style={{
-                  inputIOS: { color: '#000' },
-                  inputAndroid: { color: '#000' },
-                  placeholder: { color: '#999' }
-             }}
-              />
+          <View style={styles.input}>
+            <RNPickerSelect
+                onValueChange={(value) => handleChange('gender', value)}
+                items={[
+                      { label: 'Male', value: 'male' },
+                      { label: 'Female', value: 'female' },
+                    ]}
+                value={form.gender}
+                
+                placeholder={{ label: 'Select gender', value: null }}
+                style={{
+                    inputIOS: { color: '#000' },
+                    inputAndroid: { color: '#000' },
+                    placeholder: { color: '#999' }
+              }}
+            />
         </View>
+
+        <Text style={styles.label}>Username (Phone number)</Text>
+        <TextInput
+            style={[styles.input,styles.disabledInput]}
+            value={form.phone}
+            editable={false}
+            onChangeText={(val) => handleChange('phone', val)}
+        />
 
 
           <Text style={styles.label}>Email address</Text>
