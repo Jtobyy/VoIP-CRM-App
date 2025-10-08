@@ -49,9 +49,9 @@ const buildRange = (key) => {
     case '30d':
       start.setDate(start.getDate() - 30);
       return { label: 'Last 30 days', start_date: toYMD(start), end_date: toYMD(end) };
-    case 'thisMonth':
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { label: 'This month', start_date: toYMD(start), end_date: toYMD(end) };
+    // case 'thisMonth':
+    //   start = new Date(now.getFullYear(), now.getMonth(), 1);
+    //   return { label: 'This month', start_date: toYMD(start), end_date: toYMD(end) };
     default:
       start.setDate(start.getDate() - 1);
       return { label: 'Last 24 hrs', start_date: toYMD(start), end_date: toYMD(end) };
@@ -60,15 +60,12 @@ const buildRange = (key) => {
 
 const RANGE_OPTIONS = [
   { key: '24h', label: 'Last 24 hrs' },
-  { key: '48h', label: 'Last 48 hrs' },   // NEW
+  { key: '48h', label: 'Last 48 hrs' },
   { key: '3d',  label: 'Last 3 days' }, 
   { key: '7d',  label: 'Last 7 days' },
   { key: '30d', label: 'Last 30 days' },
-  { key: 'thisMonth', label: 'This month' },
-  // { key: 'custom', label: 'Custom range' }, // wire up later if needed
 ];
 
-// helpers stay the same
 const pctArrow = (v) => (v > 0 ? '▲' : v < 0 ? '▼' : '•');
 const pctNumber = (v) => `${Math.abs(v).toFixed(1)}%`;
 const pctColor = (v) => (v > 0 ? '#16A34A' : v < 0 ? '#DC2626' : '#6B7280');
@@ -104,12 +101,61 @@ const AvatarGroup = ({ items = [], max = 5, size = 32, onOverflowPress }) => {
   );
 };
 
+const transformHourlyActivity = (hourlyActivity) => {
+  if (!hourlyActivity || hourlyActivity.length === 0) {
+    return {
+      hours: [],
+      calls: [],
+      messages: [],
+      maxY: 10
+    };
+  }
+
+  // Extract and format the data
+  const hours = hourlyActivity.map(item => {
+    // Convert "13:00" to "1PM" format
+    const hour = parseInt(item.hour.split(':')[0]);
+    if (hour === 0) return '12AM';
+    if (hour < 12) return `${hour}AM`;
+    if (hour === 12) return '12PM';
+    return `${hour - 12}PM`;
+  });
+
+  const calls = hourlyActivity.map(item => item.call_count);
+  const messages = hourlyActivity.map(item => item.message_count);
+
+  // Calculate appropriate maxY (round up to nearest 10, minimum 10)
+  const maxValue = Math.max(...calls, ...messages);
+  const maxY = maxValue === 0 ? 10 : Math.ceil(maxValue / 10) * 10;
+
+  console.log('transformed hourly activity is ', { hours, calls, messages, maxY })
+  return { hours, calls, messages, maxY };
+};
+
+const getBusiestChannelInsight = (busiestChannel) => {
+  if (!busiestChannel || !busiestChannel.total_messages) {
+    return {
+      message: 'No activity recorded today',
+      hasIcon: false
+    };
+  }
+
+  const { name, total_messages, icon } = busiestChannel;
+  const messageText = total_messages === 1 ? 'message' : 'messages';
+  
+  return {
+    message: `${name} is your busiest channel today with ${total_messages} ${messageText}`,
+    icon: icon,
+    hasIcon: !!icon
+  };
+};
+
 const AdminDashboard = ({ navigation }) => {
   const {company} = useAuth()
   const { canInviteUsers } = useAuth();
 
   const goToCustomers = () => {
-    navigation.navigate('Main', { screen: 'Customers' });  // Tab screen name
+    navigation.navigate('Main', { screen: 'Customers' }); 
   };
  
   const [deltas, setDeltas] = useState({ calls_pct: 10.5, msgs_pct: 10.5 });
@@ -128,6 +174,14 @@ const AdminDashboard = ({ navigation }) => {
   const [returningLeads, setReturningLeads] = useState([]);     // array of leads
   const [recentConversations, setRecentConversations] = useState([]);
   const [channelsStats, setChannelsStats] = useState([]);
+  const [insight, setInsight] = useState();
+
+  const [hourlyActivity, setHourlyActivity] = useState({
+    hours: [],
+    calls: [],
+    messages: [],
+    maxY: 10
+  });
 
   const recentActivities = useMemo(() => {
     return (recentConversations || []).map(c => ({
@@ -153,25 +207,38 @@ const AdminDashboard = ({ navigation }) => {
     try {
       setLoading(true);
 
-      const res = await api.get('analytics/summary/mobile/', {
+      const res = await api.get('analytics/summary/mobile/dashboard/', {
         params: { start_date, end_date },
       });
       const d = res?.data?.data || {};
+      console.log('data is ', d)
       setStats({
         total_calls: d.total_calls ?? 0,
         total_messages: d.total_messages ?? 0,
         total_users: d.total_users ?? 0,
+        total_new_leads: d.new_leads.count,
+        total_returning_leads: d.returning_leads.count
       });
-      setChannelsStats(Array.isArray(d.active_channels) ? d.active_channels.map(c => ({
+      setChannelsStats(Array.isArray(d.messages_per_channel) ? d.messages_per_channel.map(c => ({
         name: c.name,
-        value: c.message_count,
+        value: c.total_messages,
         icon: c.icon,
       })) : []);
-      setActiveChannels(Array.isArray(d.active_channels) ? d.active_channels : []);
-      setNewLeads(Array.isArray(d.new_leads) ? d.new_leads : []);
-      setReturningLeads(Array.isArray(d.returning_leads) ? d.returning_leads : []);
+      setActiveChannels(Array.isArray(d.messages_per_channel) ? d.messages_per_channel : []);
+      setNewLeads(d.new_leads.data);
+      setReturningLeads(d.returning_leads.data);
       setRecentConversations(Array.isArray(d.recent_conversations) ? d.recent_conversations: []);
-      console.log('stats:',stats)
+
+      setInsight(getBusiestChannelInsight(d.busiest_channel))
+
+      setHourlyActivity(
+        d.hourly_activity ? transformHourlyActivity(d.hourly_activity) : {
+          hours: [],
+          calls: [],
+          messages: [],
+          maxY: 10
+        }
+      );
     } catch (e) {
       handleApiError?.(e);
     } finally {
@@ -179,14 +246,11 @@ const AdminDashboard = ({ navigation }) => {
     }
   };
 
-  const hasNew = (newLeads || []).length > 0;
-  const hasReturning = (returningLeads|| []).length > 0;
-
   // choose card width based on data presence
   const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
 
   const handleActivityPress = (item) => {
-    if (item.type !== 'message') return;  // only for messages (as requested)
+    if (item.type !== 'message') return;
 
     navigation.navigate('ConversationScreen', {
       contactId: item.lead_id,
@@ -282,146 +346,138 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         </View>
 
-        {/* {activeChannels.length > 0 && (
-          <View style={[styles.statCard, { backgroundColor: '#F2F2F2' }]}>
-            <Text style={styles.statTitle}>MOST ACTIVE CHANNELS</Text>
-            <Text style={styles.bigCount}>{activeChannels.length}</Text>
-            <AvatarGroup items={activeChannels} max={5} size={32}  onOverflowPress={goToCustomers}/>
+        {stats.total_new_leads > 0 ? (
+        <View style={halfOrFull(stats.total_returning_leads > 0)}>
+          <Text style={styles.statTitleCompact} numberOfLines={1}>NEW CUSTOMERS</Text>
+          <Text style={styles.bigCount}>{stats.total_new_leads}</Text>
+          <AvatarGroup items={newLeads} max={(stats.total_returning_leads ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
+        </View>
+        ): null}
+
+        {stats.total_returning_leads > 0 ? (
+          <View style={halfOrFull(stats.total_new_leads)}>
+            <Text style={styles.statTitleCompact} numberOfLines={1}>RETURNING CUSTOMERS</Text>
+            <Text style={styles.bigCount}>{stats.total_returning_leads}</Text>
+            <AvatarGroup items={returningLeads} max={(stats.total_new_leads > 0 ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
           </View>
-        )} */}
+        ): null}
 
-      {hasNew && (
-      <View style={halfOrFull(hasReturning)}>
-        <Text style={styles.statTitleCompact} numberOfLines={1}>NEW CUSTOMERS</Text>
-        <Text style={styles.bigCount}>{newLeads.length}</Text>
-        <AvatarGroup items={newLeads} max={(hasReturning ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
-      </View>
-)}
-
-{hasReturning && (
-  <View style={halfOrFull(hasNew)}>
-    <Text style={styles.statTitleCompact} numberOfLines={1}>RETURNING CUSTOMERS</Text>
-    <Text style={styles.bigCount}>{returningLeads.length}</Text>
-    <AvatarGroup items={returningLeads} max={(hasNew ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
-  </View>
-)}
-
-</View>
-  {/* Channels Donut */ }
-  <View style={{ marginTop:8, marginBottom:20}} >
-    <ChannelsDonutCard channels={channelsStats} />
-  </View>
-
-  {/* Activity chart */}
-  <View style={{ marginTop: 8, marginBottom: 20 }}>
-      <ActivityBreakdownChart 
-      hours={['8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM',]}
-      calls={[18,35,30,55,40,22,18,25,44,30,]}
-      messages={[30,28,40,80,60,48,32,55,60,52]}
-      maxY={100}
-      />
-  </View>
-            
-  {/* Insights  */}
-  <View style={styles.insightsCard}>
-    <Text style={styles.insightsHeading}>Insights</Text>
-    <View style={styles.insightsContent}>
-      <View style={styles.insightsIconWrap}>
-        <Image source={require('../../../assets/instagram.png')} style={{ width: 18, height: 18 }} />
-      </View>
-      <Text style={styles.insightsMessage}>Instagram is your busiest channel today</Text>
-    </View>
-  </View>
-
-  
-
-  {/* Add User Button */}
-  <View style={styles.usersCard}>
-    <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
-      <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
-      <Text style={styles.statValue}>{stats?.total_users}</Text>
-    </TouchableOpacity>
-    {
-      canInviteUsers && (
-    <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
-      <Text style={styles.addUserText}>Invite users</Text>
-    </TouchableOpacity>
-      )
-    }
-  </View>
-
-        {/* Recent Activities */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={typography.heading2}>Recent Activities</Text>
-            <TouchableOpacity 
-              style={styles.seeAllButton}
-              onPress={handleSeeAllPress}>
-              <Text style={styles.seeAllText}>See all</Text>
-            </TouchableOpacity>
+        </View>
+          {/* Channels Donut */ }
+          <View style={{ marginTop:8, marginBottom:20}} >
+            <ChannelsDonutCard channels={channelsStats} />
           </View>
-        {recentActivities.length > 0 ? (
-        <FlatList
-            data={recentActivities}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-            <TouchableOpacity
-                   style={styles.activityItem}
-                   onPress={() => handleActivityPress(item)}
-                  activeOpacity={0.8}
-                >
-              <View style={styles.activityItem}>
-                <Avatar 
-                  name={item.name} 
-                  size={50} 
-                  style={{ marginRight: 10 }}
-                  image={item?.profile_pic}
-                  badge={item?.channel_icon}
-                />
 
-                <View style={styles.activityContent}>
-                  <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                    <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
-                     {item.name}
-                </Text>
-                    {item.type == 'call' &&
-                      <View style={{flexDirection: 'row', gap: 8}}>
-                        <Text style={styles.activityTime}>{item.time}</Text>
-                        <Image
-                          source={require('../../../assets/info.png')} 
-                          style={styles.infoIcon}
-                          resizeMode="contain"
-                        />
-                      </View>
-                    }
-                  </View>
-
-                  <View style={styles.activitySnippetRow}>
-                      {item.type === 'call' && item.text === 'Missed call' && (
-                     <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
-                    )}
-                      {item.type === 'call' && item.text === 'Outgoing call' && (
-                    <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
-                  )}
-
-                 <Text
-                  style={styles.activitySnippet}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                     {item.text}
-                </Text>
-              </View>
-
+          {/* Activity chart */}
+          <View style={{ marginTop: 8, marginBottom: 20 }}>
+              <ActivityBreakdownChart 
+                hours={hourlyActivity.hours}
+                calls={hourlyActivity.calls}
+                messages={hourlyActivity.messages}
+                maxY={hourlyActivity.maxY}
+              />
+          </View>
+                    
+          {/* Insights  */}
+          <View style={styles.insightsCard}>
+            <Text style={styles.insightsHeading}>Insights</Text>
+            <View style={styles.insightsContent}>
+              {insight?.hasIcon ? (
+                <View style={styles.insightsIconWrap}>
+                  <Image source={{ uri: insight.icon }} style={{ width: 18, height: 18 }} />
                 </View>
-              </View>
+              ) : null}
+              <Text style={styles.insightsMessage}>{insight?.message}</Text>
+            </View>
+          </View>
+
+          {/* Add User Button */}
+          <View style={styles.usersCard}>
+            <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
+              <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
+              <Text style={styles.statValue}>{stats?.total_users}</Text>
             </TouchableOpacity>
-            )}
-            scrollEnabled={false}
-          />
-         ) : (
-              !loading && <RecentEmpty onPress={handleSeeAllPress} />
-         )}
+            {
+              canInviteUsers && (
+            <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
+              <Text style={styles.addUserText}>Invite users</Text>
+            </TouchableOpacity>
+              )
+            }
+          </View>
+
+          {/* Recent Activities */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={typography.heading2}>Recent Activities</Text>
+              <TouchableOpacity 
+                style={styles.seeAllButton}
+                onPress={handleSeeAllPress}>
+                <Text style={styles.seeAllText}>See all</Text>
+              </TouchableOpacity>
+            </View>
+          {recentActivities.length > 0 ? (
+          <FlatList
+              data={recentActivities}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+              <TouchableOpacity
+                    style={styles.activityItem}
+                    onPress={() => handleActivityPress(item)}
+                    activeOpacity={0.8}
+                  >
+                <View style={styles.activityItem}>
+                  <Avatar 
+                    name={item.name} 
+                    size={50} 
+                    style={{ marginRight: 10 }}
+                    image={item?.profile_pic}
+                    badge={item?.channel_icon}
+                  />
+
+                  <View style={styles.activityContent}>
+                    <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                      <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
+                      {item.name}
+                  </Text>
+                      {item.type == 'call' &&
+                        <View style={{flexDirection: 'row', gap: 8}}>
+                          <Text style={styles.activityTime}>{item.time}</Text>
+                          <Image
+                            source={require('../../../assets/info.png')} 
+                            style={styles.infoIcon}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      }
+                    </View>
+
+                    <View style={styles.activitySnippetRow}>
+                        {item.type === 'call' && item.text === 'Missed call' && (
+                      <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
+                      )}
+                        {item.type === 'call' && item.text === 'Outgoing call' && (
+                      <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
+                    )}
+
+                  <Text
+                    style={styles.activitySnippet}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                      {item.text}
+                  </Text>
+                </View>
+
+                  </View>
+                </View>
+              </TouchableOpacity>
+              )}
+              scrollEnabled={false}
+            />
+          ) : (
+                !loading && <RecentEmpty onPress={handleSeeAllPress} />
+          )}
         </View>
       </ScrollView>
       
