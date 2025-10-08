@@ -50,16 +50,12 @@ function groupByWeek(items) {
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   monday.setHours(0, 0, 0, 0);
-
-  // console.log("Current Monday:", monday);
-  // console.log("Items are ", items);
   
   const thisWeek = [];
   const earlier = [];
   
   for (const it of items) {
     const itemDate = new Date(it.created_at);
-    // console.log(`Item ${it.id}: ${it.created_at} -> ${itemDate >= monday ? 'This Week' : 'Earlier'}`);
     (itemDate >= monday ? thisWeek : earlier).push(it);
   }
 
