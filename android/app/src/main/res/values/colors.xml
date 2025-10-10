@@ -4,4 +4,5 @@
     <color name="call_subtitle_text">#cccccc</color>
     <color name="answer_button">#4CAF50</color>
     <color name="decline_button">#F44336</color>
+    <color name="ntb_notif_color">#0A7B32</color>
 </resources>

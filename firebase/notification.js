@@ -1,5 +1,6 @@
 import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native';
+import { Platform } from 'react-native';
 
 /** Create default Android channel (once) */
 export async function ensureAndroidChannel() {
@@ -14,8 +15,22 @@ export async function ensureAndroidChannel() {
   }
 }
 
+async function androidNotificationsAllowed() {
+  try {
+    const settings = await notifee.getNotificationSettings();
+    return settings.authorizationStatus === AuthorizationStatus.AUTHORIZED ||
+           settings.authorizationStatus === AuthorizationStatus.PROVISIONAL;
+  } catch {
+    return false;
+  }
+}
+
 /** Local banner (both platforms) */
 export async function showLocalBanner({ title, body, data = {} }) {
+  if (Platform.OS === 'android' && !(await androidNotificationsAllowed())) {
+    return;
+  }
+  
   await notifee.displayNotification({
     title,
     body,
@@ -23,7 +38,7 @@ export async function showLocalBanner({ title, body, data = {} }) {
     android: {
       channelId: 'default',
       pressAction: { id: 'default' },
-      // smallIcon: 'ic_notification', // add later if you want
+      // smallIcon: 'ic_notification',
     },
     ios: {
       foregroundPresentationOptions: {
@@ -92,14 +107,8 @@ function boolOrUndef(v) {
 /** Foreground listener: show banner while app is open */
 export function attachForegroundHandler(onReceive) {
   return messaging().onMessage(async (remoteMessage) => {
-     console.log('[FCM][FOREGROUND] raw remoteMessage:', JSON.stringify(remoteMessage));
     const n = normalizeFCM(remoteMessage);
-    console.log('[FCM][FOREGROUND] normalized:', n);
-    await showLocalBanner({
-      title: n.title,
-      body: n.description,
-      data: remoteMessage?.data || {},
-    });
-    onReceive?.(n); // optional hook to update in-app list/badges
+    try { await showLocalBanner({ title: n.title, body: n.description, data: remoteMessage?.data || {} }); } catch {}
+    onReceive?.(n);
   });
 }

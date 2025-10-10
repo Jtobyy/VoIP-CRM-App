@@ -14,6 +14,7 @@ import { useUnread } from '../../shared/notifications/UnreadProvider';
 import { BellButton } from '../../../components/Bell';
 import ActivityBreakdownChart from '../../../components/GroupedBarCharts';
 import ChannelsDonutCard from '../../../components/ChannelsDonut';
+import EnableNotificationsBanner from '../../../components/EnableNotificationsBanner';
 
 
 const PREVIEW_LEN = 80;
@@ -140,10 +141,8 @@ const getBusiestChannelInsight = (busiestChannel) => {
   }
 
   const { name, total_messages, icon } = busiestChannel;
-  const messageText = total_messages === 1 ? 'message' : 'messages';
   
   return {
-    message: `${name} is your busiest channel today with ${total_messages} ${messageText}`,
     icon: icon,
     hasIcon: !!icon
   };
@@ -175,6 +174,7 @@ const AdminDashboard = ({ navigation }) => {
   const [channelsStats, setChannelsStats] = useState([]);
   const [insight, setInsight] = useState();
   const [refreshing, setRefreshing] = useState(false);
+  const [insightRemark, setInsightRemark] = useState();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -245,6 +245,7 @@ const AdminDashboard = ({ navigation }) => {
       setRecentConversations(Array.isArray(d.recent_conversations) ? d.recent_conversations: []);
 
       setInsight(getBusiestChannelInsight(d.busiest_channel))
+      setInsightRemark(d.remark)
 
       setHourlyActivity(
         d.hourly_activity ? transformHourlyActivity(d.hourly_activity) : {
@@ -307,6 +308,8 @@ const AdminDashboard = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <EnableNotificationsBanner />
+      
       {/* Header */}
       <View style={styles.headerRow}>
         <Text
@@ -411,7 +414,7 @@ const AdminDashboard = ({ navigation }) => {
                   <Image source={{ uri: insight.icon }} style={{ width: 18, height: 18 }} />
                 </View>
               ) : null}
-              <Text style={styles.insightsMessage}>{insight?.message}</Text>
+              <Text style={styles.insightsMessage}>{insightRemark}</Text>
             </View>
           </View>
 
@@ -848,12 +851,13 @@ insightsContent: {
   justifyContent: 'center',    // center the whole row like the Figma
   gap: 10,
   paddingVertical: 4,
+  paddingHorizontal: 16,
 },
 
 insightsIconWrap: {
-  width: 34,
-  height: 34,
-  borderRadius: 17,
+  width: 25,
+  height: 25,
+  borderRadius: 12,
   backgroundColor: '#F6F7FB',  // subtle oval/pill background
   alignItems: 'center',
   justifyContent: 'center',

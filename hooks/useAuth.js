@@ -6,6 +6,11 @@ import axios from 'axios';
 import {formatPhoneNumber} from '../utils/phone'
 import {getFcmTokenForLogin} from '../firebase/getTokenforLogin'
 
+import { NativeModules } from 'react-native';
+
+const { LinphoneModule } = NativeModules;
+
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -131,6 +136,8 @@ export const AuthProvider = ({ children }) => {
       setUser(userPayload);
       setIsAuthenticated(true);
       await AsyncStorage.setItem('user', JSON.stringify(userPayload));
+      try { LinphoneModule.startNativeServices(); } catch {}
+
       fetchCompanyDetails(data.access);
       showSnackbar('Login successful!', 'success');
       return { success: true };
@@ -148,11 +155,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    setUser(null);
-    setCompany(null);
-    setIsAuthenticated(false);
-    await AsyncStorage.clear();
-    showSnackbar('Logged out', 'info');
+    try {
+      try { await LinphoneModule.stopNativeServices(true); } catch {}
+  
+      try { await messaging().unregisterDeviceForRemoteMessages(); } catch {}
+  
+      try {
+        await notifee.cancelAllNotifications();
+        await notifee.setBadgeCount(0);
+      } catch {}
+
+      setUser(null);
+      setCompany(null);
+      setIsAuthenticated(false);
+      await AsyncStorage.clear();
+      showSnackbar('Logged out', 'info');
+    } catch (e) {
+      console.error('Logout cleanup error', e);
+    }
   };
 
   return (

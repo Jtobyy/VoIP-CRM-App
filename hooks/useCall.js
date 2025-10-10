@@ -211,23 +211,11 @@ export function CallProvider({ children }) {
     Lin.answer(); 
   }, [resetDuration]);
 
-  // const hangup   = useCallback(async () => { 
-  //   setCallStatus('Ending…'); 
-  //   Lin.hangup(); 
-
-  //   const secondsNow = startTsRef.current
-  //   ? Math.max(0, Math.floor((Date.now() - startTsRef.current) / 1000))
-  //   : Math.max(0, Math.floor(latestDurationRef.current));
-    
-  //   clearTimer();
-  //   setDurationSec(secondsNow);
-  // }, [clearTimer]);
   const hangup = useCallback(async () => {
     if (ending) return;
     setEnding(true);
     try { Lin.end(); } finally {
-      // Let native reset on CallEnded; keep UI disabled briefly to avoid double taps
-      setTimeout(() => setEnding(false), 800);
+      setTimeout(() => setEnding(false), 600);
     }
   }, [ending]);
 

@@ -40,7 +40,9 @@ class CallService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Restart service if it is removed (e.g., app swiped away)
-        startService(Intent(applicationContext, CallService::class.java))
+        if (BackgroundService.shouldRestart) {
+            startService(Intent(applicationContext, CallService::class.java))
+        }
         super.onTaskRemoved(rootIntent)
     }
 

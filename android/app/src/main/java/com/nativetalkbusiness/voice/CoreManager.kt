@@ -185,7 +185,7 @@ object CoreManager {
     private fun createCallNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val incoming_channel = NotificationChannel("incoming_calls", "Incoing Calls", NotificationManagerCompat.IMPORTANCE_HIGH).apply {
-                description = "Incoing Calls"
+                description = "Incoming Calls"
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
             notificationManager!!.createNotificationChannel(incoming_channel)
@@ -302,18 +302,14 @@ object CoreManager {
         pendingIntent: PendingIntent?,
         isIncoming: Boolean,
     ): Notification {
-        Log.i("CoreManager", "createCallNotification")
         val declineIntent = getCallDeclinePendingIntent(notifiable)
         val answerIntent = getCallAnswerPendingIntent(notifiable)
-        Log.i("CoreManager", "createCallNotification 2")
         val remoteAddress = call.callLog.remoteAddress
-        Log.i("CoreManager", "createCallNotification 3")
         val caller = Person.Builder()
                 .setName(Utils.getDisplayName(remoteAddress).ifEmpty { "Unknown" })
                 .setImportant(false)
                 .build()
         val smallIcon = R.drawable.ic_stat_call
-        Log.i("CoreManager", "createCallNotification 4")
         val style = if (isIncoming) {
             NotificationCompat.CallStyle.forIncomingCall(
                 caller,

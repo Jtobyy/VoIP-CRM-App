@@ -8,7 +8,7 @@ type CallLog = {
   direction: 'incoming' | 'outgoing' | string;
   duration: number;        // seconds
   status: string;          // raw string from SDK
-  startDate: string;       // ISO 8601
+  startDate: string; 
   callId: string;
 };
 

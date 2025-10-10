@@ -34,7 +34,7 @@ class MainActivity : ReactActivity() {
       super.onCreate(savedInstanceState)
       
       CoreManager.ensureStarted(this)
-      BackgroundService.startService(this)
+    //   BackgroundService.startService(this)
   }
 
   private fun requestBatteryOptimizationExemption() {
@@ -80,27 +80,8 @@ class MainActivity : ReactActivity() {
         }
     }
     
-    private fun updateMissingPermissionAlert() {
-        // Request POST_NOTIFICATIONS on Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
-                != PackageManager.PERMISSION_GRANTED) {
-                postNotificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-
-        // Request USE_FULL_SCREEN_INTENT on Android 14+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.USE_FULL_SCREEN_INTENT) 
-                != PackageManager.PERMISSION_GRANTED) {
-                fullScreenIntentPermissionLauncher.launch(Manifest.permission.USE_FULL_SCREEN_INTENT)
-            }
-        }
-    }
-
     override fun onResume() {
         super.onResume()
-        updateMissingPermissionAlert()
     }
     
     /**

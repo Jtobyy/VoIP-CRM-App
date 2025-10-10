@@ -9,7 +9,7 @@ import {
   Image,
   ImageBackground,
 } from 'react-native';
-import { colors } from '../../../styles/global'; // Assuming you have global colors
+import { colors } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { useApi } from '../../../hooks/useApi';
 import { useLoading } from '../../../hooks/useLoading';
@@ -20,7 +20,7 @@ const pad2 = n => (n < 10 ? `0${n}` : `${n}`);
 const toYMD = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 
 const buildRecent7d = () => {
-  const end = new Date();                // today (Africa/Lagos local is fine for UI)
+  const end = new Date(); 
   const start = new Date();
   start.setDate(start.getDate() - 7);
   return { start_date: toYMD(start), end_date: toYMD(end) };
@@ -135,11 +135,11 @@ const RecentActivities = ({ navigation }) => {
       return (
         <View style={styles.avatarContainer}>
           <Image source={{ uri: activity.avatar }} style={styles.avatar} />
-          {activity.platform && (
+          {activity.platform ? (
             <View style={[styles.platformBadge, { backgroundColor: getPlatformColor(activity.platform) }]}>
               <Text style={styles.platformIcon}>{getPlatformIcon(activity.platform)}</Text>
             </View>
-          )}
+          ) : null}
         </View>
       );
     } else {
@@ -236,9 +236,9 @@ const RecentActivities = ({ navigation }) => {
               <View style={styles.activityInfo}>
                 <Text style={styles.activityName}>{activity.name}</Text>
                 <View style={styles.activityDescription}>
-                  {activity.type === 'call' && (
+                  {activity.type === 'call' ? (
                     getCallIcon(activity.status)
-                  )}
+                  ) : null}
                   <Text style={[
                     styles.activityDescriptionText,
                     activity.status === 'missed' && styles.missedCallText
@@ -272,11 +272,11 @@ const RecentActivities = ({ navigation }) => {
                 // Message: Time + Unread (vertical)
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.activityTime}>{activity.time}</Text>
-                  {activity.unread && (
+                  {activity.unread ? (
                     <View style={styles.unreadBadge}>
                       <Text style={styles.unreadText}>{activity.unread}</Text>
                     </View>
-                  )}
+                  ) : null}
                 </View>
               )}
             </View>

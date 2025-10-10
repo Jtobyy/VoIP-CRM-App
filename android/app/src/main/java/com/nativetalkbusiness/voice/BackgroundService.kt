@@ -16,6 +16,8 @@ class BackgroundService : Service() {
         private const val NOTIFICATION_ID = 1000
         private const val CHANNEL_ID = "nativetalk_background"
         
+        @Volatile var shouldRestart = true
+
         fun startService(context: Context) {
             val intent = Intent(context, BackgroundService::class.java)
             context.startForegroundService(intent)
@@ -58,26 +60,28 @@ class BackgroundService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Restart the service when app is swiped away
-        val restartServiceIntent = Intent(applicationContext, BackgroundService::class.java)
-        val restartPendingIntent = PendingIntent.getService(
-            this, 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val alarmService = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmService.set(
-            AlarmManager.ELAPSED_REALTIME,
-            android.os.SystemClock.elapsedRealtime() + 1000,
-            restartPendingIntent
-        )
+        if (shouldRestart) {
+            val restartServiceIntent = Intent(applicationContext, BackgroundService::class.java)
+            val restartPendingIntent = PendingIntent.getService(
+                this, 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmService = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmService.set(
+                AlarmManager.ELAPSED_REALTIME,
+                android.os.SystemClock.elapsedRealtime() + 1000,
+                restartPendingIntent
+            )
+        }
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         wakeLock?.release()
-        
-        // Restart the service
-        val broadcastIntent = Intent("com.nativetalkbusiness.RestartSensor")
-        sendBroadcast(broadcastIntent)
+        if (shouldRestart) {
+            val broadcastIntent = Intent("com.nativetalkbusiness.RestartSensor")
+            sendBroadcast(broadcastIntent)
+        }
     }
 
     private fun createNotificationChannel() {
@@ -98,7 +102,7 @@ class BackgroundService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Native Talk Ready")
             .setContentText("Ready to receive calls")
-            .setSmallIcon(R.drawable.ic_stat_call)
+            .setSmallIcon(R.drawable.assets_nativetalk1)
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)

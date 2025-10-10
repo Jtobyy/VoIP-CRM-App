@@ -6,6 +6,9 @@ import android.util.Log
 import com.facebook.react.bridge.*
 import com.nativetalkbusiness.voice.CoreManager
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import android.content.Intent
+import com.nativetalkbusiness.voice.BackgroundService
+import com.nativetalkbusiness.voice.CallService
 
 class LinphoneModule(private val reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
@@ -34,6 +37,24 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
     }
   }
 
+  @ReactMethod
+  fun startNativeServices() {
+    CoreManager.ensureStarted(reactContext)
+    BackgroundService.startService(reactContext)
+  }
+
+  @ReactMethod
+  fun stopNativeServices(logout: Boolean) {
+    // Tell background service not to self-restart if we’re logging out
+    if (logout) BackgroundService.shouldRestart = false
+
+    // Stop call/fg services
+    reactContext.stopService(Intent(reactContext, CallService::class.java))
+    BackgroundService.stopService(reactContext)
+
+    // Tear down Linphone core
+    CoreManager.stop()
+  }
 
   @ReactMethod
   fun register(acc: ReadableMap) {

@@ -19,7 +19,7 @@ import messaging from '@react-native-firebase/messaging';
 import { IS_FIREBASE_CONFIGURED } from './firebase/fcm';
 import { UnreadProvider } from './screens/shared/notifications/UnreadProvider';
 import { incrementUnread, getUnreadCount } from './screens/shared/notifications/unread';
-import { useUnread } from './screens/shared/notifications/UnreadProvider';
+// import { useUnread } from './screens/shared/notifications/UnreadProvider';
 import { CallProvider } from './hooks/useCall';
 
 // Add this import or type definition for NormalizedNotification
@@ -29,43 +29,38 @@ type NormalizedNotification = {
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
-  const { setUnreadCountState } = useUnread();
+  // const { setUnreadCountState } = useUnread();
 
   useEffect(() => {
     let unsubFcm: undefined | (() => void);
     let unsubOnMessage: undefined | (() => void);
-
+  
     (async () => {
-      await ensureAndroidChannel(); // Android channel once
-      unsubFcm = await initFcm();   // your existing init
-      unsubOnMessage = attachForegroundHandler(async(normalized: NormalizedNotification) => {
-        // Optional: update badge counts / in-app list
-        // console.log('[Notif] Foreground received:', normalized);
-        if (IS_FIREBASE_CONFIGURED && Platform.OS === 'android') {
-          await incrementUnread(1);
-          // 2) Update in-memory state so the bell dot reacts immediately
-          const n = await getUnreadCount();
-          setUnreadCountState(n);
-        }
+      await ensureAndroidChannel(); // safe even if permission is off
+      // 👇 Silent init: no system dialogs at startup
+      unsubFcm = await initFcm({ prompt: false });
+  
+      // Foreground banners & counters are already gated in notification.js
+      unsubOnMessage = attachForegroundHandler(async (normalized: NormalizedNotification) => {
+        // Optional: only increment if you *know* banners are allowed; your showLocalBanner already guards. :contentReference[oaicite:4]{index=4}
+        // await incrementUnread(1);
       });
     })();
-
-    // Taps from background -> foreground
+  
     const unsubOpened =
       IS_FIREBASE_CONFIGURED
         ? messaging().onNotificationOpenedApp((rm) => {
             routeByType(rm?.data || {});
           })
         : () => {};
-
-    // Taps from quit state
+  
     if (IS_FIREBASE_CONFIGURED) {
       (async () => {
         const initial = await messaging().getInitialNotification();
         if (initial) routeByType(initial?.data || {});
       })();
     }
-
+  
     return () => {
       unsubFcm?.();
       unsubOnMessage?.();
