@@ -223,13 +223,16 @@ const AdminDashboard = ({ navigation }) => {
         params: { start_date, end_date },
       });
       const d = res?.data?.data || {};
-      console.log('data is ', d)
       setStats({
-        total_calls: d.total_calls ?? 0,
-        total_messages: d.total_messages ?? 0,
+        total_calls: d.total_calls.count ?? 0,
+        total_messages: d.total_messages.count ?? 0,
         total_users: d.total_users ?? 0,
         total_new_leads: d.new_leads.count,
         total_returning_leads: d.returning_leads.count
+      });
+      setDeltas({
+        calls_pct: d.total_calls.percent_change,
+        msgs_pct: d.total_messages.percent_change
       });
       setChannelsStats(Array.isArray(d.messages_per_channel) ? d.messages_per_channel.map(c => ({
         name: c.name,
@@ -352,7 +355,7 @@ const AdminDashboard = ({ navigation }) => {
               <Text style={[styles.deltaNumber, { color: pctColor(deltas.calls_pct) }]}>
                   {pctArrow(deltas.calls_pct)} {pctNumber(deltas.calls_pct)}
               </Text>
-              <Text style={styles.deltaSuffix}> vs yesterday</Text>
+              {/* <Text style={styles.deltaSuffix}> vs yesterday</Text> */}
             </View>
           </TouchableOpacity>
 
@@ -363,7 +366,7 @@ const AdminDashboard = ({ navigation }) => {
              <Text style={[styles.deltaNumber, { color: pctColor(deltas.msgs_pct) }]}>
                 {pctArrow(deltas.msgs_pct)} {pctNumber(deltas.msgs_pct)}
              </Text>
-              <Text style={styles.deltaSuffix}> vs yesterday</Text>
+              {/* <Text style={styles.deltaSuffix}> vs yesterday</Text> */}
           </View>
         </View>
 

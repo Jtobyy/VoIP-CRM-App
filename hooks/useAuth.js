@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
           setCompany(JSON.parse(storedCompany));
         }
       } catch (error) {
-        console.error('Error loading auth data:', error);
+        console.error('Error loading auth data: ', error);
       } finally {
         setLoading(false);
       }

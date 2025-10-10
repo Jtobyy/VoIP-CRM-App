@@ -128,13 +128,13 @@ const Notifications = ({navigation}) => {
   }, [tab]);
 
   async function loadPrimary(initial = false, urlOverride = null) {
-    const url = urlOverride || '/notifications';
+    const url = urlOverride || '/notifications/';
     try {
       if (initial) setLoading(true);
       const res = await api.get(url);
-      const { notifications = [], next = null } = res.data || {};
+      const { notifications = [], next = null } = res?.data || {};
       const mapped = notifications.map((n) => ({
-        id: `primary-${n.id}`, // Add prefix to ensure uniqueness
+        id: `primary-${n.id}`,
         title: n.title || 'Notification',
         preview: n.description || '',
         created_at: n.created_at || n.updated_at || n.timestamp || new Date().toISOString(),
@@ -165,7 +165,7 @@ const Notifications = ({navigation}) => {
 
   async function refreshPrimary() {
     setPrimaryRefreshing(true);
-    await loadPrimary(false, '/notifications');
+    await loadPrimary(false, '/notifications/');
   }
 
   async function loadActivity(initial = false, urlOverride = null) {
@@ -173,8 +173,9 @@ const Notifications = ({navigation}) => {
     try {
       if (initial) setLoading(true);
       const res = await api.get(url);
-      const { logs = [], next = null } = res.data || {};
-      
+
+      const { logs = [], next = null } = res?.data || {};
+
       // Use a Set to track unique IDs and filter duplicates
       const seenIds = new Set();
       const mapped = logs

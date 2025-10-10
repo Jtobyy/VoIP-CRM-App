@@ -32,7 +32,6 @@ export const useApi = () => {
 
   const axiosInstance = axios.create({
     baseURL: 'https://staging.core.nativetalkcrm.com/api',
-     headers: { 'User-Domain': 'tech4mation' },
   });
 
   axiosInstance.interceptors.request.use(
