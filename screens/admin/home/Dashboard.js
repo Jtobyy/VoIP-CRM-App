@@ -15,6 +15,7 @@ import { BellButton } from '../../../components/Bell';
 import ActivityBreakdownChart from '../../../components/GroupedBarCharts';
 import ChannelsDonutCard from '../../../components/ChannelsDonut';
 import EnableNotificationsBanner from '../../../components/EnableNotificationsBanner';
+import useCall from '../../../hooks/useCall';
 
 
 const PREVIEW_LEN = 80;
@@ -149,8 +150,9 @@ const getBusiestChannelInsight = (busiestChannel) => {
 };
 
 const AdminDashboard = ({ navigation }) => {
-  const {company} = useAuth()
+  const { company } = useAuth();
   const { canInviteUsers } = useAuth();
+  const { register } = useCall();
 
   const goToCustomers = () => {
     navigation.navigate('Main', { screen: 'Customers' }); 
@@ -181,8 +183,7 @@ const AdminDashboard = ({ navigation }) => {
     try {
       const { start_date, end_date } = buildRange(rangeKey);
       await fetchDashboard({ start_date, end_date });
-    } catch (error) {
-      // Error is already handled in fetchDashboard
+      await register();
     } finally {
       setRefreshing(false);
     }
@@ -195,34 +196,85 @@ const AdminDashboard = ({ navigation }) => {
     maxY: 10
   });
 
-  const recentActivities = useMemo(() => {
-    return (recentConversations || []).map(c => ({
-        id: String(c.conversation_id),
-        conversation_id: c.conversation_id,
-        lead_id: c.lead_id,
-        name: c.lead_name || `Lead #${c.lead_id}`,
-        type: 'message',
-        text: cleanPreview(c?.latest_message?.content || ''),
-        time: formatChatTime(c?.latest_message?.created_at),
-        rawTimestamp: c?.latest_message?.created_at,
-        profile_pic: undefined,
-        channel_icon: c?.channel?.icon ? { uri: c.channel.icon } : undefined,
-        channel: { image: c?.channel?.icon ? { uri: c.channel.icon } : undefined },
-  }));}, [recentConversations]);
-
   useEffect(() => {
     const { start_date, end_date } = buildRange(rangeKey);
     fetchDashboard({ start_date, end_date });
   }, [rangeKey]);
 
+  const transformRecentActivity = (item) => {
+    // Determine if this is a call log or message
+    const isCallLog = item.last_message.type == 'call';
+    
+    if (isCallLog) {
+      // Handle call log
+      console.log('is call', item)
+
+      const callLog = item;
+      const direction = (callLog.last_message.metadata.call_direction || '').toLowerCase();
+      const duration = callLog.last_message.metadata.duration || 0;
+      
+      let callType = 'incoming';
+      let callText = 'Incoming call';
+      
+      if (direction === 'outbound') {
+        callType = 'outgoing';
+        callText = 'Outgoing call';
+      } else if (direction === 'inbound' && duration === 0) {
+        callType = 'missed';
+        callText = 'Missed call';
+      }
+      
+      return {
+        id: `call_${callLog.id}_${item.id}`,
+        conversation_id: null,
+        lead_id: item.id,
+        name: item.customer_name || item.unique_identifier || 'Unknown',
+        type: 'call',
+        text: callText,
+        time: formatChatTime(callLog.start_time),
+        rawTimestamp: callLog.start_time,
+        profile_pic: item.profileImage || undefined,
+        channel_icon: item.channel?.image ? { uri: item.channel.image } : undefined,
+        channel: item.channel ? { image: item.channel?.image ? { uri: item.channel.image } : undefined } : undefined,
+        callDirection: direction,
+        callDuration: duration,
+        callStatus: callType,
+      };
+    } else {
+      // Handle message
+      if (!item.last_message) return null;
+
+      return {
+        id: String(item.id),
+        conversation_id: item.last_message?.conversation || null,
+        lead_id: item.lead?.id,
+        name: item?.customer_name || item.lead?.name || 'Unknown',
+        type: 'message',
+        text: cleanPreview(item.last_message.content || ''),
+        time: formatChatTime(item?.last_message?.updated_at),
+        rawTimestamp: item?.last_message?.updated_at,
+        profile_pic: item?.customer?.image || item?.last_message?.lead_receiver_details?.image || item?.last_message?.user_sender_details?.image || undefined,
+        channel_icon: item?.last_message?.channel?.image ? { uri: item.last_message.channel.image } : undefined,
+        channel: item.last_message?.channel ? { image: item.last_message?.channel?.image ? { uri: item.last_message?.channel.image } : undefined } : undefined,
+        unreadCount: item.unreadCount || 0,
+      };
+    }
+  };
+
+  const recentActivities = useMemo(() => {
+    return (recentConversations || []).map(transformRecentActivity);
+  }, [recentConversations]);
+
   const fetchDashboard = async ({ start_date, end_date }) => {
     try {
       setLoading(true);
-
+  
+      // Fetch analytics data
       const res = await api.get('analytics/summary/mobile/dashboard/', {
         params: { start_date, end_date },
       });
       const d = res?.data?.data || {};
+      
       setStats({
         total_calls: d.total_calls.count ?? 0,
         total_messages: d.total_messages.count ?? 0,
@@ -230,23 +282,25 @@ const AdminDashboard = ({ navigation }) => {
         total_new_leads: d.new_leads.count,
         total_returning_leads: d.returning_leads.count
       });
+      
       setDeltas({
         calls_pct: d.total_calls.percent_change,
         msgs_pct: d.total_messages.percent_change
       });
+      
       setChannelsStats(Array.isArray(d.messages_per_channel) ? d.messages_per_channel.map(c => ({
         name: c.name,
         value: c.total_messages,
         icon: c.icon,
       })) : []);
+      
       setActiveChannels(Array.isArray(d.messages_per_channel) ? d.messages_per_channel : []);
       setNewLeads(d.new_leads.data);
       setReturningLeads(d.returning_leads.data);
-      setRecentConversations(Array.isArray(d.recent_conversations) ? d.recent_conversations: []);
-
-      setInsight(getBusiestChannelInsight(d.busiest_channel))
-      setInsightRemark(d.remark)
-
+      
+      setInsight(getBusiestChannelInsight(d.busiest_channel));
+      setInsightRemark(d.remark);
+      
       setHourlyActivity(
         d.hourly_activity ? transformHourlyActivity(d.hourly_activity) : {
           hours: [],
@@ -255,38 +309,131 @@ const AdminDashboard = ({ navigation }) => {
           maxY: 10
         }
       );
+  
+      // Fetch recent activities from contacts endpoint
+      const contactsRes = await api.get('/communication/recent/', {
+        params: {
+          page_size: 70
+        },
+      });
+      
+      const contactResults = Array.isArray(contactsRes?.data?.results) ? contactsRes.data.results : [];
+      setRecentConversations(contactResults);
+      
     } catch (e) {
       handleApiError?.(e);
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   // choose card width based on data presence
   const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
 
   const handleActivityPress = (item) => {
-    if (item.type !== 'message') return;
-
+    if (item.type === 'call') {
+      // For calls, navigate to call details or dial
+      // You can implement navigation to a call details screen if needed
+      console.log('Call pressed:', item);
+      return;
+    }
+  
+    // For messages
     navigation.navigate('ConversationScreen', {
       contactId: item.lead_id,
       contact: {
         id: item.lead_id,
         name: item.name,
         image: item.profile_pic,
-        channel: item.channel,                 // { image: { uri: ... } }
+        channel: item.channel,
         lastMessageData: { content: item.text },
         last_message_at: item.rawTimestamp,
       },
-      // optional if ConversationScreen supports it:
       conversationId: item.conversation_id,
     });
   };
 
+  {recentActivities.length > 0 ? (
+    <FlatList
+      data={recentActivities}
+      keyExtractor={item => item.id}
+      renderItem={({ item }) => (
+        <TouchableOpacity
+          style={styles.activityItem}
+          onPress={() => handleActivityPress(item)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.activityItem}>
+            <Avatar 
+              name={item.name} 
+              size={50} 
+              style={{ marginRight: 10 }}
+              image={item?.profile_pic}
+              badge={item?.channel_icon}
+            />
+  
+            <View style={styles.activityContent}>
+              <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
+                  {item.name}
+                </Text>
+                {item.type === 'call' &&
+                  <View style={{flexDirection: 'row', gap: 8}}>
+                    <Text style={styles.activityTime}>{item.time}</Text>
+                    <Image
+                      source={require('../../../assets/info.png')} 
+                      style={styles.infoIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
+                }
+                {item.type === 'message' && (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.activityTime}>{item.time}</Text>
+                    {item.unreadCount > 0 && (
+                      <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadText}>{item.unreadCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+  
+              <View style={styles.activitySnippetRow}>
+                {item.type === 'call' && item.callStatus === 'missed' && (
+                  <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
+                )}
+                {item.type === 'call' && item.callStatus === 'outgoing' && (
+                  <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
+                )}
+                {item.type === 'call' && item.callStatus === 'incoming' && (
+                  <Image source={require('../../../assets/incoming.png')} style={styles.infoIcon} resizeMode="contain" />
+                )}
+  
+                <Text
+                  style={[
+                    styles.activitySnippet,
+                    item.type === 'call' && item.callStatus === 'missed' && styles.missedText
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.text}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+      scrollEnabled={false}
+    />
+  ) : (
+    !loading && <RecentEmpty onPress={handleSeeAllPress} />
+  )}
 
   const handleSeeAllPress = () => {
     navigation.navigate('RecentActivities');
-  };  
+  }; 
 
   const handleDialerPress = () => {
     navigation.navigate('Dialer');
@@ -299,10 +446,6 @@ const AdminDashboard = ({ navigation }) => {
       <Text style={styles.emptySub}>
         New messages and calls will show up here.
       </Text>
-    {/* 
-      <TouchableOpacity style={styles.emptyBtn} onPress={onPress}>
-        <Text style={styles.emptyBtnText}>View messages</Text>
-      </TouchableOpacity> */}
     </View>
   );
 
@@ -876,7 +1019,24 @@ statTitleCompact: {
   marginBottom: 6,
   letterSpacing: 0.2,
 },
-
+unreadBadge: {
+  backgroundColor: colors.primary,
+  borderRadius: 10,
+  minWidth: 20,
+  height: 20,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingHorizontal: 6,
+  marginTop: 4,
+},
+unreadText: {
+  color: '#ffffff',
+  fontSize: 12,
+  fontWeight: 'bold',
+},
+missedText: {
+  color: '#F44336',
+},
 });
 
 export default AdminDashboard;
