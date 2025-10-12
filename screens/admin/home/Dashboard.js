@@ -102,6 +102,29 @@ const AvatarGroup = ({ items = [], max = 5, size = 32, onOverflowPress }) => {
   );
 };
 
+const extractPhoneNumber = (callLog) => {
+  let phoneNumber = callLog.customer_name;
+
+  const callerId = phoneNumber;
+  
+  // Remove quotes and backslashes
+  let cleaned = callerId.replace(/["\\/]/g, '');
+  
+  // Try to extract number from "Name <number>" or "<number>" format
+  const angleMatch = cleaned.match(/<([^>]+)>/);
+  if (angleMatch) {
+    phoneNumber = angleMatch[1];
+  } else {
+    // Just use the cleaned string
+    phoneNumber = cleaned;
+  }
+  
+  // remove any remaining special characters except + and digits
+  phoneNumber = phoneNumber.replace(/[^\d+]/g, '');
+  
+  return phoneNumber;
+};
+
 const transformHourlyActivity = (hourlyActivity) => {
   if (!hourlyActivity || hourlyActivity.length === 0) {
     return {
@@ -129,7 +152,6 @@ const transformHourlyActivity = (hourlyActivity) => {
   const maxValue = Math.max(...calls, ...messages);
   const maxY = maxValue === 0 ? 10 : Math.ceil(maxValue / 10) * 10;
 
-  console.log('transformed hourly activity is ', { hours, calls, messages, maxY })
   return { hours, calls, messages, maxY };
 };
 
@@ -149,16 +171,26 @@ const getBusiestChannelInsight = (busiestChannel) => {
   };
 };
 
+const normReg = (s) => String(s || '').toLowerCase(); // 'Ok' | 'ok' → 'ok'
+const REG_COLORS = {
+  ok:    { bg: '#E8FFF1', border: '#34C759', dot: '#34C759', text: '#0B3D23', label: 'Connected' },
+  progress: { bg: '#FFF9E6', border: '#F59E0B', dot: '#F59E0B', text: '#5A3B00', label: 'Connecting…' },
+  failed:   { bg: '#FFECEC', border: '#EF4444', dot: '#EF4444', text: '#6A0B0B', label: 'Failed' },
+  cleared:  { bg: '#FFECEC', border: '#EF4444', dot: '#EF4444', text: '#6A0B0B', label: 'Signed out' },
+  none:     { bg: '#F3F4F6', border: '#D1D5DB', dot: '#9CA3AF', text: '#374151', label: 'Not registered' },
+  unknown:  { bg: '#F3F4F6', border: '#D1D5DB', dot: '#9CA3AF', text: '#374151', label: 'Unknown' },
+};
+
 const AdminDashboard = ({ navigation }) => {
   const { company } = useAuth();
   const { canInviteUsers } = useAuth();
-  const { register } = useCall();
+  const { register, dial, registrationStatus } = useCall();
 
   const goToCustomers = () => {
     navigation.navigate('Main', { screen: 'Customers' }); 
   };
  
-  const [deltas, setDeltas] = useState({ calls_pct: 10.5, msgs_pct: 10.5 });
+  const [deltas, setDeltas] = useState({ calls_pct: 0, msgs_pct: 0 });
 
   const [rangeKey, setRangeKey] = useState('24h');
   const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
@@ -177,7 +209,44 @@ const AdminDashboard = ({ navigation }) => {
   const [insight, setInsight] = useState();
   const [refreshing, setRefreshing] = useState(false);
   const [insightRemark, setInsightRemark] = useState();
+  const [regStatus, setRegStatus] = useState()
 
+  const [checkingReg, setCheckingReg] = useState(false);
+  const regState = normReg(regStatus?.state); // 'ok' | 'progress' | 'failed' | ...
+  const color = REG_COLORS[regState] || REG_COLORS.unknown;
+
+  const regUser = regStatus?.username || '';
+  const regDomain = regStatus?.domain || '';
+  const regLine = regState === 'ok'
+    ? (regUser && regDomain ? `${regUser}@${regDomain}` : color.label)
+    : (color.label);
+  
+  const onPressRegistration = async () => {
+    try {
+      setCheckingReg(true);
+
+      // Pull a fresh snapshot (if you have getRegistrationStatus exported from JS, call that instead)
+      const snap = await (LinphoneModule?.getRegistrationStatus?.() ?? Promise.resolve(null));
+
+      // If not ok → try to register. (Your useCall.register likely knows creds)
+      const newState = normReg(snap?.state || regStatus?.state);
+      if (newState !== 'ok') {
+        await register(); // triggers native, the event will update UI
+      }
+    } catch (e) {
+      // no-op; pill will still show current status
+    } finally {
+      setCheckingReg(false);
+    }
+  };
+
+  useEffect(() => {
+    setRegStatus(registrationStatus['_j'])
+    console.log('registration status is ', registrationStatus);
+    console.log('reg status is ', registrationStatus['j']);
+
+  }, [registrationStatus]);
+  
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -202,14 +271,12 @@ const AdminDashboard = ({ navigation }) => {
   }, [rangeKey]);
 
   const transformRecentActivity = (item) => {
-    // Determine if this is a call log or message
     const isCallLog = item.last_message.type == 'call';
     
     if (isCallLog) {
       // Handle call log
-      console.log('is call', item)
-
       const callLog = item;
+      const metadata = callLog.metadata || {};
       const direction = (callLog.last_message.metadata.call_direction || '').toLowerCase();
       const duration = callLog.last_message.metadata.duration || 0;
       
@@ -223,7 +290,9 @@ const AdminDashboard = ({ navigation }) => {
         callType = 'missed';
         callText = 'Missed call';
       }
-      
+
+      const phoneNumber = extractPhoneNumber(callLog);
+
       return {
         id: `call_${callLog.id}_${item.id}`,
         conversation_id: null,
@@ -231,14 +300,15 @@ const AdminDashboard = ({ navigation }) => {
         name: item.customer_name || item.unique_identifier || 'Unknown',
         type: 'call',
         text: callText,
-        time: formatChatTime(callLog.start_time),
-        rawTimestamp: callLog.start_time,
+        time: formatChatTime(callLog.created_at),
+        rawTimestamp: callLog.created_at,
         profile_pic: item.profileImage || undefined,
         channel_icon: item.channel?.image ? { uri: item.channel.image } : undefined,
         channel: item.channel ? { image: item.channel?.image ? { uri: item.channel.image } : undefined } : undefined,
         callDirection: direction,
         callDuration: duration,
         callStatus: callType,
+        phoneNumber: phoneNumber,
       };
     } else {
       // Handle message
@@ -262,7 +332,9 @@ const AdminDashboard = ({ navigation }) => {
   };
 
   const recentActivities = useMemo(() => {
-    return (recentConversations || []).map(transformRecentActivity);
+    return (recentConversations || [])
+      .map(transformRecentActivity)
+      .filter(item => item !== null);
   }, [recentConversations]);
 
   const fetchDashboard = async ({ start_date, end_date }) => {
@@ -276,11 +348,11 @@ const AdminDashboard = ({ navigation }) => {
       const d = res?.data?.data || {};
       
       setStats({
-        total_calls: d.total_calls.count ?? 0,
-        total_messages: d.total_messages.count ?? 0,
+        total_calls: d.total_calls?.count ?? 0,
+        total_messages: d.total_messages?.count ?? 0,
         total_users: d.total_users ?? 0,
-        total_new_leads: d.new_leads.count,
-        total_returning_leads: d.returning_leads.count
+        total_new_leads: d.new_leads?.count,
+        total_returning_leads: d.returning_leads?.count
       });
       
       setDeltas({
@@ -313,7 +385,8 @@ const AdminDashboard = ({ navigation }) => {
       // Fetch recent activities from contacts endpoint
       const contactsRes = await api.get('/communication/recent/', {
         params: {
-          page_size: 70
+          page_size: 5,
+          page: 3
         },
       });
       
@@ -332,17 +405,20 @@ const AdminDashboard = ({ navigation }) => {
 
   const handleActivityPress = (item) => {
     if (item.type === 'call') {
-      // For calls, navigate to call details or dial
-      // You can implement navigation to a call details screen if needed
-      console.log('Call pressed:', item);
+      // For calls, dial the number
+      if (item.phoneNumber) {
+        dial(item.phoneNumber);
+      } else {
+        console.warn('No phone number available for this call');
+      }
       return;
     }
   
     // For messages
     navigation.navigate('ConversationScreen', {
-      contactId: item.lead_id,
+      contactId: item.lead_id || item.customer_id,
       contact: {
-        id: item.lead_id,
+        id: item.lead_id || item.customer_id,
         name: item.name,
         image: item.profile_pic,
         channel: item.channel,
@@ -352,84 +428,6 @@ const AdminDashboard = ({ navigation }) => {
       conversationId: item.conversation_id,
     });
   };
-
-  {recentActivities.length > 0 ? (
-    <FlatList
-      data={recentActivities}
-      keyExtractor={item => item.id}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.activityItem}
-          onPress={() => handleActivityPress(item)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.activityItem}>
-            <Avatar 
-              name={item.name} 
-              size={50} 
-              style={{ marginRight: 10 }}
-              image={item?.profile_pic}
-              badge={item?.channel_icon}
-            />
-  
-            <View style={styles.activityContent}>
-              <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
-                  {item.name}
-                </Text>
-                {item.type === 'call' &&
-                  <View style={{flexDirection: 'row', gap: 8}}>
-                    <Text style={styles.activityTime}>{item.time}</Text>
-                    <Image
-                      source={require('../../../assets/info.png')} 
-                      style={styles.infoIcon}
-                      resizeMode="contain"
-                    />
-                  </View>
-                }
-                {item.type === 'message' && (
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.activityTime}>{item.time}</Text>
-                    {item.unreadCount > 0 && (
-                      <View style={styles.unreadBadge}>
-                        <Text style={styles.unreadText}>{item.unreadCount}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-  
-              <View style={styles.activitySnippetRow}>
-                {item.type === 'call' && item.callStatus === 'missed' && (
-                  <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
-                )}
-                {item.type === 'call' && item.callStatus === 'outgoing' && (
-                  <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
-                )}
-                {item.type === 'call' && item.callStatus === 'incoming' && (
-                  <Image source={require('../../../assets/incoming.png')} style={styles.infoIcon} resizeMode="contain" />
-                )}
-  
-                <Text
-                  style={[
-                    styles.activitySnippet,
-                    item.type === 'call' && item.callStatus === 'missed' && styles.missedText
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {item.text}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      )}
-      scrollEnabled={false}
-    />
-  ) : (
-    !loading && <RecentEmpty onPress={handleSeeAllPress} />
-  )}
 
   const handleSeeAllPress = () => {
     navigation.navigate('RecentActivities');
@@ -452,7 +450,27 @@ const AdminDashboard = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <EnableNotificationsBanner />
-      
+      {/* SIP registration pill */}
+      <TouchableOpacity
+          onPress={onPressRegistration}
+          activeOpacity={0.85}
+          style={[
+            styles.regBadge,
+            { backgroundColor: color.bg, borderColor: color.border }
+          ]}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Text style={[styles.regDot, { color: color.dot }]}>•</Text>
+          <Text
+            style={[styles.regText, { color: color.text }]}
+            numberOfLines={1}
+          >
+            {checkingReg
+              ? 'Checking…'
+              : regLine}
+          </Text>
+      </TouchableOpacity>
+
       {/* Header */}
       <View style={styles.headerRow}>
         <Text
@@ -586,69 +604,75 @@ const AdminDashboard = ({ navigation }) => {
                 <Text style={styles.seeAllText}>See all</Text>
               </TouchableOpacity>
             </View>
-          {recentActivities.length > 0 ? (
-          <FlatList
-              data={recentActivities}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-              <TouchableOpacity
-                    style={styles.activityItem}
-                    onPress={() => handleActivityPress(item)}
-                    activeOpacity={0.8}
-                  >
-                <View style={styles.activityItem}>
-                  <Avatar 
-                    name={item.name} 
-                    size={50} 
-                    style={{ marginRight: 10 }}
-                    image={item?.profile_pic}
-                    badge={item?.channel_icon}
-                  />
+            {recentActivities.length > 0 ? (
+              <FlatList
+                  data={recentActivities}
+                  keyExtractor={item => item.id}
+                  renderItem={({ item }) => (
+                  <TouchableOpacity
+                        style={styles.activityItem}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleActivityPress(item)
+                        }}
+                        activeOpacity={0.8}
+                      >
+                    <View style={styles.activityItem}>
+                      <Avatar 
+                        name={item.name} 
+                        size={50} 
+                        style={{ marginRight: 10 }}
+                        image={item?.profile_pic}
+                        badge={item?.channel_icon}
+                      />
 
-                  <View style={styles.activityContent}>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                      <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
-                      {item.name}
-                  </Text>
-                      {item.type == 'call' &&
-                        <View style={{flexDirection: 'row', gap: 8}}>
-                          <Text style={styles.activityTime}>{item.time}</Text>
-                          <Image
-                            source={require('../../../assets/info.png')} 
-                            style={styles.infoIcon}
-                            resizeMode="contain"
-                          />
+                      <View style={styles.activityContent}>
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                          <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
+                            {item.name}
+                          </Text>
+                          {item.type == 'call' &&
+                            <View style={{flexDirection: 'row', gap: 8}}>
+                              <Text style={styles.activityTime}>{item.time}</Text>
+                              <Image
+                                source={require('../../../assets/call_ic.png')} 
+                                style={styles.makeCallIcon}
+                                resizeMode="contain"
+                              />
+                            </View>
+                          }
                         </View>
-                      }
+
+                        <View style={styles.activitySnippetRow}>
+                            {item.type === 'call' && item.text === 'Missed call' && (
+                          <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
+                          )}
+                            {item.type === 'call' && item.text === 'Outgoing call' && (
+                          <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
+                          )}
+                            {item.type === 'call' && item.text === 'Incoming call' && (
+                            <Image source={require('../../../assets/incoming.png')} style={styles.infoIcon} resizeMode="contain" />
+                        )}
+
+                      <Text
+                        style={styles.activitySnippet}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                          {item.text}
+                      </Text>
                     </View>
 
-                    <View style={styles.activitySnippetRow}>
-                        {item.type === 'call' && item.text === 'Missed call' && (
-                      <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
-                      )}
-                        {item.type === 'call' && item.text === 'Outgoing call' && (
-                      <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
-                    )}
-
-                  <Text
-                    style={styles.activitySnippet}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                      {item.text}
-                  </Text>
-                </View>
-
-                  </View>
-                </View>
-              </TouchableOpacity>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                  )}
+                  scrollEnabled={false}
+                />
+              ) : (
+                    !loading && <RecentEmpty onPress={handleSeeAllPress} />
               )}
-              scrollEnabled={false}
-            />
-          ) : (
-                !loading && <RecentEmpty onPress={handleSeeAllPress} />
-          )}
-        </View>
+          </View>
       </ScrollView>
       
       <TouchableOpacity
@@ -760,6 +784,10 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18
   },
+  makeCallIcon: {
+    width: 25,
+    height: 25
+  },
   statValue: {
     fontSize: typography.heading1.fontSize,
     fontWeight: 'bold',
@@ -837,7 +865,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
   paddingHorizontal: 20,
-  paddingTop: 30,
+  paddingTop: 10,
   paddingBottom: 20,
   backgroundColor: '#F7F7F7',
   flexDirection: 'row',
@@ -1037,6 +1065,17 @@ unreadText: {
 missedText: {
   color: '#F44336',
 },
+regBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  paddingHorizontal: 10,
+  paddingVertical: 3,
+  gap: 3,
+},
+regDot: { fontSize: 30, lineHeight: 10 },
+regText: { fontSize: 12, fontWeight: '700' },
+
 });
 
 export default AdminDashboard;

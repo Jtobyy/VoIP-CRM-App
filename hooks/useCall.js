@@ -128,8 +128,9 @@ export function CallProvider({ children }) {
     const subReg = Lin.on.RegistrationChanged((e) => {
       const pretty = regStateName(e?.state);
       setRegistration({ ...e, pretty });
+      console.log('registration changed ', e)
       if (pretty.toLowerCase() === 'failed') {
-        Alert.alert('Registration Failed', e?.message || 'Unknown');
+        Alert.alert('SIP Registration Failed. refresh to try again', e?.message || 'Unknown');
       }
     });
 
@@ -277,6 +278,7 @@ export function CallProvider({ children }) {
 
     // controls
     register: registerFn, unregister,
+    registrationStatus: Lin.getRegistrationStatus(),
     dial, answer, hangup, decline,
     toggleMute, toggleHold, toggleSpeaker,
     sendDTMFActive,

@@ -55,6 +55,9 @@ import kotlin.math.abs
  */
 object CoreManager {
     private var core: Core? = null
+    @JvmStatic
+    fun core(): Core? = core
+
     private var listener: CoreListener? = null
 
     private val callNotificationsMap: HashMap<String, Notifiable> = HashMap()
@@ -104,7 +107,8 @@ object CoreManager {
                 message: String
             ) {
                 emit("RegistrationChanged", Arguments.createMap().apply {
-                    putString("state", state.toString()); putString("message", message)
+                    putString("state", state.toString()); 
+                    putString("message", message)
                 })
                 Log.d("LinphoneModule", "Registration Changed - State: $state, Message: $message");
             }

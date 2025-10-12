@@ -1,6 +1,15 @@
 import { NativeModules, NativeEventEmitter, PermissionsAndroid, Platform } from 'react-native';
-const { LinphoneModule } = NativeModules;
 
+const { LinphoneModule } = NativeModules;
+export const linphoneEvents = new NativeEventEmitter(LinphoneModule);
+
+export type RegistrationPayload = {
+  state: 'none' | 'progress' | 'ok' | 'cleared' | 'failed' | 'unknown';
+  message?: string;
+  username?: string;
+  domain?: string;
+  displayName?: string;
+};
 
 type CallLog = {
   from: string;
@@ -39,6 +48,8 @@ export const playKeyTone = (d: string) => LinphoneModule.playKeyTone(d);
 
 export const getCallLogs = (): Promise<CallLog[]> => LinphoneModule.getCallLogs();
 
+export const getRegistrationStatus = (): Promise<RegistrationPayload> =>
+  LinphoneModule.getRegistrationStatus();
 
 export const on = {
   RegistrationChanged: (cb: (e: any) => void) => emitter.addListener('RegistrationChanged', cb),
