@@ -57,7 +57,6 @@ const getCallTypeText = (type) =>
 
 const buildNextUrl = (base, next) => (!next ? null : next.startsWith('?') ? `${base}${next}` : next);
 
-
 /* -------------------------------- Component ------------------------------- */
 const CallLogs = ({ navigation }) => {
   const { api } = useApi();
@@ -114,13 +113,17 @@ const CallLogs = ({ navigation }) => {
       try {
         await fetchPage(`${ENDPOINT}`);
       } catch (e) {
-        if (mounted) handleApiError(e);
+        if (mounted) {
+          handleApiError(e);
+        }
       } finally {
-        if (mounted) setInitialLoading(false);
+        if (mounted) {
+          setInitialLoading(false);
+        }
       }
     })();
     return () => { mounted = false; };
-  }, [ENDPOINT, fetchPage, handleApiError]);
+  }, [ENDPOINT]);
 
   // Pagination
   const loadMore = useCallback(async () => {

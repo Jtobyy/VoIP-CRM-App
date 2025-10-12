@@ -5,13 +5,13 @@ import { colors } from '../styles/global';
 const AuthFooter = () => {
   return (
     <View style={styles.footerContainer}>
-      <TouchableOpacity style={styles.whatsappButton}>
+      {/* <TouchableOpacity style={styles.whatsappButton}>
         <Image 
           source={require('../assets/wa.png')} 
           style={styles.whatsappIcon}
         />
         <Text style={styles.whatsappText}>Chat on Whatsapp</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };

@@ -182,7 +182,7 @@ const REG_COLORS = {
 };
 
 const AdminDashboard = ({ navigation }) => {
-  const { company } = useAuth();
+  const { fetchCompanyDetails, company } = useAuth();
   const { canInviteUsers } = useAuth();
   const { register, dial, registrationStatus } = useCall();
 
@@ -209,14 +209,14 @@ const AdminDashboard = ({ navigation }) => {
   const [insight, setInsight] = useState();
   const [refreshing, setRefreshing] = useState(false);
   const [insightRemark, setInsightRemark] = useState();
-  const [regStatus, setRegStatus] = useState()
 
   const [checkingReg, setCheckingReg] = useState(false);
-  const regState = normReg(regStatus?.state); // 'ok' | 'progress' | 'failed' | ...
+  const [regState, setRegState] = useState(normReg(registrationStatus['_j']?.state))
   const color = REG_COLORS[regState] || REG_COLORS.unknown;
 
-  const regUser = regStatus?.username || '';
-  const regDomain = regStatus?.domain || '';
+  const [regUser, setRegUser] = useState(registrationStatus['_j']?.username || '');
+  const [regDomain, setRegDomain] = useState(registrationStatus['_j']?.domain || '');
+  
   const regLine = regState === 'ok'
     ? (regUser && regDomain ? `${regUser}@${regDomain}` : color.label)
     : (color.label);
@@ -225,14 +225,9 @@ const AdminDashboard = ({ navigation }) => {
     try {
       setCheckingReg(true);
 
-      // Pull a fresh snapshot (if you have getRegistrationStatus exported from JS, call that instead)
-      const snap = await (LinphoneModule?.getRegistrationStatus?.() ?? Promise.resolve(null));
-
-      // If not ok → try to register. (Your useCall.register likely knows creds)
-      const newState = normReg(snap?.state || regStatus?.state);
-      if (newState !== 'ok') {
-        await register(); // triggers native, the event will update UI
-      }
+      // if (regState !== 'ok') {
+        await register();
+      // }
     } catch (e) {
       // no-op; pill will still show current status
     } finally {
@@ -241,12 +236,12 @@ const AdminDashboard = ({ navigation }) => {
   };
 
   useEffect(() => {
-    setRegStatus(registrationStatus['_j'])
-    console.log('registration status is ', registrationStatus);
-    console.log('reg status is ', registrationStatus['j']);
+    setRegState(normReg(registrationStatus['_j']?.state))
+    setRegUser(registrationStatus['_j']?.username || '')
+    setRegDomain(registrationStatus['_j']?.domain || '')
+    console.log('registration status is ', registrationStatus)
+  }, [registrationStatus])
 
-  }, [registrationStatus]);
-  
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -386,7 +381,7 @@ const AdminDashboard = ({ navigation }) => {
       const contactsRes = await api.get('/communication/recent/', {
         params: {
           page_size: 5,
-          page: 3
+          page: 1
         },
       });
       

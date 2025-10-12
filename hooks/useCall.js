@@ -247,6 +247,7 @@ export function CallProvider({ children }) {
   // TODOs that need native APIs later (kept for API compatibility)
   const registerFn = useCallback(async () => {
     // Re-run registration with current cfg; useful if creds changed
+    console.log('rerunnign registration ')
     Lin.register({
       username: SIP_CFG.USERNAME,
       password: SIP_CFG.PASSWORD,

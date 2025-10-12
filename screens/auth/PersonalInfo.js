@@ -16,6 +16,7 @@ import AuthFooter from '../../components/AuthFooter';
 import {formatPhoneNumber} from '../../utils/phone'
 import axios from 'axios';
 import { Alert, ActivityIndicator } from 'react-native';
+import { useError } from '../../hooks/useError';
 
 const PersonalInfo = ({ navigation }) => {
   const [businessName, setBusinessName] = useState('');
@@ -35,6 +36,8 @@ const PersonalInfo = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { handleApiError } = useError();
   
   const meetsRequirements = {
     length: password.length >= 8,
@@ -164,9 +167,7 @@ const PersonalInfo = ({ navigation }) => {
         Alert.alert('Sign up', res?.data?.message || 'Failed to send OTP.');
       }
     } catch (err) {
-      console.log('[Proceed] error:', err?.response || err);
-      const msg = err?.response?.data?.message || err?.message || 'Failed to send OTP.';
-      Alert.alert('Sign up', msg);
+      handleApiError(err);
     } finally {
       setSubmitting(false);
     }

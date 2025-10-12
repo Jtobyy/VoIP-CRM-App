@@ -204,7 +204,7 @@ const MessagesList = ({ navigation }) => {
 	};
 
   const handlePlusPress = () => {
-    // TODO: Implement plus press
+    navigation.navigate('ConnectChannels')
   };
 
   const dismissKeyboardAndMenu = () => {
@@ -371,7 +371,7 @@ const MessagesList = ({ navigation }) => {
               </View>
               <Text style={{ fontSize: 15, color: '#444' }}>icon to get started</Text>
             </View>
-            <TouchableOpacity style={[styles.fab, { bottom: 0 }]} onPress={handlePlusPress}>
+            <TouchableOpacity style={[styles.fab, { bottom: 25 }]} onPress={handlePlusPress}>
               <Icon name="add" size={30} color="#fff" />
             </TouchableOpacity>
           </View>

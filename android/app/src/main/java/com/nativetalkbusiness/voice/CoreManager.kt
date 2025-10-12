@@ -543,9 +543,37 @@ object CoreManager {
         }
     }
 
+    private fun wipeAllAccounts(c: Core) {
+        try {
+            // 1) Disable & remove all proxy configs
+            val proxies = c.proxyConfigList?.toList() ?: emptyList()
+            proxies.forEach { pc ->
+                runCatching { pc.isRegisterEnabled = false }
+                runCatching { c.removeProxyConfig(pc) }
+            }
+            // Make sure no default remains
+            runCatching { c.defaultProxyConfig = null }
+    
+            // 2) Clear auth infos
+            // If your binding exposes clearAllAuthInfo(), use it; otherwise remove one by one.
+            try {
+                c.clearAllAuthInfo() // available on most Linphone Android bindings
+            } catch (_: Throwable) {
+                val auths = c.authInfoList?.toList() ?: emptyList()
+                auths.forEach { ai -> runCatching { c.removeAuthInfo(ai) } }
+            }
+    
+            // 3) Ask core to refresh its state
+            runCatching { c.refreshRegisters() }
+        } catch (_: Throwable) {
+            // swallow; we’re best-effort
+        }
+    }
+    
     fun register(username: String, password: String, domain: String, transport: String?) {
         val c = core ?: return
         try {
+            wipeAllAccounts(c)
             val auth = Factory.instance().createAuthInfo(username, null, password, null, null, domain)
             c.addAuthInfo(auth)
 

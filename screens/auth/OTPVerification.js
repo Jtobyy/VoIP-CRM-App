@@ -113,16 +113,17 @@ const OTPVerification = ({ navigation, route }) => {
           otp: enteredOtp,
           phone_number: phoneNumber,
       }
+      console.log("company name is ", companyName)
       if (companyName){
         payload.company_name = companyName
       }
 
-      const res = await axios.post(verifyUrl,payload);
+      console.log("payload is ", payload)
+      const res = await axios.post(verifyUrl, payload);
 
       if ((res?.status === 200 || res?.status === 201) && res?.data?.success) {
           if (flowType === 'login') {
-        // For login flow, just log them in right away using the same credentials
-             console.log('Attemptin login with phone:',phoneNumber, 'and password:',password)
+             console.log('Attempting login with phone:', phoneNumber, 'and password:',password)
              await login(phoneNumber, password);
              return; // login() shows success + navigates as usual
          }

@@ -11,7 +11,7 @@ export const ErrorProvider = ({ children }) => {
   const { logout } = useAuth();
 
   const handleApiError = (error) => {
-    console.error('API Error:', error);
+    console.error('API Error:', error?.response || error);
 
     const errorData = error?.response?.data?.error;
 

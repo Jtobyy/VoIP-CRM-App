@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#666',
+    color: 'black',
     textAlign: 'left', // Left aligned
     lineHeight: 24,
     marginBottom: 30,

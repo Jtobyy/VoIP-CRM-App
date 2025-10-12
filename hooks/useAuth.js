@@ -54,8 +54,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await axios.get(`https://staging.core.nativetalkcrm.com/api/companies/details/`, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'User-Domain': 'tech4mation',
+          Authorization: `Bearer ${accessToken || user.access}`
         },
       });
   
@@ -176,7 +175,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, company, isAuthenticated, loading, login, logout, setUser,  canInviteUsers: !!user?.permissions?.inviteUsers, }}>
+    <AuthContext.Provider value={{ 
+      user, company, isAuthenticated, loading, login, logout, setUser,
+      canInviteUsers: !!user?.permissions?.inviteUsers, fetchCompanyDetails }}>
       {children}
     </AuthContext.Provider>
   );
