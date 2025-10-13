@@ -11,6 +11,8 @@ import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
 import useCall from '../../../hooks/useCall';
 import { getDeviceCallLogs, subscribeDeviceCallLogs } from '../../../utils/deviceCallLogs';
+import { systemDial } from '../../../utils/phone';
+
 
 /* --------------------------- Formatting --------------------------- */
 const dateLabel = (iso) => {
@@ -289,7 +291,8 @@ const CallLogs = ({ navigation }) => {
     const handleCallPress = () => {
       const number = getPhoneNumber();
       if (number) {
-        dial(number);
+        // dial(number);
+        systemDial(number);
       }
     };
 
