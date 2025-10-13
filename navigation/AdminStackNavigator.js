@@ -16,10 +16,11 @@ import EditProfile from '../screens/shared/more/EditProfile';
 import UserDetails from '../screens/shared/more/UserDetails';
 import EditUser from '../screens/shared/more/EditUser';
 import Notifications from '../screens/shared/notifications/Notification';
-import CallTest from '../screens/shared/home/CallTest';
 import AddFunds from '../screens/shared/more/AddFunds';
 import PaystackCheckout from '../screens/shared/more/PaystackCheckout';
 import HelpSupport from '../screens/shared/more/HelpSupport';
+import HotLinesList from '../screens/shared/more/HotLinesList';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -41,17 +42,17 @@ const AdminStackNavigator = () => {
       <Stack.Screen name="Dialer" component={DialerScreen} />
       <Stack.Screen name="OutgoingCall" component={OutgoingCallScreen} />
       <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
+      <Stack.Screen name="HotLinesList" component={HotLinesList} />
 
       <Stack.Screen name="EditProfile" component={EditProfile} />
       <Stack.Screen name="EditUser" component={EditUser} />
 
-       <Stack.Screen name="Notifications" component={Notifications} />
-       {/* <Stack.Screen name="CallTest" component={CallTest} /> */}
+      <Stack.Screen name="Notifications" component={Notifications} />
 
-       <Stack.Screen name="AddFunds" component={AddFunds} />
-       <Stack.Screen name="PaystackCheckout" component={PaystackCheckout} options={{ headerShown: false }} />
+      <Stack.Screen name="AddFunds" component={AddFunds} />
+      <Stack.Screen name="PaystackCheckout" component={PaystackCheckout} options={{ headerShown: false }} />
 
-       <Stack.Screen name="HelpSupport" component={HelpSupport}  />
+      <Stack.Screen name="HelpSupport" component={HelpSupport}  />
     </Stack.Navigator>
   );
 };

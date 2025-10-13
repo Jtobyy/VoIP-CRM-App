@@ -56,4 +56,6 @@ export const on = {
   CallIncoming:       (cb: (e: any) => void) => emitter.addListener('CallIncoming', cb),
   CallState:          (cb: (e: any) => void) => emitter.addListener('CallState', cb),
   CallEnded:          (cb: (e: any) => void) => emitter.addListener('CallEnded', cb),
+  TMPhoneCallState:     (cb: (e: any) => void) => emitter.addListener('TMPhoneCallState', cb),
+  TMPhoneCallInfo:      (cb: (e: any) => void) => emitter.addListener('TMPhoneCallInfo', cb),
 };

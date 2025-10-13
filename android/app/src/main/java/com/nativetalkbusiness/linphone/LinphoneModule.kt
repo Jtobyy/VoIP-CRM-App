@@ -9,6 +9,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import android.content.Intent
 import com.nativetalkbusiness.voice.BackgroundService
 import com.nativetalkbusiness.voice.CallService
+import com.nativetalkbusiness.voice.TelephonyMonitor
 import org.linphone.core.ProxyConfig
 import org.linphone.core.RegistrationState
 import org.linphone.core.Core
@@ -42,7 +43,7 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
 
       try {
         CoreManager.attachReact(reactContext)
-
+        TelephonyMonitor.attachReact(reactContext)
         promise.resolve(null)
       } catch (e: Exception) {
         promise.reject("INIT_FAILED", e)
@@ -164,6 +165,7 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
     }
 
     override fun onCatalystInstanceDestroy() {
+      TelephonyMonitor.detachReact()
       CoreManager.detachReact()
       super.onCatalystInstanceDestroy()
     }

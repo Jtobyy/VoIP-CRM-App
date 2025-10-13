@@ -1,7 +1,8 @@
 import React,{useState,useEffect,useMemo} from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, 
   FlatList, ScrollView, Image,
-  Modal, RefreshControl } from 'react-native';
+  Modal, RefreshControl, 
+  ImageBackground} from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -225,9 +226,7 @@ const AdminDashboard = ({ navigation }) => {
     try {
       setCheckingReg(true);
 
-      // if (regState !== 'ok') {
-        await register();
-      // }
+      await register();
     } catch (e) {
       // no-op; pill will still show current status
     } finally {
@@ -545,6 +544,25 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         ): null}
 
+        <TouchableOpacity 
+          onPress={() => {
+            console.log('Hotline pressed!');
+            navigation.navigate('HotLinesList');
+          }}
+          style={styles.hotlineContainer}
+          activeOpacity={0.85}
+        >
+          <ImageBackground 
+            source={require('../../../assets/hotline_bg.png')}
+            style={styles.hotlineContainer}
+            resizeMode="cover"
+          >
+            <View>
+              <Text style={{'color': 'white', fontWeight: '700', fontSize: 15}}>Get a Hotline Now!</Text>
+            </View>
+          </ImageBackground>
+        </TouchableOpacity>
+        
         </View>
           {/* Channels Donut */ }
           <View style={{ marginTop:8, marginBottom:20}} >
@@ -560,8 +578,9 @@ const AdminDashboard = ({ navigation }) => {
                 maxY={hourlyActivity.maxY}
               />
           </View>
-                    
+
           {/* Insights  */}
+          {insightRemark ? (
           <View style={styles.insightsCard}>
             <Text style={styles.insightsHeading}>Insights</Text>
             <View style={styles.insightsContent}>
@@ -573,6 +592,7 @@ const AdminDashboard = ({ navigation }) => {
               <Text style={styles.insightsMessage}>{insightRemark}</Text>
             </View>
           </View>
+          ) : null}
 
           {/* Add User Button */}
           <View style={styles.usersCard}>
@@ -723,6 +743,13 @@ const AdminDashboard = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  hotlineContainer: {
+    width: '100%',
+    paddingTop: 15, 
+    paddingBottom: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',

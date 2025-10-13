@@ -18,8 +18,6 @@ import { ensureAndroidChannel, attachForegroundHandler } from './firebase/notifi
 import messaging from '@react-native-firebase/messaging';
 import { IS_FIREBASE_CONFIGURED } from './firebase/fcm';
 import { UnreadProvider } from './screens/shared/notifications/UnreadProvider';
-import { incrementUnread, getUnreadCount } from './screens/shared/notifications/unread';
-// import { useUnread } from './screens/shared/notifications/UnreadProvider';
 import { CallProvider } from './hooks/useCall';
 
 // Add this import or type definition for NormalizedNotification

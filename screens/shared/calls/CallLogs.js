@@ -10,7 +10,7 @@ import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import { useApi } from '../../../hooks/useApi';
 import { useError } from '../../../hooks/useError';
 import useCall from '../../../hooks/useCall';
-
+import { getDeviceCallLogs, subscribeDeviceCallLogs } from '../../../utils/deviceCallLogs';
 
 /* --------------------------- Formatting --------------------------- */
 const dateLabel = (iso) => {
@@ -66,26 +66,82 @@ const CallLogs = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState('All calls');
   const [searchQuery, setSearchQuery] = useState('');
   const [apiItems, setApiItems] = useState([]);
-  const [localItems, setLocalItems] = useState([]);
   const [nextUrl, setNextUrl] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [localLoaded, setLocalLoaded] = useState(false);
 
+  const [deviceItems, setDeviceItems] = useState([]);   // from AsyncStorage (Telephony)
+  const [localAppItems, setLocalAppItems] = useState([])
+
   const { callLogs, dial } = useCall();
+  
+  const mapDeviceToUnified = (d) => {
+    const iso = new Date(d.timestamp).toISOString();
+    const dirUnified =
+      d.direction === 'incoming' ? 'inbound' :
+      d.direction === 'outgoing' ? 'outbound' :
+      d.direction; // 'missed' if you add it later
+  
+    return {
+      call_direction: dirUnified,
+      caller_id: d.direction === 'incoming' ? d.number : '',
+      called_number: d.direction === 'outgoing' ? d.number : '',
+      call_start: iso,
+      created_at: iso,
+      __deviceRaw: d,
+    };
+  };
+
+  useEffect(() => {
+    const unsubscribe = subscribeDeviceCallLogs((entry) => {
+      const mapped = mapDeviceToUnified(entry);
+      setDeviceItems((prev) => {
+        // state-level dedupe similar to storage logic
+        const exists = prev.some(p => {
+          const raw = p.__deviceRaw || {};
+          const tPrev = Number(raw.timestamp || 0);
+          return (
+            Math.abs(tPrev - entry.timestamp) <= 2000 &&
+            raw.number === entry.number &&
+            raw.direction === entry.direction
+          );
+        });
+        if (exists) return prev;
+  
+        // you tag device items as "__source: 'local'" in your merge — keep that convention
+        return [{ ...mapped, __source: 'local' }, ...prev];
+      });
+    });
+    return unsubscribe;
+  }, []);
+  
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const local = await getDeviceCallLogs();
+        if (!mounted) return;
+        setDeviceItems((local || []).map(mapDeviceToUnified));
+      } catch {
+        if (mounted) setDeviceItems([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
   
   // Load local data - just store it as-is
   useEffect(() => {
     try {
-      console.log("local calllogs are ", callLogs)
+      console.log("nativetalk local calllogs are ", callLogs)
       const logs = Array.isArray(callLogs['_j']) ? callLogs['_j'] : [];
 
       console.log("local logs are ", logs)
-      setLocalItems(logs);
+      setLocalAppItems(logs);
       setLocalLoaded(true);
     } catch {
-      setLocalItems([]);
+      setLocalAppItems([]);
       setLocalLoaded(true);
     }
   }, [callLogs]);
@@ -145,6 +201,9 @@ const CallLogs = ({ navigation }) => {
       setApiItems([]);
       setNextUrl(null);
       await fetchPage(`${ENDPOINT}`);
+
+      const local = await getDeviceCallLogs();
+      setDeviceItems((local || []).map(mapDeviceToUnified));
     } catch (e) {
       handleApiError(e);
     } finally {
@@ -152,33 +211,38 @@ const CallLogs = ({ navigation }) => {
     }
   }, [ENDPOINT, fetchPage, handleApiError]);
 
+
   /* ------------------------- Combine & Sort ------------------------ */
-  
   const allItems = useMemo(() => {
-    // Tag items with source
-    const local = localItems.map((item) => ({ ...item, __source: 'local' }));
-    const api = apiItems.map((item) => ({ ...item, __source: 'api' }));
-    
-    // Combine both arrays
-    const combined = [...local, ...api];
-    
-    // Decorate and sort by timestamp
+    const device = deviceItems.map((item) => ({ ...item, __source: 'local' })); // Telephony
+    const local  = localAppItems.map((item) => ({ ...item, __source: 'app' })); // callLogs['_j']
+    const api    = apiItems.map((item) => ({ ...item, __source: 'api' }));        // Nativetalk
+  
+    const combined = [...device, ...local, ...api];
+  
     return combined
       .map((item) => {
-        const timestamp = new Date(item.call_start || item.created_at).getTime();
+        const when = item.call_start || item.created_at;
+        const ts = when ? new Date(when).getTime() : 0;
+  
+        // give each source a stable key
+        let stableKey = `${item.__source}-`;
+        if (item.__source === 'api')   stableKey += item.id ?? when;
+        else if (item.__source === 'app') stableKey += when ?? Math.random();
+        else if (item.__source === 'local') stableKey += `${item.__deviceRaw?.timestamp}-${item.__deviceRaw?.number}`;
+  
         return {
           ...item,
-          __timestamp: timestamp,
+          __timestamp: ts,
           __type: computeType(item),
           __name: displayName(item),
-          __time: timeLabel(item.call_start || item.created_at),
-          __dateLabel: dateLabel(item.call_start || item.created_at),
-          __stableKey: `${item.__source}-${item.id || item.call_start}`,
+          __time: timeLabel(when),
+          __dateLabel: dateLabel(when),
+          __stableKey: String(stableKey),
         };
       })
       .sort((a, b) => b.__timestamp - a.__timestamp);
-  }, [localItems, apiItems]);
-
+  }, [deviceItems, localAppItems, apiItems]);
 
   /* ------------------------- Filter ------------------------ */
   const filteredData = useMemo(() => {
@@ -253,8 +317,19 @@ const CallLogs = ({ navigation }) => {
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <Text
+                style={[
+                  styles.badge,
+                  item.__source === 'api' ? styles.badgeNativetalk :
+                  item.__source === 'app' ? styles.badgeLocal :
+                  styles.badgePhone
+                ]}
+              >
+                {item.__source === 'api' ? 'N' : item.__source === 'app' ? 'N' : 'L'}
+              </Text>
               <Text style={styles.time}>{item.__time}</Text>
             </View>
+
           </View>
             </View>
             <View style={styles.callDetails}>
@@ -361,6 +436,17 @@ const styles = StyleSheet.create({
   callIcon: { width: 16, height: 16 },
   callType: { fontSize: 14, color: '#666' },
   missedText: { color: '#FF3B30' },
+  badge: {
+    fontSize: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: 'hidden',
+    color: '#fff',
+  },
+  badgeNativetalk:   { backgroundColor: colors.primary }, 
+  badgeLocal: { backgroundColor: '#999' },
+  badgePhone: { backgroundColor: '#999' }, 
 });
 
 export default CallLogs;

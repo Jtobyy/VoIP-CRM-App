@@ -3,8 +3,7 @@ import { Alert, Platform, PermissionsAndroid } from 'react-native';
 import * as Lin from '../native/linphone';
 import { navigate, replace } from '../navigation/RootNavigation';
 import { queueIncoming, queueOutgoing } from '../navigation/RootNavigation';
-import CallLogs from '../screens/shared/calls/CallLogs';
-
+import { addDeviceCallLog } from '../utils/deviceCallLogs';
 
 const CALL_STATE = {
   0: 'Idle',
@@ -188,6 +187,25 @@ export function CallProvider({ children }) {
       setIncoming(false);
       setIncomingInfo(null);
       setMuted(false); setSpeaker(false);
+    });
+
+    const subTMPhoneCallState = Lin.on.TMPhoneCallState((e) => {
+      console.log("TMPhoneCallState", e)
+    });
+
+    const subTMPhoneCallInfo = Lin.on.TMPhoneCallInfo(async (e) => {
+      console.log('TMTMPhoneCallInfo', e);
+      // e looks like: { presentation, timestamp, callerName, number, direction }
+
+      if (e?.direction) {
+        await addDeviceCallLog({
+          direction: e?.direction,
+          number: e?.number,
+          timestamp: e?.timestamp,
+          callerName: e?.callerName,
+          presentation: e?.presentation,
+        });
+      }
     });
 
     return () => { subReg.remove(); subIncoming.remove(); subState.remove(); subEnd.remove(); clearTimer(); };

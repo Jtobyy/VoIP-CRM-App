@@ -41,7 +41,11 @@ class BackgroundService : Service() {
             PowerManager.PARTIAL_WAKE_LOCK,
             "NativeTalk::BackgroundService"
         )
-        wakeLock?.acquire(10*60*1000L /*10 minutes*/)
+        wakeLock?.acquire(10*60*1000L)
+
+        Log.i("BackgroundService", "TelephonyMonitor about to start")
+        TelephonyMonitor.start(applicationContext)
+        Log.i("BackgroundService", "TelephonyMonitor started")
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -78,6 +82,7 @@ class BackgroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         wakeLock?.release()
+        TelephonyMonitor.stop()
         if (shouldRestart) {
             val broadcastIntent = Intent("com.nativetalkbusiness.RestartSensor")
             sendBroadcast(broadcastIntent)

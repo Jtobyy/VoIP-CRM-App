@@ -32,6 +32,8 @@
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
     <uses-permission android:name="android.permission.CALL_PHONE"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+
 
     <application
       android:name=".MainApplication"
@@ -72,37 +74,46 @@
         android:turnScreenOn="true"
         android:exported="false" />
 
-      <service
-          android:name=".voice.CallService"
-          android:enabled="true"
-          android:exported="false"
-          android:foregroundServiceType="phoneCall|microphone">
-          <intent-filter>
-              <action android:name="com.nativetalkbusiness.voice.CallService" />
-          </intent-filter>
-      </service>
+        <service
+            android:name=".voice.CallService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone">
+            <intent-filter>
+                <action android:name="com.nativetalkbusiness.voice.CallService" />
+            </intent-filter>
+        </service>
 
-      <service
-          android:name=".voice.VoiceConnectionService"
-          android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
-          android:exported="true">
-          <intent-filter>
-              <action android:name="android.telecom.ConnectionService" />
-          </intent-filter>
-      </service>
+        <service
+            android:name=".voice.VoiceConnectionService"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
 
-      <service
-          android:name=".voice.BackgroundService"
-          android:enabled="true"
-          android:exported="false"
-          android:foregroundServiceType="phoneCall">
-      </service>
+        <service
+            android:name=".voice.BackgroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall">
+        </service>
 
-      <receiver android:name=".voice.CallActionReceiver" android:exported="false">
-        <intent-filter>
-            <action android:name="com.nativetalkbusiness.ACTION_ANSWER" />
-            <action android:name="com.nativetalkbusiness.ACTION_DECLINE" />
-        </intent-filter>
-      </receiver>
+        <service
+                android:name=".voice.NativetalkCallScreeningService"
+                android:permission="android.permission.BIND_SCREENING_SERVICE"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+        <receiver android:name=".voice.CallActionReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.nativetalkbusiness.ACTION_ANSWER" />
+                <action android:name="com.nativetalkbusiness.ACTION_DECLINE" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

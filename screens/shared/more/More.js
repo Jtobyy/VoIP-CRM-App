@@ -77,6 +77,14 @@ const More = ({ navigation }) => {
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('Users'),
     },
+    {
+      id: 'subscription',
+      title: 'Subscription and Pricing',
+      icon: require('../../../assets/ic_subscription.png'),
+      iconColor: '#22C55E',
+      backgroundColor: '#DCFCE7',
+      onPress: () => navigation.navigate('Subscription'),
+    },
     // {
     //   id: 'native-number',
     //   title: 'My Nativetalk Number',
@@ -273,7 +281,7 @@ const styles = StyleSheet.create({
   },
   header: {
     width: '100%',
-    paddingTop: 50,
+    paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 0,
     borderBottomLeftRadius: 30,

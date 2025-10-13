@@ -184,6 +184,9 @@ object CoreManager {
         core!!.addListener(listener)
 
         core!!.start()
+
+        Log.d("CoreManager", "Starting Telephony Monitor")
+        TelephonyMonitor.start(context)
     }
 
     private fun createCallNotificationChannel() {
