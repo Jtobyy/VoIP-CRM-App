@@ -9,6 +9,7 @@ import {
   Image,
   ScrollView,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
@@ -23,12 +24,15 @@ const More = ({ navigation }) => {
   const {company} = useAuth()
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState('0.00')
+  const [dids, setDids] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const { api } = useApi();
   const { setLoading } = useLoading();
 
     useEffect(() => {
     fetchUserProfile();
     fetchWalletBalance();
+    fetchDids();
   }, []);
 
   const fetchUserProfile = async () => {
@@ -60,6 +64,28 @@ const More = ({ navigation }) => {
     }
   };
 
+  const fetchDids = async () => {
+    try {
+      const res = await api.get(`/call-center/pbx/dids/`);
+      setDids(res.data?.data || []);
+    } catch (error) {
+      console.error('Failed to fetch DIDs:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchUserProfile(),
+        fetchWalletBalance(),
+        fetchDids()
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const menuItems = [
     {
       id: 'link-social',
@@ -83,7 +109,7 @@ const More = ({ navigation }) => {
       icon: require('../../../assets/ic_subscription.png'),
       iconColor: '#22C55E',
       backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('Subscription'),
+      onPress: () => navigation.navigate('SubscriptionAndPricing'),
     },
     // {
     //   id: 'native-number',
@@ -179,7 +205,9 @@ const More = ({ navigation }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <View 
+      style={styles.container}
+    >
       <StatusBar backgroundColor="#ffffff" barStyle="light-content" />
       
       {/* Header */}
@@ -227,20 +255,60 @@ const More = ({ navigation }) => {
             <Text style={styles.profileName}>{company?.name}</Text>
           
             <View style={styles.phoneContainer}>
-              <Text style={styles.phoneLabel}>MY NATIVETALK NUMBER</Text>
-              <TouchableOpacity 
-                style={styles.phoneNumberContainer}
-                onPress={()=>handleCopyNumber(user?.phone_number)}
-              >
-                <Text style={styles.phoneNumber}>{user?.did || 'N/A'}</Text>
-                <FontAwesome6 
-                  name="copy" 
-                  size={16} 
-                  color="white" 
-                  iconStyle='solid'
-                  style={styles.copyIcon}
-                />
-              </TouchableOpacity>
+              <Text style={styles.phoneLabel}>
+                MY HOTLINE{dids.length > 1 ? 'S' : ''}
+              </Text>
+              
+              {dids.length === 0 ? (
+                <TouchableOpacity 
+                  style={styles.phoneNumberContainer}
+                  disabled
+                >
+                  <Text style={styles.phoneNumber}>N/A</Text>
+                </TouchableOpacity>
+              ) : dids.length === 1 ? (
+                <TouchableOpacity 
+                  style={styles.phoneNumberContainer}
+                  onPress={() => handleCopyNumber(dids[0].number)}
+                >
+                  <Text style={styles.phoneNumber}>{dids[0].number}</Text>
+                  <FontAwesome6 
+                    name="copy" 
+                    size={16} 
+                    color="white" 
+                    iconStyle='solid'
+                    style={styles.copyIcon}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <ScrollView 
+                  style={styles.numbersScrollContainer}
+                  contentContainerStyle={styles.numbersScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled={true}
+                >
+                  {dids.map((did, index) => (
+                    <TouchableOpacity 
+                      key={did.id}
+                      style={[
+                        styles.phoneNumberContainer,
+                        styles.phoneNumberItem,
+                        index < dids.length - 1 && styles.phoneNumberItemMargin
+                      ]}
+                      onPress={() => handleCopyNumber(did.number)}
+                    >
+                      <Text style={styles.phoneNumber}>{did.number}</Text>
+                      <FontAwesome6 
+                        name="copy" 
+                        size={16} 
+                        color="white" 
+                        iconStyle='solid'
+                        style={styles.copyIcon}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
             </View>
           </View>
         </View>
@@ -267,6 +335,12 @@ const More = ({ navigation }) => {
         style={styles.menuContainer}
         contentContainerStyle={styles.menuContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
+        }
       >
         {menuItems.map(renderMenuItem)}
       </ScrollView>
@@ -278,6 +352,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     width: '100%',
@@ -337,6 +417,8 @@ const styles = StyleSheet.create({
   },
   phoneContainer: {
     alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
   },
   phoneLabel: {
     fontSize: 12,
@@ -362,6 +444,20 @@ const styles = StyleSheet.create({
   },
   copyIcon: {
     marginLeft: 4,
+  },
+  numbersScrollContainer: {
+    maxHeight: 90,
+    width: '100%',
+  },
+  numbersScrollContent: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  phoneNumberItem: {
+    alignSelf: 'center',
+  },
+  phoneNumberItemMargin: {
+    marginBottom: 8,
   },
   balanceCard: {
     marginHorizontal: 17,
@@ -398,13 +494,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  menuItemsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 100,
+  },
   menuContainer: {
     flex: 1,
     marginTop: 20,
   },
   menuContent: {
     paddingHorizontal: 20,
-    paddingBottom: 100, // Space for bottom nav
+    paddingBottom: 100,
   },
   menuItem: {
     flexDirection: 'row',

@@ -15,29 +15,36 @@ import { useLoading } from '../../../hooks/useLoading';
 import { useError } from '../../../hooks/useError';
 
 const HotlinesList = ({ navigation }) => {
-  const [hotlines, setHotlines] = useState([]);
-  const [selectedHotline, setSelectedHotline] = useState(null);
+  const [dids, setDids] = useState([]);
+  const [selectedDid, setSelectedDid] = useState(null);
   const { api } = useApi();
   const { setLoading } = useLoading();
   const { handleApiError } = useError();
 
-  // Color schemes for hotline cards
+  // Image mapping - require() doesn't work with dynamic paths
+  const imageMap = {
+    lightgreenct: require('../../../assets/lightgreenct.png'),
+    lightbluect: require('../../../assets/lightbluect.png'),
+    lightorangect: require('../../../assets/lightorangect.png'),
+  };
+
+  // Color schemes for DID cards - matching the UI
   const cardColors = [
-    { bg: '#4CAF50', icon: '#2E7D32' }, // Green
-    { bg: '#2196F3', icon: '#1565C0' }, // Blue
-    { bg: '#FF7043', icon: '#D84315' }, // Orange
-    { bg: '#66BB6A', icon: '#388E3C' }, // Light Green
-    { bg: '#42A5F5', icon: '#1976D2' }, // Light Blue
-    { bg: '#FF8A65', icon: '#E64A19' }, // Light Orange
+    { bg: '#4CAF50', icon: '#2E7D32', headerBg: '#66BB6A', image: 'lightgreenct' }, // Gree
+    { bg: '#2196F3', icon: '#1565C0', headerBg: '#42A5F5', image: 'lightgreenct' }, // Blue
+    { bg: '#FF7043', icon: '#D84315', headerBg: '#FF8A65', image: 'lightorangect' }, // Orange
+    { bg: '#66BB6A', icon: '#388E3C', headerBg: '#81C784', image: 'lightgreenct' }, // Light Green
+    { bg: '#42A5F5', icon: '#1976D2', headerBg: '#64B5F6', image: 'lightorangect' }, // Light Blue
+    { bg: '#FF8A65', icon: '#E64A19', headerBg: '#FFAB91', image: 'lightorangect' }, // Light Orange
   ];
 
-  const fetchHotlines = async () => {
+  const fetchDids = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/hotlines/`);
-      setHotlines(res.data?.results || []);
+      const res = await api.get(`/call-center/pbx/dids/available/`);
+      setDids(res.data?.data || []);
     } catch (error) {
-      console.error('Failed to fetch hotlines:', error);
+      console.error('Failed to fetch DIDs:', error);
       handleApiError(error);
     } finally {
       setLoading(false);
@@ -45,19 +52,19 @@ const HotlinesList = ({ navigation }) => {
   };
 
   useEffect(() => {
-    fetchHotlines();
+    fetchDids();
   }, []);
 
-  const handleHotlineSelect = (hotline) => {
-    setSelectedHotline(hotline.id === selectedHotline ? null : hotline.id);
+  const handleDidSelect = (did) => {
+    setSelectedDid(did.did_id === selectedDid ? null : did.did_id);
   };
 
   const handleProceed = () => {
-    if (selectedHotline) {
-      const selected = hotlines.find(h => h.id === selectedHotline);
-      // Navigate to next screen or perform action with selected hotline
-      console.log('Selected hotline:', selected);
-      // navigation.navigate('NextScreen', { hotline: selected });
+    if (selectedDid) {
+      const selected = dids.find(d => d.did_id === selectedDid);
+      // Navigate to next screen or perform action with selected DID
+      console.log('Selected DID:', selected);
+      // navigation.navigate('NextScreen', { did: selected });
     }
   };
 
@@ -71,58 +78,56 @@ const HotlinesList = ({ navigation }) => {
         style={styles.header}
         resizeMode="cover"
       >
-        {/* <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Image
             source={require('../../../assets/backWhite.png')}
             style={styles.backButtonIcon}
             resizeMode="contain"
           />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Get a hotline now</Text>
         <View style={styles.headerRight} />
       </ImageBackground>
 
-      {/* Hotlines Grid */}
+      {/* DIDs Grid */}
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {hotlines.length === 0 ? (
+        {dids.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No hotlines available at the moment.</Text>
           </View>
         ) : (
           <View style={styles.gridContainer}>
-            {hotlines.map((hotline, index) => {
+            {dids.map((did, index) => {
               const colorScheme = cardColors[index % cardColors.length];
-              const isSelected = selectedHotline === hotline.id;
+              const isSelected = selectedDid === did.did_id;
 
               return (
                 <TouchableOpacity
-                  key={hotline.id}
+                  key={did.did_id}
                   style={styles.hotlineCard}
-                  onPress={() => handleHotlineSelect(hotline)}
+                  onPress={() => handleDidSelect(did)}
                   activeOpacity={0.8}
                 >
                   {/* Header with icon and title */}
-                  {/* <View style={[styles.cardHeader, { backgroundColor: colorScheme.bg }]}>
-                    <View style={[styles.iconCircle, { backgroundColor: colorScheme.icon }]}>
-                      <Image
-                        source={require('../../../assets/phone_white.png')}
-                        style={styles.phoneIcon}
-                        resizeMode="contain"
-                      />
-                    </View>
+                  <View style={[styles.cardHeader, { backgroundColor: colorScheme.headerBg }]}>
+                    <Image
+                      source={imageMap[colorScheme.image]}
+                      style={styles.phoneIcon}
+                      resizeMode="contain"
+                    />
                     <Text style={styles.hotlineTitle}>
                       Hotline {index + 1}
                     </Text>
-                  </View> */}
+                  </View>
 
                   {/* Phone number and selection indicator */}
                   <View style={styles.cardBody}>
                     <Text style={styles.phoneNumber}>
-                      {hotline.phone_number || '+234 810 179 0957'}
+                      {did.number}
                     </Text>
                     <View style={[styles.radioButton, isSelected && styles.radioButtonSelected]}>
                       {isSelected && (
@@ -141,10 +146,10 @@ const HotlinesList = ({ navigation }) => {
       <TouchableOpacity
         style={[
           styles.proceedButton,
-          !selectedHotline && styles.proceedButtonDisabled
+          !selectedDid && styles.proceedButtonDisabled
         ]}
         onPress={handleProceed}
-        disabled={!selectedHotline}
+        disabled={!selectedDid}
       >
         <Text style={styles.proceedText}>Proceed</Text>
       </TouchableOpacity>
@@ -213,25 +218,30 @@ const styles = StyleSheet.create({
   },
 
   cardHeader: {
-    paddingVertical: 16,
+    paddingTop: 10,
+    paddingBottom: 5,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative'
   },
 
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
 
   phoneIcon: {
-    width: 24,
-    height: 24,
+    width: 250,
+    height: 100,
+    bottom: -30,
+    left: 0,
     tintColor: '#FFFFFF',
+    position: 'absolute'
   },
 
   hotlineTitle: {
@@ -242,7 +252,7 @@ const styles = StyleSheet.create({
 
   cardBody: {
     backgroundColor: '#F8F8F8',
-    paddingVertical: 20,
+    paddingVertical: 16,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,7 +260,7 @@ const styles = StyleSheet.create({
   },
 
   phoneNumber: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#000000',
     flex: 1,

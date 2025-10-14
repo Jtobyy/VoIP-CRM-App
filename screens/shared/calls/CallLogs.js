@@ -291,8 +291,8 @@ const CallLogs = ({ navigation }) => {
     const handleCallPress = () => {
       const number = getPhoneNumber();
       if (number) {
-        // dial(number);
-        systemDial(number);
+        dial(number);
+        // systemDial(number);
       }
     };
 

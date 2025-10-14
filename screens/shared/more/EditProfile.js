@@ -230,7 +230,7 @@ const handleEditProfile = async () => {
           />
 
           <TouchableOpacity style={styles.primaryBtn} onPress={handleEditProfile}>
-            <Text style={styles.primaryText}>Edit Profile</Text>
+            <Text style={styles.primaryText}>Save Changes</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

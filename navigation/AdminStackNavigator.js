@@ -20,7 +20,8 @@ import AddFunds from '../screens/shared/more/AddFunds';
 import PaystackCheckout from '../screens/shared/more/PaystackCheckout';
 import HelpSupport from '../screens/shared/more/HelpSupport';
 import HotLinesList from '../screens/shared/more/HotLinesList';
-
+import SubscriptionAndPricing from '../screens/shared/more/SubscriptionAndPricing';
+import SubscriptionMakePayment from '../screens/shared/more/SubscriptionMakePayment';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +52,9 @@ const AdminStackNavigator = () => {
 
       <Stack.Screen name="AddFunds" component={AddFunds} />
       <Stack.Screen name="PaystackCheckout" component={PaystackCheckout} options={{ headerShown: false }} />
+
+      <Stack.Screen name="SubscriptionAndPricing" component={SubscriptionAndPricing} />
+      <Stack.Screen name="SubscriptionMakePayment" component={SubscriptionMakePayment} options={{ headerShown: false }} />
 
       <Stack.Screen name="HelpSupport" component={HelpSupport}  />
     </Stack.Navigator>
