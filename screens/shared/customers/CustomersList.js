@@ -33,7 +33,7 @@ const CustomersList = ({ navigation }) => {
   const [showFilterMenu, setShowFilterMenu] = React.useState(false);
 
   const {api} = useApi()
-  const { setLoading } = useLoading();
+  const { loading, setLoading } = useLoading();
   const { handleApiError } = useError();
 
   const groupCustomersAlphabetically = (customers) => {
@@ -94,11 +94,10 @@ const CustomersList = ({ navigation }) => {
 
 
   // Toggle delete mode
-  const toggleDeleteMode = () => {
-    setIsDeleteMode(!isDeleteMode);
-    if (isDeleteMode) {
-      setSelectedCustomers([]);
-    }
+  const exitDeleteMode = () => {
+    console.log("delete exit pressed")
+    setIsDeleteMode(false)
+    setSelectedCustomers([]);
   };
 
   // Handle customer selection
@@ -115,7 +114,7 @@ const CustomersList = ({ navigation }) => {
   };
 
   // Handle search
- const handleSearch = async (query) => {
+  const handleSearch = async (query) => {
     setSearchQuery(query);
 
     // Empty query? Show full cached list
@@ -198,13 +197,28 @@ const CustomersList = ({ navigation }) => {
 
   // handle failed deletions
   const failed = results.filter(result => !result.success);
-  if (failed.length > 0) {
-    console.warn(`${failed.length} deletions failed.`);
-    
-  }
+    if (failed.length > 0) {
+      console.warn(`${failed.length} deletions failed.`);
+      
+    }
 
-  setLoading(false);
-};
+    setLoading(false);
+  };
+
+  const CustomersEmpty = ({ isSearch, onAddPress }) => (
+    <View style={styles.emptyWrap}>
+      <Text style={styles.emptyEmoji}>{isSearch ? '🔎' : '👥'}</Text>
+      <Text style={styles.emptyTitle}>{isSearch ? 'No matches' : 'No customers yet'}</Text>
+      <Text style={styles.emptySub}>
+        {isSearch ? 'Try a different name or spelling.' : 'Add your first customer to get started.'}
+      </Text>
+      {!isSearch && (
+        <TouchableOpacity style={styles.emptyBtn} onPress={onAddPress}>
+          <Text style={styles.emptyBtnText}>Add customer</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );  
 
 
   // Render each customer item
@@ -271,7 +285,7 @@ const CustomersList = ({ navigation }) => {
           <View>
             {isDeleteMode ? (
               <View style={styles.headerContent}>
-                <TouchableOpacity onPress={toggleDeleteMode}>
+                <TouchableOpacity onPress={exitDeleteMode}>
                   <Text style={styles.headerButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 
@@ -291,7 +305,8 @@ const CustomersList = ({ navigation }) => {
                   </Text>
                 </TouchableOpacity>
               </View>
-            ) : (
+            ) : 
+            (
               <View style={[styles.headerContent]}>
                 <View style={{ width: 24 }} />
                 
@@ -300,16 +315,17 @@ const CustomersList = ({ navigation }) => {
                 </Text>
                 
                 <TouchableOpacity onPress={() => setShowFilterMenu(!showFilterMenu)}>
-                  <FontAwesome6 
+                  {/* <FontAwesome6 
                     name="ellipsis-vertical" 
                     iconStyle='solid' 
                     size={24} 
                     color={colors.white} 
                     style={{ marginRight: 10}}
-                  />
+                  /> */}
                 </TouchableOpacity>
               </View>
-            )}
+            )
+            }
           </View>
         </ImageBackground>
 
@@ -352,6 +368,14 @@ const CustomersList = ({ navigation }) => {
           stickySectionHeadersEnabled={true}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={() =>
+            !loading ? (
+              <CustomersEmpty
+                isSearch={!!searchQuery.trim()}
+                onAddPress={handlePlusPress}
+              />
+            ) : null
+          }
         />
 
         {/* Delete Confirmation Modal */}
@@ -659,7 +683,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 5,
     zIndex: 10, 
-  }
+  },
+  emptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  emptyEmoji: { fontSize: 40, marginBottom: 8 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 6,
+  },
+  emptySub: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  emptyBtn: {
+    marginTop: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+  },
+  emptyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },  
 });
 
 export default CustomersList;

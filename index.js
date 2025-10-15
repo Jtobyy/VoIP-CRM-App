@@ -11,6 +11,7 @@ import { IS_FIREBASE_CONFIGURED } from './firebase/fcm';
 // Only set a handler when Firebase is configured for the current platform
 if (IS_FIREBASE_CONFIGURED && Platform.OS === 'android') {
   messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+     console.log('firebae background message handler')
      console.log('[FCM][BACKGROUND] raw remoteMessage:', JSON.stringify(remoteMessage));
      const hasSystemNotification = !!remoteMessage?.notification;
      if (!hasSystemNotification) {

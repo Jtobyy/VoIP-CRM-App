@@ -1,8 +1,8 @@
-import React,{useState,useEffect,useMemo} from 'react';
+import React,{useState,useEffect,useMemo, useCallback, useRef} from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, 
   FlatList, ScrollView, Image,
   Modal, RefreshControl, 
-  ImageBackground} from 'react-native';
+  ImageBackground, AppState} from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -17,14 +17,15 @@ import ActivityBreakdownChart from '../../../components/GroupedBarCharts';
 import ChannelsDonutCard from '../../../components/ChannelsDonut';
 import EnableNotificationsBanner from '../../../components/EnableNotificationsBanner';
 import useCall from '../../../hooks/useCall';
+import messaging from '@react-native-firebase/messaging';
 
 
 const PREVIEW_LEN = 80;
 const cleanPreview = (s = '') =>
   String(s)
-    .replace(/\*\*(.*?)\*\*/g, '$1')      // drop **markdown**
-    .replace(/[_`>#*-]/g, '')             // drop leftover md chars
-    .replace(/\s+/g, ' ')                  // collapse whitespace/newlines
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/[_`>#*-]/g, '')
+    .replace(/\s+/g, ' ')
     .trim()
     .slice(0, PREVIEW_LEN) + (s && s.length > PREVIEW_LEN ? '…' : '');
 
@@ -262,6 +263,10 @@ const AdminDashboard = ({ navigation }) => {
   useEffect(() => {
     const { start_date, end_date } = buildRange(rangeKey);
     fetchDashboard({ start_date, end_date });
+
+    messaging().onMessage(async (remoteMessage) => {
+      quietRefresh()
+    });
   }, [rangeKey]);
 
   const transformRecentActivity = (item) => {
@@ -331,10 +336,14 @@ const AdminDashboard = ({ navigation }) => {
       .filter(item => item !== null);
   }, [recentConversations]);
 
-  const fetchDashboard = async ({ start_date, end_date }) => {
+  const fetchDashboard = useCallback(async ({ start_date, end_date }, opts = {}) => {
+    const { silent = false } = opts;
+    console.log('[Dashboard] fetching data for range');
+
     try {
-      setLoading(true);
-  
+      console.log('[Dashboard] fetching data for range', start_date, end_date, 'silent:', silent);
+      if (!silent) setLoading(true);
+
       // Fetch analytics data
       const res = await api.get('analytics/summary/mobile/dashboard/', {
         params: { start_date, end_date },
@@ -387,12 +396,14 @@ const AdminDashboard = ({ navigation }) => {
       const contactResults = Array.isArray(contactsRes?.data?.results) ? contactsRes.data.results : [];
       setRecentConversations(contactResults);
       
+      console.log('[Dashboard] fetch complete, silent:', silent);
     } catch (e) {
-      handleApiError?.(e);
+      console.log('[Dashboard] fetch error:', e?.message);
+      if (!silent) handleApiError?.(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };  
+  }, [api, setLoading, handleApiError]);
 
   // choose card width based on data presence
   const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
@@ -440,6 +451,12 @@ const AdminDashboard = ({ navigation }) => {
       </Text>
     </View>
   );
+
+  // ---- silent/queued refresh helpers ----
+  const quietRefresh = useCallback(async () => {
+    const { start_date, end_date } = buildRange(rangeKey);
+    await fetchDashboard({ start_date, end_date }, { silent: true });
+  }, [rangeKey, fetchDashboard]);
 
   return (
     <View style={styles.container}>

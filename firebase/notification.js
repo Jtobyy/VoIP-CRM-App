@@ -107,6 +107,8 @@ function boolOrUndef(v) {
 /** Foreground listener: show banner while app is open */
 export function attachForegroundHandler(onReceive) {
   return messaging().onMessage(async (remoteMessage) => {
+    console.log('[FCM][FOREGROUND] raw remoteMessage:', remoteMessage);
+
     const n = normalizeFCM(remoteMessage);
     try { await showLocalBanner({ title: n.title, body: n.description, data: remoteMessage?.data || {} }); } catch {}
     onReceive?.(n);
