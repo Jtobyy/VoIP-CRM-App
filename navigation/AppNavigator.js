@@ -8,6 +8,10 @@ import AgentStackNavigator from './AgentStackNavigator';
 import { trackScreen } from '../firebase/analytics';
 import { navigationRef } from './RootNavigation';
 import { setNavReady, setAuthState } from './RootNavigation';
+import { flushPendingNotification, attachForegroundHandler, attachNotificationPressHandler, attachFcmOpenHandlers, handleInitialNotification } from '../firebase/notification';
+import { initFcm } from '../firebase/fcm';
+
+
 const RootStack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -22,11 +26,42 @@ const AppNavigator = () => {
     });
   }, [loading, isAuthenticated, user]);
 
+  useEffect(() => {
+    // Start FCM (don’t prompt here unless this effect follows a user gesture)
+    const teardownList = [];
+
+    (async () => {
+      const unsubTok = await initFcm({ prompt: true }); // prompt later from a user action if you want
+      if (unsubTok) teardownList.push(unsubTok);
+
+      // Foreground messages -> show local banner
+      const unsubFg = attachForegroundHandler();
+      teardownList.push(unsubFg);
+
+      // Tap on system notification (FCM) from background
+      const unsubOpen = attachFcmOpenHandlers();
+      teardownList.push(unsubOpen);
+
+      // Tap on local (Notifee) notification when app is foreground/background
+      const unsubPress = attachNotificationPressHandler();
+      teardownList.push(unsubPress);
+
+      // If app was launched by a notification (killed state), handle it
+      await handleInitialNotification();
+    })();
+
+    return () => teardownList.forEach(fn => { try { fn(); } catch {} });
+  }, []);
+
   return (
     <NavigationContainer
       ref={navigationRef}
       onReady={() => {
         setNavReady(true);
+
+        console.log('flushing pending notification');
+        flushPendingNotification();
+
         const name = navigationRef.current?.getCurrentRoute?.()?.name;
         routeNameRef.current = name;
         if (name) trackScreen(name);

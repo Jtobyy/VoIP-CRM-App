@@ -10,6 +10,7 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		185EB40E2E79BD190044C836 /* incoming_ringtone.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 185EB40D2E79BD190044C836 /* incoming_ringtone.mp3 */; };
 		185EB4102E79BD320044C836 /* end_ringtone.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 185EB40F2E79BD320044C836 /* end_ringtone.mp3 */; };
+		18C7BE272EA6451200A0F677 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 18C7BE262EA6451200A0F677 /* GoogleService-Info.plist */; };
 		18EA6D2B2E7DDDBE0088233A /* LinphoneModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18EA6D282E7DDDBE0088233A /* LinphoneModule.swift */; };
 		18EA6D2C2E7DDDBE0088233A /* LinphoneModuleBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 18EA6D292E7DDDBE0088233A /* LinphoneModuleBridge.m */; };
 		18EA6D2F2E7DE2C90088233A /* linphonesw in Frameworks */ = {isa = PBXBuildFile; productRef = 18EA6D2E2E7DE2C90088233A /* linphonesw */; };
@@ -26,6 +27,8 @@
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = NativetalkBusiness/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		185EB40D2E79BD190044C836 /* incoming_ringtone.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = incoming_ringtone.mp3; sourceTree = "<group>"; };
 		185EB40F2E79BD320044C836 /* end_ringtone.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = end_ringtone.mp3; sourceTree = "<group>"; };
+		18BE16992EA681BD001E787F /* NativetalkBusiness.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = NativetalkBusiness.entitlements; path = NativetalkBusiness/NativetalkBusiness.entitlements; sourceTree = "<group>"; };
+		18C7BE262EA6451200A0F677 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "NativetalkBusiness/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		18EA6D282E7DDDBE0088233A /* LinphoneModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinphoneModule.swift; sourceTree = "<group>"; };
 		18EA6D292E7DDDBE0088233A /* LinphoneModuleBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LinphoneModuleBridge.m; sourceTree = "<group>"; };
 		18EA6D312E7DEA900088233A /* NativetalkBusiness-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NativetalkBusiness-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -53,6 +56,7 @@
 		13B07FAE1A68108700A75B9A /* NativetalkBusiness */ = {
 			isa = PBXGroup;
 			children = (
+				18BE16992EA681BD001E787F /* NativetalkBusiness.entitlements */,
 				18EA6D2A2E7DDDBE0088233A /* LinphoneBridge */,
 				180B6A272E4A42A2007CD034 /* Sounds */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
@@ -60,6 +64,7 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				18C7BE262EA6451200A0F677 /* GoogleService-Info.plist */,
 			);
 			name = NativetalkBusiness;
 			sourceTree = "<group>";
@@ -199,6 +204,7 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				4BD17E0D761409BDAF5CDB2E /* PrivacyInfo.xcprivacy in Resources */,
+				18C7BE272EA6451200A0F677 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -322,10 +328,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NativetalkBusiness/NativetalkBusiness.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 96Q7LYKS5F;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = NativetalkBusiness/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -334,7 +341,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -356,8 +363,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NativetalkBusiness/NativetalkBusiness.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = LMXLW4MU7W;
+				DEVELOPMENT_TEAM = 96Q7LYKS5F;
 				INFOPLIST_FILE = NativetalkBusiness/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -365,13 +373,13 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.nativetalk.business;
 				PRODUCT_NAME = NativetalkBusiness;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/NativetalkBusiness/NativetalkBusiness-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

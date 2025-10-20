@@ -218,6 +218,61 @@ class LinphoneModule: RCTEventEmitter {
       NSLog("Linphone: register() failed: \(error)")
     }
   }
+
+  @objc(getRegistrationStatus:rejecter:)
+  func getRegistrationStatus(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+    guard let core = core else {
+      reject("NO_CORE", "Core not initialized", nil)
+      return
+    }
+    
+    guard let proxyConfig = core.defaultProxyConfig else {
+      reject("NO_PROXY", "No default proxy config", nil)
+      return
+    }
+    
+    let addr = proxyConfig.identityAddress
+    
+    // Get diagnostic message from error info
+    let diag: String = {
+        do {
+          if let phrase = proxyConfig.errorInfo?.phrase, !phrase.isEmpty {
+            return phrase
+          }
+          return proxyConfig.errorInfo.debugDescription
+        } catch {
+          return ""
+        }
+    }()
+    
+    // Convert RegistrationState to string (matches your Kotlin implementation)
+    let stateString: String = {
+      switch proxyConfig.state {
+      case .None:
+        return "none"
+      case .Progress:
+        return "progress"
+      case .Ok:
+        return "ok"
+      case .Cleared:
+        return "cleared"
+      case .Failed:
+        return "failed"
+      @unknown default:
+        return "unknown"
+      }
+    }()
+    
+    let result: [String: Any] = [
+      "state": stateString,
+      "message": diag,
+      "username": addr?.username ?? "",
+      "domain": addr?.domain ?? "",
+      "displayName": addr?.displayName ?? ""
+    ]
+    
+    resolve(result)
+  }
   
   @objc(registerVoipToken:)
   func registerVoipToken(_ tokenHex: NSString) {
@@ -286,7 +341,6 @@ class LinphoneModule: RCTEventEmitter {
       catch { NSLog("Linphone: terminate() (fallback from decline) failed: \(error)") }
     }
   }
-
 
   @objc(end)
   func end() {

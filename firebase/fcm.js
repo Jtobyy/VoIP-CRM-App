@@ -3,8 +3,7 @@ import { Platform, PermissionsAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 
-export const IS_FIREBASE_CONFIGURED =
-  Platform.OS === 'android' ? true : false; // keep your flag
+export const IS_FIREBASE_CONFIGURED = true;
 
 const PROMPTED_KEY = 'notif_prompted_v1';
 
@@ -60,6 +59,12 @@ export async function initFcm({ prompt = false } = {}) {
 
     // At this point, we’re allowed to register
     await messaging().registerDeviceForRemoteMessages();
+    try {
+      const apns = await messaging().getAPNSToken();
+      console.log('[FCM][iOS] APNs token (JS) =', apns);
+    } catch (e) {
+      console.log('[FCM][iOS] getAPNSToken error', e);
+    }
 
     // Keep token updated
     const unsub = messaging().onTokenRefresh((newToken) => {
@@ -71,20 +76,35 @@ export async function initFcm({ prompt = false } = {}) {
 
   // iOS
   if (Platform.OS === 'ios') {
-    // Only ask on iOS when prompt=true (after a user gesture)
+    console.log('[FCM][iOS] init start');
+
+    // Ask only when prompt=true (after a UI gesture)
     if (prompt) {
       const status = await messaging().requestPermission();
       const enabled =
         status === messaging.AuthorizationStatus.AUTHORIZED ||
         status === messaging.AuthorizationStatus.PROVISIONAL;
+      console.log('[FCM][iOS] permission status =', status, 'enabled=', enabled);
       if (!enabled) {
-        console.log('[FCM] iOS notif permission denied/provisional; skipping init.');
+        console.log('[FCM][iOS] permission not granted – skipping');
         return () => {};
       }
     }
+
     await messaging().registerDeviceForRemoteMessages();
+    try {
+      const apns = await messaging().getAPNSToken();
+      console.log('[FCM][iOS] APNs token (JS) =', apns);
+    } catch (e) {
+      console.log('[FCM][iOS] getAPNSToken error', e);
+    }
+    const tok = await messaging().getToken();
+    console.log('[FCM][iOS] current token =', tok);
+    // TODO: send token to backend if logged in
+
     const unsub = messaging().onTokenRefresh((newToken) => {
-      console.log('[FCM] token refreshed (iOS):', newToken);
+      console.log('[FCM][iOS] token refreshed:', newToken);
+      // TODO: send to backend
     });
     return unsub;
   }
@@ -104,6 +124,12 @@ export async function getCurrentFcmToken() {
   }
   if (Platform.OS === 'ios') {
     await messaging().registerDeviceForRemoteMessages();
+    try {
+      const apns = await messaging().getAPNSToken();
+      console.log('[FCM][iOS] APNs token (JS) =', apns);
+    } catch (e) {
+      console.log('[FCM][iOS] getAPNSToken error', e);
+    }
   }
   return messaging().getToken();
 }

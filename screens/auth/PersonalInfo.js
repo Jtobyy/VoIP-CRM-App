@@ -74,7 +74,13 @@ const PersonalInfo = ({ navigation }) => {
     return `${digits.slice(0,3)} ${digits.slice(3,6)} ${digits.slice(6,10)}${digits.slice(10) ? ' ' + digits.slice(10) : ''}`;
   };
 
-  const handleLocalChange = (txt) => setPhoneLocal(formatLocal(txt));
+
+  const handleLocalChange = (txt) => {
+    const formatted = formatLocal(txt);
+    setPhoneLocal(formatted);
+    // Also update phoneNumber so isValid check passes
+    setPhoneNumber(formatted);
+  };
 
   useEffect(() => {
     loadCountries();
@@ -92,7 +98,7 @@ const PersonalInfo = ({ navigation }) => {
 
   const allFilled =
     businessName.trim().length > 1 &&
-    phoneNumber.trim().length > 0 &&
+    phoneLocal.replace(/\D/g, '').length > 0 &&
     password.length > 0 &&
     confirmPassword.length > 0;
 
@@ -105,12 +111,11 @@ const PersonalInfo = ({ navigation }) => {
     const e = {};
 
     if (!selectedCountry) e.phoneNumber = 'Please select a country.';
+
     const plainLocal = (phoneLocal || '').replace(/\D/g, '');
     if (!plainLocal) e.phoneNumber = 'Phone number is required.';
-    
     if (!businessName.trim()) e.businessName = 'Business name is required.';
-    if (!phoneNumber.trim()) e.phoneNumber = 'Phone number is required.';
-
+    
     if (!password) {
       e.password = 'Password is required.';
     } else {
@@ -195,7 +200,7 @@ const PersonalInfo = ({ navigation }) => {
 
     try {
       setSubmitting(true);
-      console.log('[Proceed] submitting…');
+      console.log('[Proceed] submitting…', formattedPhone);
       
       const res = await axios.post(
         'https://staging.core.nativetalkcrm.com/api/auth/mobile/register/',

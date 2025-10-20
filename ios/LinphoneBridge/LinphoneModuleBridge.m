@@ -19,4 +19,5 @@ RCT_EXTERN_METHOD(setRegisterEnabled:(BOOL)on)
 RCT_EXTERN_METHOD(playKeyTone:(NSString *)d)
 
 RCT_EXTERN_METHOD(getCallLogs:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXTERN_METHOD(getRegistrationStatus:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 @end

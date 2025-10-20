@@ -4,6 +4,8 @@ import * as Lin from '../native/linphone';
 import { navigate, replace } from '../navigation/RootNavigation';
 import { queueIncoming, queueOutgoing } from '../navigation/RootNavigation';
 import { addDeviceCallLog } from '../utils/deviceCallLogs';
+import { useAuth } from './useAuth';
+
 
 const CALL_STATE = {
   0: 'Idle',
@@ -37,18 +39,6 @@ const callStateName = (val) =>
 const regStateName = (val) =>
   (typeof val === 'number' ? (REG_STATE[val] || String(val)) : String(val || ''));
 
-
-const SIP_CFG = {
-  NAME: '100',
-  USERNAME: '100',
-  PASSWORD: 'Tesojueh2',
-  DOMAIN: 'tesojueh481.dashboard.nativetalk.com.ng:5061',
-  TRANSPORT: 'tcp',
-  REG_TIMEOUT: 7200,
-  PROXY: null,
-  REG_SERVER: null,
-};
-const DIAL_CFG = { DOMAIN: SIP_CFG.DOMAIN };
 const fmt = (s) => { s = Math.max(0, Math.floor(s));
   const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
   return h ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}`;
@@ -74,10 +64,11 @@ export function CallProvider({ children }) {
   const startTsRef = useRef(null);
   const latestDurationRef = useRef(0);
   const [ending, setEnding] = useState(false);
+  const { sipConfig } = useAuth();
 
   
   useEffect(() => { 
-    latestDurationRef.current = durationSec; 
+    latestDurationRef.current = durationSec;
   }, [durationSec]);
 
   const clearTimer = useCallback(() => { 
@@ -110,19 +101,20 @@ export function CallProvider({ children }) {
     return granted === PermissionsAndroid.RESULTS.GRANTED;
   }, []);
 
-  // init + register once
   useEffect(() => {
     (async () => {
-      Lin.init();
-      const ok = await askMicPerm(); if (!ok) { Alert.alert('Microphone permission denied'); return; }
-      Lin.register({
-        username: SIP_CFG.USERNAME,
-        password: SIP_CFG.PASSWORD,
-        domain:   SIP_CFG.DOMAIN,
-        transport:SIP_CFG.TRANSPORT,
-      });
-    })();
+      console.log('registering sip config')
 
+      Lin.init();
+      console.log("registering config ", sipConfig)
+      const ok = await askMicPerm(); if (!ok) { Alert.alert('Microphone permission denied'); return; }
+      
+      registerFn()
+    })();
+  }, [sipConfig, askMicPerm])
+
+  // inits once
+  useEffect(() => {
     // events
     const subReg = Lin.on.RegistrationChanged((e) => {
       const pretty = regStateName(e?.state);
@@ -189,33 +181,38 @@ export function CallProvider({ children }) {
       setMuted(false); setSpeaker(false);
     });
 
-    const subTMPhoneCallState = Lin.on.TMPhoneCallState((e) => {
-      console.log("TMPhoneCallState", e)
-    });
+    const androidListeners = [];
+    if (Platform.OS === 'android') {
+      const subTMPhoneCallState = Lin.on.TMPhoneCallState((e) => {
+        console.log("TMPhoneCallState", e)
+      });
+      androidListeners.push(subTMPhoneCallState);
 
-    const subTMPhoneCallInfo = Lin.on.TMPhoneCallInfo(async (e) => {
-      console.log('TMTMPhoneCallInfo', e);
-      // e looks like: { presentation, timestamp, callerName, number, direction }
+      const subTMPhoneCallInfo = Lin.on.TMPhoneCallInfo(async (e) => {
+        console.log('TMPhoneCallInfo', e);
+        // e looks like: { presentation, timestamp, callerName, number, direction }
 
-      if (e?.direction) {
-        await addDeviceCallLog({
-          direction: e?.direction,
-          number: e?.number,
-          timestamp: e?.timestamp,
-          callerName: e?.callerName,
-          presentation: e?.presentation,
-        });
-      }
-    });
+        if (e?.direction) {
+          await addDeviceCallLog({
+            direction: e?.direction,
+            number: e?.number,
+            timestamp: e?.timestamp,
+            callerName: e?.callerName,
+            presentation: e?.presentation,
+          });
+        }
+      });
+      androidListeners.push(subTMPhoneCallInfo);
+    }
 
-    return () => { subReg.remove(); subIncoming.remove(); subState.remove(); subEnd.remove(); clearTimer(); };
-  }, [askMicPerm, clearTimer, resetDuration, startDuration]);
+    return () => { subReg.remove(); subIncoming.remove(); subState.remove(); subEnd.remove(); clearTimer(); androidListeners.forEach(l => l.remove()); };
+  }, [clearTimer, resetDuration, startDuration]);
 
   // call controls
   const dial = useCallback(async (dest) => {
     resetDuration();
     if (!dest || dest.length < 1) { Alert.alert('Invalid Number'); return null; }
-    const uri = dest.includes('@') ? (dest.startsWith('sip:') ? dest : `sip:${dest}`) : `sip:${dest}@${DIAL_CFG.DOMAIN}`;
+    const uri = dest.includes('@') ? (dest.startsWith('sip:') ? dest : `sip:${dest}`) : `sip:${dest}@${sipConfig.tenant_domain}`;
     setCallStatus('Dialing…');
     Lin.call(uri);
     const initials = (dest || 'NA').substring(0,2).toUpperCase();
@@ -262,28 +259,38 @@ export function CallProvider({ children }) {
     Lin.sendDtmf(String(d));
   }, []);
 
-  // TODOs that need native APIs later (kept for API compatibility)
   const registerFn = useCallback(async () => {
-    // Re-run registration with current cfg; useful if creds changed
-    console.log('rerunnign registration ')
+    console.log("registration in progress")
+    // Lin.register({
+    //   username: sipConfig.username,
+    //   password: sipConfig.password,
+    //   domain:   `${sipConfig.tenant_domain}`,
+    //   transport:'tcp',
+    // });
+    // Lin.register({
+    //   username: "89449582622196",
+    //   password: "dkGW2RQ3",
+    //   domain:   `unativetalk_demo33.nativetalk.io:5060`,
+    //   transport:'tcp',
+    // });
     Lin.register({
-      username: SIP_CFG.USERNAME,
-      password: SIP_CFG.PASSWORD,
-      domain:   SIP_CFG.DOMAIN,
-      transport:SIP_CFG.TRANSPORT,
+      username: "100",
+      password: "Tesojueh2",
+      domain:   'tesojueh481.dashboard.nativetalk.com.ng:5061',
+      transport:'tcp',
     });
+    console.log("registration done")
   }, []);
 
   const unregister = useCallback(async () => {
     // disables registration on the default proxy
     Lin.setRegisterEnabled(false);
-    Alert.alert('SIP', 'Unregistered (registerEnabled=false).');
+    console.log('SIP', 'Unregistered (registerEnabled=false).');
   }, []);
 
   const value = {
     // config
-    sipConfig: SIP_CFG, 
-    dialConfig: DIAL_CFG,
+    sipConfig: sipConfig, 
 
     // state
     registration, callStatus, durationSec, formattedDuration: fmt(durationSec),

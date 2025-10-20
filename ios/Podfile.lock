@@ -1786,6 +1786,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - react-native-get-random-values (1.11.0):
+    - React-Core
   - react-native-safe-area-context (5.6.1):
     - boost
     - DoubleConversion
@@ -2917,7 +2919,6 @@ DEPENDENCIES:
   - fast_float (from `../node_modules/react-native/third-party-podspecs/fast_float.podspec`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - FirebaseCore
-  - FirebaseCoreExtension
   - FirebaseCoreInternal
   - fmt (from `../node_modules/react-native/third-party-podspecs/fmt.podspec`)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
@@ -2958,6 +2959,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - "react-native-document-picker (from `../node_modules/@react-native-documents/picker`)"
+  - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-vector-icons-evil-icons (from `../node_modules/@react-native-vector-icons/evil-icons`)"
   - "react-native-vector-icons-fontawesome6 (from `../node_modules/@react-native-vector-icons/fontawesome6`)"
@@ -3115,6 +3117,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-document-picker:
     :path: "../node_modules/@react-native-documents/picker"
+  react-native-get-random-values:
+    :path: "../node_modules/react-native-get-random-values"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-vector-icons-evil-icons:
@@ -3277,6 +3281,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 9a7c65078c6851397c1999068989e4fc239d0c80
   React-microtasksnativemodule: 4f1ef719ba6c7ebbd2d75346ffa2916f9b4771c9
   react-native-document-picker: a51b7f859bab49bee35a0bc63e2455ffaeea5505
+  react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
   react-native-safe-area-context: fd72bd1eb562ff2a0fda20e9a7828c4b0cabf5a4
   react-native-vector-icons-evil-icons: 74d1fe2b104d1b4286359313713c7a4a9dcef1be
   react-native-vector-icons-fontawesome6: 1b667969bef2f430d1d7515163b980b856f58670
@@ -3332,6 +3337,6 @@ SPEC CHECKSUMS:
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 703055a9f39562521cdb8657162dfd80f8c174c3
 
-PODFILE CHECKSUM: 61c80a84a0138214d694001e4fd60a5fe4d70bb2
+PODFILE CHECKSUM: dc20547322ef6953da8402342966df1a0f3a1c08
 
 COCOAPODS: 1.16.2

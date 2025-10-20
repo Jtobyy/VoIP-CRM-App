@@ -3,10 +3,12 @@ import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import PushKit
+import FirebaseCore
+import UserNotifications
 
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate, UNUserNotificationCenterDelegate {
   var window: UIWindow?
 
   var reactNativeDelegate: ReactNativeDelegate?
@@ -18,15 +20,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    FirebaseApp.configure()
+
+    UNUserNotificationCenter.current().delegate = self
+    UIApplication.shared.registerForRemoteNotifications()
+
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
-
     reactNativeDelegate = delegate
     reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
-
     factory.startReactNative(
       withModuleName: "NativetalkBusiness",
       in: window,
@@ -38,8 +43,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate {
     reg.desiredPushTypes = [.voIP]
     self.voipRegistry = reg
 
+    print("[AppDelegate] didFinishLaunching done")
     return true
   }
+  
+  func application(_ application: UIApplication,
+                   didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
+    print("[AppDelegate] APNs device token =", hex)
+  }
+
+  func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+      completionHandler([.banner, .list, .sound, .badge])
+    }
 
   func pushRegistry(_ registry: PKPushRegistry,
                       didUpdate pushCredentials: PKPushCredentials,
