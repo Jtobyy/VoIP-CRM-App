@@ -38,7 +38,7 @@ const More = ({ navigation }) => {
   const fetchUserProfile = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/users/me`);
+      const res = await api.get(`/users/me/`);
       const data = res.data.user;
       console.log('Fetched user data:',data)
       setUser(data);
@@ -66,7 +66,7 @@ const More = ({ navigation }) => {
 
   const fetchDids = async () => {
     try {
-      const res = await api.get(`/call-center/pbx/dids/`);
+      const res = await api.get(`/call-center/pbx/assigned-dids/`);
       setDids(res.data?.data || []);
     } catch (error) {
       console.error('Failed to fetch DIDs:', error);

@@ -41,7 +41,7 @@ const HotlinesList = ({ navigation }) => {
   const fetchDids = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/call-center/pbx/dids/available/`);
+      const res = await api.get(`/call-center/pbx/available-dids/`);
       setDids(res.data?.data || []);
     } catch (error) {
       console.error('Failed to fetch DIDs:', error);
@@ -56,12 +56,12 @@ const HotlinesList = ({ navigation }) => {
   }, []);
 
   const handleDidSelect = (did) => {
-    setSelectedDid(did.did_id === selectedDid ? null : did.did_id);
+    setSelectedDid(did.id === selectedDid ? null : did.id);
   };
 
   const handleProceed = () => {
     if (selectedDid) {
-      const selected = dids.find(d => d.did_id === selectedDid);
+      const selected = dids.find(d => d.id === selectedDid);
       // Navigate to next screen or perform action with selected DID
       console.log('Selected DID:', selected);
       // navigation.navigate('NextScreen', { did: selected });
@@ -103,11 +103,11 @@ const HotlinesList = ({ navigation }) => {
           <View style={styles.gridContainer}>
             {dids.map((did, index) => {
               const colorScheme = cardColors[index % cardColors.length];
-              const isSelected = selectedDid === did.did_id;
+              const isSelected = selectedDid === did.id;
 
               return (
                 <TouchableOpacity
-                  key={did.did_id}
+                  key={did.id}
                   style={styles.hotlineCard}
                   onPress={() => handleDidSelect(did)}
                   activeOpacity={0.8}

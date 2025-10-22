@@ -171,46 +171,65 @@ export function flushPendingNotification() {
   }
 }
 
-/** Foreground listener: show banner while app is open */
+/** Foreground listener: ONLY show banner when app is in foreground */
 export function attachForegroundHandler(onReceive) {
+  // Use a flag to prevent duplicate processing
+  let isProcessing = false;
+  
   return messaging().onMessage(async (remoteMessage) => {
-    console.log('[FCM][FOREGROUND] raw remoteMessage:', remoteMessage);
-    const n = normalizeFCM(remoteMessage);
-    try { 
+    if (isProcessing) {
+      console.log('[FCM][FOREGROUND] Already processing, skipping duplicate');
+      return;
+    }
+    
+    isProcessing = true;
+    
+    try {
+      console.log('[FCM][FOREGROUND] raw remoteMessage:', remoteMessage);
+      const n = normalizeFCM(remoteMessage);
+      
+      // ONLY show local banner in FOREGROUND
+      // Background notifications are handled by Firebase automatically
       await showLocalBanner({ 
         title: n.title, 
         body: n.description, 
         data: n.notificationData || {} 
       }); 
+      
+      // Update unread count and badge
+      await incrementUnread(1);
+      const unreadCount = await getUnreadCount();
+      await notifee.setBadgeCount(unreadCount);
+      
+      onReceive?.(n);
     } catch (e) {
-      console.log('[Notif] showLocalBanner error:', e);
+      console.log('[Notif] Error in foreground handler:', e);
+    } finally {
+      // Reset flag after a short delay
+      setTimeout(() => {
+        isProcessing = false;
+      }, 1000);
     }
-    onReceive?.(n);
   });
 }
 
+/** Background handler: DO NOT show banner (Firebase shows it automatically) */
 messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-    console.log('firebae background message handler')
-    console.log('[FCM][BACKGROUND] raw remoteMessage:', JSON.stringify(remoteMessage));
-    
-    const n = normalizeFCM(remoteMessage);
-    try { 
-      await showLocalBanner({ 
-        title: n.title, 
-        body: n.description, 
-        data: n.notificationData || {} 
-      }); 
-    } catch (e) {
-      console.log('[Notif] showLocalBanner error:', e);
-    }
-
-    try {
-      await incrementUnread(1);
-      const n = await getUnreadCount();
-      await notifee.setBadgeCount(n);
-    } catch {
-      console.log('error with increment')
-    }
+  console.log('[FCM][BACKGROUND] raw remoteMessage:', JSON.stringify(remoteMessage));
+  
+  // DO NOT call showLocalBanner here - Firebase already displays the notification
+  // Just handle data processing and badge count
+  
+  const n = normalizeFCM(remoteMessage);
+  
+  // Update unread count and badge
+  try {
+    await incrementUnread(1);
+    const unreadCount = await getUnreadCount();
+    await notifee.setBadgeCount(unreadCount);
+  } catch (e) {
+    console.log('[Notif] Error updating badge count:', e);
+  }
 });
 
 /** Attach notifee press handler for foreground & background presses */
@@ -252,9 +271,6 @@ export function attachFcmOpenHandlers() {
     console.log('[FCM][OPENED] from background, data=', remoteMessage?.data);
     handleNotificationNavigation(remoteMessage?.data || {});
   });
-
-  // App opened from quit state by tapping the remote notif (you already check Notifee + FCM in handleInitialNotification)
-  // leaving getInitialNotification() inside handleInitialNotification()
 
   return () => unsub();
 }

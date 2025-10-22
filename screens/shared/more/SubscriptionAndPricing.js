@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,24 @@ import {
 } from 'react-native';
 import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
+import { useApi } from '../../../hooks/useApi';
+import { useLoading } from '../../../hooks/useLoading';
+import { useError } from '../../../hooks/useError';
 
 const Subscription = ({ navigation }) => {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [extensionCount, setExtensionCount] = useState(2);
+  const [plans, setPlans] = useState([]);
+  const [extensionPrice, setExtensionPrice] = useState(2000);
+  const [activeSubscription, setActiveSubscription] = useState(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  
+  const { api } = useApi();
+  const { setLoading } = useLoading();
+  const { handleApiError } = useError();
+
+  const FREE_PLAN_ID = 3;
 
   // Image mapping for plan headers
   const imageMap = {
@@ -24,52 +37,134 @@ const Subscription = ({ navigation }) => {
     lightblue: require('../../../assets/lightbluect.png'),
   };
 
-  // Hardcoded plans
-  const plans = [
-    {
-      id: 'free',
-      name: 'Nativetalk Free Plan',
-      price: 'Free',
-      headerBg: '#4CAF50',
-      iconBg: '#2E7D32',
-      image: 'lightgreen',
-      features: [
-        { text: 'Live chat', included: true },
-        { text: 'Email', included: true },
-        { text: 'Basic analytics', included: true },
-        { text: 'Business phone number', included: false },
-        { text: 'WhatsApp and Facebook', included: false },
-      ],
-    },
-    {
-      id: 'premium',
-      name: 'Nativetalk Premium Plan',
-      price: '₦5,000',
-      priceNote: '/month',
-      headerBg: '#2196F3',
-      iconBg: '#1565C0',
-      image: 'lightblue',
-      features: [
-        { text: 'Everything in Free', included: true },
-        { text: 'A hotline', included: true },
-        { text: '2 extensions included', included: true },
-        { text: 'Advanced analytics', included: true },
-      ],
-    },
-  ];
+  useEffect(() => {
+    fetchCurrentSubscription();
+    fetchPlans();
+    fetchExtensionPricing();
+  }, []);
+
+  const fetchCurrentSubscription = async () => {
+    try {
+      const res = await api.get('/billings/subscriptions/current/');
+      
+      if (res.data?.success && res.data?.subscription?.is_active) {
+        setActiveSubscription(res.data.subscription);
+        setHasActiveSubscription(true);
+      } else {
+        // No active subscription from API - default to free plan as active
+        setHasActiveSubscription(false);
+        setActiveSubscription({ plan: { id: FREE_PLAN_ID } });
+      }
+    } catch (error) {
+      console.log('No active subscription found - defaulting to free plan');
+      // Default to free plan as active
+      setHasActiveSubscription(false);
+      setActiveSubscription({ plan: { id: FREE_PLAN_ID } });
+    }
+  };
+
+  const fetchExtensionPricing = async () => {
+    try {
+      const res = await api.get('/billings/did-pricing/');
+      
+      if (res.data?.success && res.data?.pricing?.price_per_extension) {
+        setExtensionPrice(parseFloat(res.data.pricing.price_per_extension));
+      }
+    } catch (error) {
+      console.error('Failed to fetch extension pricing:', error);
+    }
+  };
+
+  const fetchPlans = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/billings/plans/mobile/');
+      
+      if (res.data?.success && res.data?.plans) {
+        const formattedPlans = res.data.plans.map((plan, index) => {
+          const isFree = parseFloat(plan.price) === 0;
+          
+          let displayFeatures = [];
+          
+          if (isFree) {
+            const includedFeatures = plan.features.map(feature => ({
+              text: feature.description,
+              included: true,
+            }));
+            
+            displayFeatures = [
+              ...includedFeatures,
+              { text: 'Business phone number', included: false },
+              { text: 'WhatsApp and Facebook', included: false },
+            ];
+          } else {
+            const premiumFeatures = plan.features
+              .filter(f => !['live_chat', 'email', 'basic_analytics'].includes(f.code))
+              .map(feature => ({
+                text: feature.description,
+                included: true,
+              }));
+            
+            displayFeatures = [
+              { text: 'Everything in Free', included: true },
+              ...premiumFeatures,
+            ];
+          }
+
+          return {
+            id: plan.id.toString(),
+            name: plan.name,
+            price: isFree ? 'Free' : `₦${parseFloat(plan.price).toLocaleString()}`,
+            priceNote: isFree ? null : '/month',
+            headerBg: isFree ? '#4CAF50' : '#2196F3',
+            iconBg: isFree ? '#2E7D32' : '#1565C0',
+            image: isFree ? 'lightgreen' : 'lightblue',
+            features: displayFeatures,
+            rawPrice: parseFloat(plan.price),
+            duration_label: plan.duration_label,
+            paystack_plan_code: plan.paystack_plan_code,
+            isFree,
+          };
+        });
+        
+        // Sort plans: premium plans first, free plan last
+        const sortedPlans = formattedPlans.sort((a, b) => {
+          if (a.isFree && !b.isFree) return 1;
+          if (!a.isFree && b.isFree) return -1;
+          return 0;
+        });
+        
+        setPlans(sortedPlans);
+      }
+    } catch (error) {
+      console.error('Failed to fetch plans:', error);
+      handleApiError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePlanSelect = (plan) => {
+    // Free plan is never selectable
+    if (plan.isFree) return;
+    
+    // Don't allow selection if there's an active premium subscription
+    if (shouldDisablePlanSelection()) return;
+    
     setSelectedPlan(plan.id === selectedPlan ? null : plan.id);
   };
 
   const handleProceed = () => {
     if (!selectedPlan) return;
+    
+    // Don't allow proceeding if there's an active premium subscription
+    if (shouldDisablePlanSelection()) return;
+    
     const selected = plans.find(p => p.id === selectedPlan);
   
-    if (selected.id === 'premium') {
-      setShowExtensionModal(true); // open modal to choose extensions
+    if (selected.rawPrice > 0) {
+      setShowExtensionModal(true);
     } else {
-      // Free plan → no payment, 2 default extensions
       navigation.navigate('SubscriptionMakePayment', {
         plan: selected,
         extensions: 2,
@@ -77,7 +172,6 @@ const Subscription = ({ navigation }) => {
       });
     }
   };
-  
 
   const handleIncrementExtension = () => {
     setExtensionCount(prev => prev + 1);
@@ -90,9 +184,12 @@ const Subscription = ({ navigation }) => {
   };
 
   const calculateTotalPrice = () => {
-    const basePrice = 5000;
+    const selected = plans.find(p => p.id === selectedPlan);
+    if (!selected) return 0;
+    
+    const basePrice = selected.rawPrice;
     const additionalExtensions = extensionCount - 2;
-    const additionalCost = additionalExtensions * 2000;
+    const additionalCost = additionalExtensions * extensionPrice;
     return basePrice + additionalCost;
   };
 
@@ -108,7 +205,19 @@ const Subscription = ({ navigation }) => {
       totalPrice: finalPrice,
     });
   };
-  
+
+  const isActivePlan = (planId) => {
+    return activeSubscription?.plan?.id?.toString() === planId;
+  };
+
+  const isFreePlan = () => {
+    return activeSubscription?.plan?.id === FREE_PLAN_ID;
+  };
+
+  const shouldDisablePlanSelection = () => {
+    // Only disable if there's an active premium (non-free) subscription
+    return hasActiveSubscription && !isFreePlan();
+  };
 
   return (
     <View style={styles.container}>
@@ -130,33 +239,78 @@ const Subscription = ({ navigation }) => {
         <Text style={styles.headerTitle}>Subscription and Pricing</Text>
         <View style={styles.headerRight} />
       </ImageBackground>
+      
       <Text style={styles.selectPlanText}>
-            Select a Plan
-        </Text>
+        {hasActiveSubscription && !isFreePlan() ? 'Your Active Plan' : 'Select a Plan'}
+      </Text>
+
+      {/* Active Subscription Banner - Only show for premium plans */}
+      {hasActiveSubscription && activeSubscription && !isFreePlan() && (
+        <View style={styles.activeSubscriptionBanner}>
+          <View style={styles.bannerIconContainer}>
+            <FontAwesome6 name="circle-check" size={20} color="#4CAF50" iconStyle="solid" />
+          </View>
+          <View style={styles.bannerTextContainer}>
+            <Text style={styles.bannerTitle}>Active Subscription</Text>
+            <Text style={styles.bannerSubtitle}>
+              {activeSubscription.days_remaining} days remaining
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Plans List */}
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {plans.map((plan, index) => {
+        {plans.map((plan) => {
           const isSelected = selectedPlan === plan.id;
+          const isActive = isActivePlan(plan.id);
+          const isDisabled = shouldDisablePlanSelection() && !isActive;
+          const isPlanFree = plan.isFree;
 
           return (
             <TouchableOpacity
               key={plan.id}
-              style={styles.planCard}
+              style={[
+                styles.planCard,
+                isActive && styles.planCardActive,
+                isDisabled && styles.planCardDisabled,
+              ]}
               onPress={() => handlePlanSelect(plan)}
-              activeOpacity={0.8}
+              activeOpacity={isPlanFree || isDisabled ? 1 : 0.8}
+              disabled={isPlanFree || isDisabled}
             >
+              {/* Active Tag */}
+              {isActive && (
+                <View style={styles.activeTag}>
+                  <FontAwesome6 name="crown" size={12} color="#FFF" iconStyle="solid" />
+                  <Text style={styles.activeTagText}>ACTIVE</Text>
+                </View>
+              )}
+
               {/* Header with icon and plan name */}
-              <View style={[styles.cardHeader, { backgroundColor: plan.headerBg }]}>
+              <View style={[
+                styles.cardHeader, 
+                { backgroundColor: plan.headerBg },
+                isDisabled && styles.cardHeaderDisabled,
+              ]}>
                 <Image
-                source={imageMap[plan.image]}
-                style={styles.planIcon}
-                resizeMode="contain"
+                  source={imageMap[plan.image]}
+                  style={[
+                    styles.planIcon,
+                    isDisabled && styles.planIconDisabled,
+                  ]}
+                  resizeMode="contain"
                 />
-                <Text style={styles.planName}>{plan.name}</Text>
+                <Text style={[
+                  styles.planName,
+                  isDisabled && styles.planNameDisabled,
+                ]}>
+                  {plan.name}
+                </Text>
               </View>
 
               {/* Plan body with price and features */}
@@ -164,24 +318,44 @@ const Subscription = ({ navigation }) => {
                 {/* Price section */}
                 <View style={styles.priceContainer}>
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceText}>{plan.price}</Text>
+                    <Text style={[
+                      styles.priceText,
+                      isDisabled && styles.priceTextDisabled,
+                    ]}>
+                      {plan.price}
+                    </Text>
                     {plan.priceNote && (
-                      <Text style={styles.priceNote}>{plan.priceNote}</Text>
+                      <Text style={[
+                        styles.priceNote,
+                        isDisabled && styles.priceNoteDisabled,
+                      ]}>
+                        {plan.priceNote}
+                      </Text>
                     )}
-                    {plan.id === 'free' && (
+                    {plan.rawPrice === 0 && (
                       <Image
                         source={require('../../../assets/star.png')}
-                        style={styles.starIcon}
+                        style={[
+                          styles.starIcon,
+                          isDisabled && styles.starIconDisabled,
+                        ]}
                         resizeMode="contain"
                       />
                     )}
                   </View>
                   
-                  <View style={[styles.radioButton, isSelected && styles.radioButtonSelected]}>
-                    {isSelected && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
+                  {/* Show radio button only for premium plans that are not active */}
+                  {!isActive && !isPlanFree && (
+                    <View style={[
+                      styles.radioButton, 
+                      isSelected && styles.radioButtonSelected,
+                      isDisabled && styles.radioButtonDisabled,
+                    ]}>
+                      {isSelected && (
+                        <View style={styles.radioButtonInner} />
+                      )}
+                    </View>
+                  )}
                 </View>
 
                 {/* Features list */}
@@ -194,10 +368,18 @@ const Subscription = ({ navigation }) => {
                             ? require('../../../assets/check_green.png')
                             : require('../../../assets/cross_red.png')
                         }
-                        style={styles.featureIcon}
+                        style={[
+                          styles.featureIcon,
+                          isDisabled && styles.featureIconDisabled,
+                        ]}
                         resizeMode="contain"
                       />
-                      <Text style={styles.featureText}>{feature.text}</Text>
+                      <Text style={[
+                        styles.featureText,
+                        isDisabled && styles.featureTextDisabled,
+                      ]}>
+                        {feature.text}
+                      </Text>
                     </View>
                   ))}
                 </View>
@@ -207,17 +389,19 @@ const Subscription = ({ navigation }) => {
         })}
       </ScrollView>
 
-      {/* Proceed Button */}
-      <TouchableOpacity
-        style={[
-          styles.proceedButton,
-          !selectedPlan && styles.proceedButtonDisabled
-        ]}
-        onPress={handleProceed}
-        disabled={!selectedPlan}
-      >
-        <Text style={styles.proceedText}>Proceed</Text>
-      </TouchableOpacity>
+      {/* Proceed Button - Hide only if on active premium plan */}
+      {!shouldDisablePlanSelection() && (
+        <TouchableOpacity
+          style={[
+            styles.proceedButton,
+            !selectedPlan && styles.proceedButtonDisabled
+          ]}
+          onPress={handleProceed}
+          disabled={!selectedPlan}
+        >
+          <Text style={styles.proceedText}>Proceed</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Extension Modal */}
       <Modal
@@ -280,7 +464,7 @@ const Subscription = ({ navigation }) => {
                 </View>
 
                 <Text style={styles.additionalCostText}>
-                  Each additional: +₦2,000
+                  Each additional: +₦{extensionPrice.toLocaleString()}
                 </Text>
               </View>
 
@@ -340,6 +524,38 @@ const styles = StyleSheet.create({
     width: 34,
   },
 
+  activeSubscriptionBanner: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+
+  bannerIconContainer: {
+    marginRight: 12,
+  },
+
+  bannerTextContainer: {
+    flex: 1,
+  },
+
+  bannerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2E7D32',
+    marginBottom: 2,
+  },
+
+  bannerSubtitle: {
+    fontSize: 14,
+    color: '#388E3C',
+  },
+
   scrollView: {
     flex: 1,
   },
@@ -359,6 +575,42 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 3,
+    position: 'relative',
+  },
+
+  planCardActive: {
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+
+  planCardDisabled: {
+    opacity: 0.5,
+  },
+
+  activeTag: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+
+  activeTagText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   cardHeader: {
@@ -370,6 +622,10 @@ const styles = StyleSheet.create({
     position: 'relative'
   },
 
+  cardHeaderDisabled: {
+    opacity: 0.6,
+  },
+
   planIcon: {
     width: 300,
     height: 100,
@@ -379,11 +635,19 @@ const styles = StyleSheet.create({
     position: 'absolute'
   },
 
+  planIconDisabled: {
+    opacity: 0.5,
+  },
+
   planName: {
     fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
     flex: 1,
+  },
+
+  planNameDisabled: {
+    opacity: 0.7,
   },
 
   cardBody: {
@@ -414,16 +678,28 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
 
+  priceTextDisabled: {
+    color: '#999999',
+  },
+
   priceNote: {
     fontSize: 16,
     color: '#666666',
     marginLeft: 4,
   },
 
+  priceNoteDisabled: {
+    color: '#AAAAAA',
+  },
+
   starIcon: {
     width: 24,
     height: 24,
     marginLeft: 8,
+  },
+
+  starIconDisabled: {
+    opacity: 0.5,
   },
 
   radioButton: {
@@ -440,6 +716,10 @@ const styles = StyleSheet.create({
   radioButtonSelected: {
     borderColor: colors.primary,
     backgroundColor: '#FFFFFF',
+  },
+
+  radioButtonDisabled: {
+    borderColor: '#E0E0E0',
   },
 
   radioButtonInner: {
@@ -464,10 +744,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
+  featureIconDisabled: {
+    opacity: 0.5,
+  },
+
   featureText: {
     fontSize: 15,
     color: '#333333',
     flex: 1,
+  },
+
+  featureTextDisabled: {
+    color: '#999999',
   },
 
   proceedButton: {

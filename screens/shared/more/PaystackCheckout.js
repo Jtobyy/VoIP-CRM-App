@@ -40,7 +40,7 @@ const PaystackCheckout = ({ route, navigation }) => {
     verifying.current = true;
     try {
       setLoading(true);
-      await api.post('/billings/wallet/fund/verify/', { reference: ref });
+      // await api.post('/billings/wallet/fund/verify/', { reference: ref });
       finishToMore();
     } catch (e) {
       handleApiError(e);
