@@ -11,16 +11,23 @@ import { colors } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 
 const PaymentSuccess = ({ route, navigation }) => {
-  const { reference, amount, subscriptionId } = route?.params || {};
+  const { 
+    reference, 
+    amount, 
+    subscriptionId,
+    paymentMethod = 'paystack',
+    subscription,
+    walletBalance 
+  } = route?.params || {};
 
   const handleGoHome = () => {
     // Navigate to your main screen (adjust route name as needed)
-    navigation.navigate('Home');
+    navigation.navigate('Main');
   };
 
   const handleViewSubscription = () => {
     // Navigate to subscription details (adjust route name as needed)
-    navigation.navigate('SubscriptionDetails', { id: subscriptionId });
+    navigation.navigate('SubscriptionAndPricing', { id: subscriptionId });
   };
 
   return (

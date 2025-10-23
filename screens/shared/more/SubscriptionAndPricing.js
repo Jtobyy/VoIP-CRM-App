@@ -56,7 +56,9 @@ const Subscription = ({ navigation }) => {
         setActiveSubscription({ plan: { id: FREE_PLAN_ID } });
       }
     } catch (error) {
-      console.log('No active subscription found - defaulting to free plan');
+      console.error('No active subscription found - defaulting to free plan');
+
+      handleApiError(error);
       // Default to free plan as active
       setHasActiveSubscription(false);
       setActiveSubscription({ plan: { id: FREE_PLAN_ID } });

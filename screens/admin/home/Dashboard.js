@@ -180,7 +180,7 @@ const REG_COLORS = {
   failed:   { bg: '#FFECEC', border: '#EF4444', dot: '#EF4444', text: '#6A0B0B', label: 'Failed' },
   cleared:  { bg: '#FFECEC', border: '#EF4444', dot: '#EF4444', text: '#6A0B0B', label: 'Signed out' },
   none:     { bg: '#F3F4F6', border: '#D1D5DB', dot: '#9CA3AF', text: '#374151', label: 'Not registered' },
-  unknown:  { bg: '#F3F4F6', border: '#D1D5DB', dot: '#9CA3AF', text: '#374151', label: 'Unknown' },
+  unknown:  { bg: '#F3F4F6', border: '#D1D5DB', dot: '#9CA3AF', text: '#374151', label: 'Not connected' },
 };
 
 const AdminDashboard = ({ navigation }) => {

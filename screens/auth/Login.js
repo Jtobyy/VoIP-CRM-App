@@ -154,6 +154,7 @@ const Login = ({ navigation }) => {
                   onChangeText={handlePhoneChange}
                   keyboardType="phone-pad"
                   placeholder="+234 803 567 0547"
+                  placeholderTextColor="#98A2B3"
                 />
               </View>
 
@@ -172,6 +173,7 @@ const Login = ({ navigation }) => {
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     placeholder="**********"
+                    placeholderTextColor="#98A2B3"
                   />
                   <TouchableOpacity 
                     style={styles.showButton}

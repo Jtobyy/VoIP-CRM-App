@@ -10,6 +10,7 @@ import {
   Image,
   Modal,
   FlatList,
+  Alert,
 } from 'react-native';
 import { colors } from '../../../styles/global';
 import { useApi } from '../../../hooks/useApi';
@@ -22,6 +23,7 @@ const MakePayment = ({ route, navigation }) => {
   const [availableDids, setAvailableDids] = useState([]);
   const [selectedDid, setSelectedDid] = useState(null);
   const [showDidPicker, setShowDidPicker] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const { api } = useApi();
   const { setLoading } = useLoading();
@@ -40,8 +42,23 @@ const MakePayment = ({ route, navigation }) => {
   useEffect(() => {
     if (!isFree) {
       fetchAvailableDids();
+      fetchWalletBalance();
     }
   }, [isFree]);
+
+  const fetchWalletBalance = async () => {
+    try {
+      // Update this endpoint to match your actual wallet balance endpoint
+      const res = await api.get('/billings/wallet/');
+      console.log('res is ', res)
+      if (res.data?.success && res.data?.wallet?.balance !== undefined) {
+        setWalletBalance(res.data.wallet.balance);
+      }
+    } catch (error) {
+      console.error('Failed to fetch wallet balance:', error);
+      // Don't show error to user, just keep balance at 0
+    }
+  };
 
   const fetchAvailableDids = async () => {
     setLoading(true);
@@ -67,17 +84,27 @@ const MakePayment = ({ route, navigation }) => {
   const paymentMethods = [
     {
       id: 'wallet',
-      label: `Pay via Wallet (₦${Number(totalPrice || 0).toLocaleString()})`,
+      label: `Pay via Wallet (Balance: ₦${walletBalance.toLocaleString()})`,
       value: 'wallet',
+      disabled: walletBalance < totalPrice,
     },
     {
-      id: 'card',
+      id: 'paystack',
       label: 'Pay via Debit/credit card',
-      value: 'card',
+      value: 'paystack',
+      disabled: false,
     }
   ];
 
   const handlePaymentMethodSelect = (method) => {
+    if (method.disabled) {
+      Alert.alert(
+        'Insufficient Balance',
+        `Your wallet balance (₦${walletBalance.toLocaleString()}) is less than the required amount (₦${totalPrice.toLocaleString()}). Please fund your wallet or use card payment.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     setSelectedPaymentMethod(method.id);
   };
 
@@ -86,15 +113,82 @@ const MakePayment = ({ route, navigation }) => {
     setShowDidPicker(false);
   };
 
+  const handleWalletPayment = async (payload) => {
+    try {
+      const res = await api.post('/billings/subscriptions/select-plan/', payload);
+
+      if (res.data?.success) {
+        // Wallet payment successful
+        Alert.alert(
+          'Payment Successful',
+          `Subscription activated successfully!\nAmount charged: ₦${res.data.amount_charged?.toLocaleString()}\nNew wallet balance: ₦${res.data.wallet_balance?.toLocaleString()}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate to success screen or home
+                navigation.navigate('PaymentSuccess', {
+                  paymentMethod: 'wallet',
+                  amount: res.data.amount_charged,
+                  subscription: res.data.subscription,
+                  walletBalance: res.data.wallet_balance,
+                });
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      // Handle wallet-specific errors
+      if (error.response?.data?.error === 'Insufficient wallet balance') {
+        const errorData = error.response.data;
+        Alert.alert(
+          'Insufficient Wallet Balance',
+          `Wallet Balance: ₦${errorData.wallet_balance?.toLocaleString()}\nRequired Amount: ₦${errorData.required_amount?.toLocaleString()}\nShortfall: ₦${errorData.shortfall?.toLocaleString()}\n\n${errorData.message}`,
+          [
+            {
+              text: 'Use Card Payment',
+              onPress: () => setSelectedPaymentMethod('paystack')
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
+        );
+      } else {
+        handleApiError(error);
+      }
+    }
+  };
+
+  const handlePaystackPayment = async (payload) => {
+    try {
+      const res = await api.post('/billings/subscriptions/select-plan/', payload);
+
+      if (res.data?.success) {
+        const { authorization_url, reference } = res.data;
+        navigation.navigate('PaystackCheckout', { 
+          url: authorization_url, 
+          reference,
+          subscriptionId: res.data.subscription_id,
+          totalAmount: res.data.total_amount,
+        });
+      }
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
+
   const handlePay = async () => {
     // Validate selections
     if (!isFree && !selectedDid) {
-     alert('Please select a phone number');
-     return;
+      Alert.alert('Error', 'Please select a phone number');
+      return;
     }
 
     if (!isFree && !selectedPaymentMethod) {
-      alert('Please select a payment method');
+      Alert.alert('Error', 'Please select a payment method');
       return;
     }
 
@@ -103,35 +197,34 @@ const MakePayment = ({ route, navigation }) => {
 
       // Prepare the payload
       const payload = {
-       plan_id: parseInt(plan.id),
-       // Only send selected_dids for paid plans
-       ...(!isFree && selectedDid
-         ? { selected_dids: [{ id: selectedDid.id, number: selectedDid.number }] }
-         : {}),
-       // Optional: if your backend needs extensions even for free plans
-       ...(isFree ? { extensions } : {}),
-     };
+        plan_id: parseInt(plan.id),
+        payment_method: selectedPaymentMethod, // 'wallet' or 'paystack'
+        // Only send selected_dids for paid plans
+        ...(!isFree && selectedDid
+          ? { selected_dids: [{ id: selectedDid.id, number: selectedDid.number }] }
+          : {}),
+        // Optional: if your backend needs extensions even for free plans
+        ...(isFree ? { extensions } : {}),
+      };
 
-     console.log('Initiating subscription payment:', payload);
+      console.log('Initiating subscription payment:', payload);
 
-      // Call select-plan API
-      const res = await api.post('/billings/subscriptions/select-plan/', payload);
+      // Handle free plan
+      if (isFree) {
+        const res = await api.post('/billings/subscriptions/select-plan/', payload);
+        if (res.data?.success) {
+          Alert.alert('Success', 'Free plan activated successfully', [
+            { text: 'OK', onPress: () => navigation.goBack() }
+          ]);
+        }
+        return;
+      }
 
-      if (res.data?.success) {
-        if (isFree) {
-         // No payment step — confirm and leave
-         // (swap this for your own success screen/snackbar)
-         alert('Free plan activated successfully');
-         navigation.goBack();
-       } else {
-         const { authorization_url, reference } = res.data;
-         navigation.navigate('PaystackCheckout', { 
-           url: authorization_url, 
-           reference,
-           subscriptionId: res.data.subscription_id,
-           totalAmount: res.data.total_amount,
-         });
-       }
+      // Handle paid plans based on payment method
+      if (selectedPaymentMethod === 'wallet') {
+        await handleWalletPayment(payload);
+      } else if (selectedPaymentMethod === 'paystack') {
+        await handlePaystackPayment(payload);
       }
     } catch (error) {
       console.error('Failed to initiate subscription payment:', error);
@@ -170,26 +263,26 @@ const MakePayment = ({ route, navigation }) => {
         {/* DID Selection Section */}
         {!isFree && (
           <View style={styles.didSelectionSection}>
-          <Text style={styles.sectionTitle}>Select Phone Number</Text>
-          
-          <TouchableOpacity
-            style={styles.didPickerButton}
-            onPress={() => setShowDidPicker(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.didPickerContent}>
-              {selectedDid ? (
-                <>
-                  <Text style={styles.didPickerLabel}>Phone Number</Text>
-                  <Text style={styles.didPickerValue}>{selectedDid.number}</Text>
-                </>
-              ) : (
-                <Text style={styles.didPickerPlaceholder}>Select a phone number</Text>
-              )}
-            </View>
-            <FontAwesome6 name="chevron-down" size={16} color="#666" iconStyle="solid" />
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.sectionTitle}>Select Phone Number</Text>
+            
+            <TouchableOpacity
+              style={styles.didPickerButton}
+              onPress={() => setShowDidPicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.didPickerContent}>
+                {selectedDid ? (
+                  <>
+                    <Text style={styles.didPickerLabel}>Phone Number</Text>
+                    <Text style={styles.didPickerValue}>{selectedDid.number}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.didPickerPlaceholder}>Select a phone number</Text>
+                )}
+              </View>
+              <FontAwesome6 name="chevron-down" size={16} color="#666" iconStyle="solid" />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Payment Summary Section */}
@@ -203,11 +296,11 @@ const MakePayment = ({ route, navigation }) => {
 
           {!isFree && (
             <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Phone Number Selected</Text>
-            <Text style={styles.summaryValue}>
-              {selectedDid ? selectedDid.number : 'Not selected'}
-            </Text>
-          </View>
+              <Text style={styles.summaryLabel}>Phone Number Selected</Text>
+              <Text style={styles.summaryValue}>
+                {selectedDid ? selectedDid.number : 'Not selected'}
+              </Text>
+            </View>
           )}
 
           <View style={styles.summaryRow}>
@@ -235,14 +328,28 @@ const MakePayment = ({ route, navigation }) => {
             {paymentMethods.map((method) => (
               <TouchableOpacity
                 key={method.id}
-                style={styles.paymentMethodCard}
+                style={[
+                  styles.paymentMethodCard,
+                  method.disabled && styles.paymentMethodCardDisabled
+                ]}
                 onPress={() => handlePaymentMethodSelect(method)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.paymentMethodLabel}>{method.label}</Text>
+                <View style={styles.paymentMethodContent}>
+                  <Text style={[
+                    styles.paymentMethodLabel,
+                    method.disabled && styles.paymentMethodLabelDisabled
+                  ]}>
+                    {method.label}
+                  </Text>
+                  {method.disabled && (
+                    <Text style={styles.insufficientText}>Insufficient balance</Text>
+                  )}
+                </View>
                 <View style={[
                   styles.radioButton,
-                  selectedPaymentMethod === method.id && styles.radioButtonSelected
+                  selectedPaymentMethod === method.id && styles.radioButtonSelected,
+                  method.disabled && styles.radioButtonDisabled
                 ]}>
                   {selectedPaymentMethod === method.id && (
                     <View style={styles.radioButtonInner} />
@@ -258,10 +365,10 @@ const MakePayment = ({ route, navigation }) => {
       <TouchableOpacity
         style={[
           styles.payButton,
-          !selectedDid && styles.payButtonDisabled
+          (!selectedDid && !isFree) && styles.payButtonDisabled
         ]}
         onPress={handlePay}
-        disabled={!selectedDid && !isFree}
+        disabled={(!selectedDid && !isFree)}
       >
         <Text style={styles.payButtonText}>
           {isFree ? 'Confirm' : 'Pay'}
@@ -270,62 +377,62 @@ const MakePayment = ({ route, navigation }) => {
 
       {/* DID Picker Modal */}
       {!isFree && (
-      <Modal
-        visible={showDidPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDidPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHandle} />
-              <View style={styles.modalTitleRow}>
-                <Text style={styles.modalTitle}>Select Phone Number</Text>
-                <TouchableOpacity onPress={() => setShowDidPicker(false)}>
-                  <FontAwesome6 name="xmark" size={24} color="#333" iconStyle="solid" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* DID List */}
-            <FlatList
-              data={availableDids}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.didList}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.didItem,
-                    selectedDid?.id === item.id && styles.didItemSelected
-                  ]}
-                  onPress={() => handleDidSelect(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.didItemContent}>
-                    <Text style={styles.didItemNumber}>{item.number}</Text>
-                    <Text style={styles.didItemId}>ID: {item.id}</Text>
-                  </View>
-                  <View style={[
-                    styles.radioButton,
-                    selectedDid?.id === item.id && styles.radioButtonSelected
-                  ]}>
-                    {selectedDid?.id === item.id && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No phone numbers available</Text>
+        <Modal
+          visible={showDidPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDidPicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHandle} />
+                <View style={styles.modalTitleRow}>
+                  <Text style={styles.modalTitle}>Select Phone Number</Text>
+                  <TouchableOpacity onPress={() => setShowDidPicker(false)}>
+                    <FontAwesome6 name="xmark" size={24} color="#333" iconStyle="solid" />
+                  </TouchableOpacity>
                 </View>
-              }
-            />
+              </View>
+
+              {/* DID List */}
+              <FlatList
+                data={availableDids}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.didList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.didItem,
+                      selectedDid?.id === item.id && styles.didItemSelected
+                    ]}
+                    onPress={() => handleDidSelect(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.didItemContent}>
+                      <Text style={styles.didItemNumber}>{item.number}</Text>
+                      <Text style={styles.didItemId}>ID: {item.id}</Text>
+                    </View>
+                    <View style={[
+                      styles.radioButton,
+                      selectedDid?.id === item.id && styles.radioButtonSelected
+                    ]}>
+                      {selectedDid?.id === item.id && (
+                        <View style={styles.radioButtonInner} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No phone numbers available</Text>
+                  </View>
+                }
+              />
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
       )}
     </View>
   );
@@ -493,10 +600,28 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
 
+  paymentMethodCardDisabled: {
+    backgroundColor: '#F5F5F5',
+    opacity: 0.7,
+  },
+
+  paymentMethodContent: {
+    flex: 1,
+  },
+
   paymentMethodLabel: {
     fontSize: 16,
     color: '#333',
-    flex: 1,
+  },
+
+  paymentMethodLabelDisabled: {
+    color: '#999',
+  },
+
+  insufficientText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
   },
 
   radioButton: {
@@ -512,6 +637,10 @@ const styles = StyleSheet.create({
   radioButtonSelected: {
     borderColor: colors.primary,
     backgroundColor: '#FFFFFF',
+  },
+
+  radioButtonDisabled: {
+    borderColor: '#DDD',
   },
 
   radioButtonInner: {

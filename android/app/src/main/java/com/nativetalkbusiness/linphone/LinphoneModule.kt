@@ -14,13 +14,19 @@ import org.linphone.core.ProxyConfig
 import org.linphone.core.RegistrationState
 import org.linphone.core.Core
 
-private fun regStateToString(s: RegistrationState?): String = when (s) {
-  RegistrationState.None     -> "none"
-  RegistrationState.Progress -> "progress"
-  RegistrationState.Ok       -> "ok"
-  RegistrationState.Cleared  -> "cleared"
-  RegistrationState.Failed   -> "failed"
-  else                       -> "unknown"
+private fun regStateToString(s: RegistrationState?): String {
+  val stateString = when (s) {
+    RegistrationState.None -> "none"
+    RegistrationState.Progress -> "progress"
+    RegistrationState.Ok -> "ok"
+    RegistrationState.Cleared -> "cleared"
+    RegistrationState.Failed -> "failed"
+    else -> "unknown"
+  }
+  
+  Log.i("LinphoneModule", "Registration state: $stateString")
+  Log.i("LinphoneModule", "Registration state: $s")
+  return stateString
 }
 
 class LinphoneModule(private val reactContext: ReactApplicationContext) :
@@ -71,21 +77,13 @@ class LinphoneModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun register(acc: ReadableMap) {
+      Log.i("LinphoneModule", "Registering with ${acc.getString("username")}, ${acc.getString("password")}, ${acc.getString("domain")}, ${acc.getString("transport")}")
       CoreManager.register(
         acc.getString("username") ?: "",
         acc.getString("password") ?: "",
         acc.getString("domain") ?: "",
-        acc.getString("transport")
+        acc.getString("transport") ?: "tcp"
       )
-    }
-
-    private fun stateToString(s: RegistrationState?): String = when (s) {
-      RegistrationState.None -> "none"
-      RegistrationState.Progress -> "progress"
-      RegistrationState.Ok -> "ok"
-      RegistrationState.Cleared -> "cleared"
-      RegistrationState.Failed -> "failed"
-      else -> "unknown"
     }
     
     @ReactMethod

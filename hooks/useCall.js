@@ -46,6 +46,19 @@ const fmt = (s) => { s = Math.max(0, Math.floor(s));
 
 const CallCtx = createContext(null);
 
+// Add this helper function near the top of your file, after the imports
+const formatTenantDomain = (domain) => {
+  if (!domain) return '';
+  
+  // Remove protocol (http:// or https://)
+  let cleaned = domain.replace(/^https?:\/\//, '');
+  
+  // Remove trailing slash
+  cleaned = cleaned.replace(/\/$/, '');
+  
+  return cleaned;
+};
+
 export function CallProvider({ children }) {
   // registration/call state
   const [registration, setRegistration] = useState(null);
@@ -64,7 +77,7 @@ export function CallProvider({ children }) {
   const startTsRef = useRef(null);
   const latestDurationRef = useRef(0);
   const [ending, setEnding] = useState(false);
-  const { sipConfig } = useAuth();
+  const { sipConfig, fetchSipConfig } = useAuth();
 
   
   useEffect(() => { 
@@ -107,6 +120,9 @@ export function CallProvider({ children }) {
 
       Lin.init();
       console.log("registering config ", sipConfig)
+      if (!sipConfig) {
+        fetchSipConfig();
+      }
       const ok = await askMicPerm(); if (!ok) { Alert.alert('Microphone permission denied'); return; }
       
       registerFn()
@@ -212,13 +228,14 @@ export function CallProvider({ children }) {
   const dial = useCallback(async (dest) => {
     resetDuration();
     if (!dest || dest.length < 1) { Alert.alert('Invalid Number'); return null; }
-    const uri = dest.includes('@') ? (dest.startsWith('sip:') ? dest : `sip:${dest}`) : `sip:${dest}@${sipConfig.tenant_domain}`;
+    const formattedDomain = formatTenantDomain(sipConfig.tenant_domain);
+    const uri = dest.includes('@') ? (dest.startsWith('sip:') ? dest : `sip:${dest}`) : `sip:${dest}@${formattedDomain}`;
     setCallStatus('Dialing…');
     Lin.call(uri);
     const initials = (dest || 'NA').substring(0,2).toUpperCase();
     navigate('OutgoingCall', { callId: Date.now().toString(), name: dest, phone: dest, location: 'Nigeria', initials });
     return null;
-  }, [resetDuration]);
+  }, [resetDuration, sipConfig]);
 
   const answer   = useCallback(async () => { 
     setIncoming(false); 
@@ -260,27 +277,30 @@ export function CallProvider({ children }) {
   }, []);
 
   const registerFn = useCallback(async () => {
-    console.log("registration in progress")
-    // Lin.register({
-    //   username: sipConfig.username,
-    //   password: sipConfig.password,
-    //   domain:   `${sipConfig.tenant_domain}`,
-    //   transport:'tcp',
-    // });
+    let data = {
+      username: sipConfig.username,
+      password: sipConfig.password,
+      domain:   formatTenantDomain(sipConfig.tenant_domain),
+      transport:'udp',
+    }
+    console.log("registration in progress with", data)
+    Lin.register(data);
+
     // Lin.register({
     //   username: "89449582622196",
     //   password: "dkGW2RQ3",
     //   domain:   `unativetalk_demo33.nativetalk.io:5060`,
     //   transport:'tcp',
     // });
-    Lin.register({
-      username: "100",
-      password: "Tesojueh2",
-      domain:   'tesojueh481.dashboard.nativetalk.com.ng:5061',
-      transport:'tcp',
-    });
+    // Lin.register({
+    //   username: "100",
+    //   password: "Tesojueh2",
+    //   domain:   'tesojueh481.dashboard.nativetalk.com.ng:5061',
+    //   transport:'tcp',
+    // });
     console.log("registration done")
-  }, []);
+    console.log("registration done")
+  }, [sipConfig]);
 
   const unregister = useCallback(async () => {
     // disables registration on the default proxy

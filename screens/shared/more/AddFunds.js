@@ -20,7 +20,7 @@ const AddFunds = ({ navigation }) => {
   // Enable when: only digits and > 0
   const canPay = /^\d+$/.test(amount) && parseInt(amount, 10) > 0;
 
-   const initiateTopUp = async () => {
+  const initiateTopUp = async () => {
     try {
       setLoading(true);
       // 1) Initiate
@@ -28,15 +28,19 @@ const AddFunds = ({ navigation }) => {
       const res = await api.post('/billings/wallet/fund/initiate/', payload);
       const { authorization_url, reference } = res.data;
 
-      // 2) Go to WebView and watch for redirect (we’ll verify there)
-      navigation.navigate('PaystackCheckout', { url: authorization_url, reference });
+      // 2) Go to WebView and watch for redirect (we'll verify there)
+      navigation.navigate('PaystackCheckout', { 
+        url: authorization_url, 
+        reference,
+        isWalletTopUp: true, // Add this flag
+        totalAmount: parseFloat(amount) // Pass the amount for display
+      });
     } catch (e) {
       handleApiError(e);
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,7 +90,7 @@ const AddFunds = ({ navigation }) => {
           </View>
 
           <Text style={styles.infoText}>
-            You’ll be redirected to a secure Paystack checkout to enter your payment details.
+            You'll be redirected to a secure Paystack checkout to enter your payment details.
           </Text>
 
           <Image
@@ -107,6 +111,7 @@ const AddFunds = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      
       <ConfirmTopUpModal
         visible={showConfirm}
         amount={amount}
@@ -168,4 +173,3 @@ const styles = StyleSheet.create({
 });
 
 export default AddFunds;
-

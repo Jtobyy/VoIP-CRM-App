@@ -24,16 +24,49 @@ const More = ({ navigation }) => {
   const {company} = useAuth()
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState('0.00')
+  const [creditBalance, setCreditBalance] = useState(0);
+  const [creditCurrency, setCreditCurrency] = useState('NGN');
   const [dids, setDids] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const { api } = useApi();
   const { setLoading } = useLoading();
 
-    useEffect(() => {
+  useEffect(() => {
     fetchUserProfile();
     fetchWalletBalance();
+    fetchCreditBalance();
     fetchDids();
   }, []);
+
+  const getCurrencySymbol = (currencyCode) => {
+    if (currencyCode === 'NGN') {
+      return '₦';
+    }
+    // Default to dollar sign for all other currencies
+    return '$';
+  };
+
+  const fetchCreditBalance = async () => {
+    try {
+      const res = await api.get('/billings/pbx-credits/balance/');
+      console.log('Credit balance response:', res);
+      
+      // Extract balance
+      const b =
+        res.data?.balance ??
+        res.data?.credit_balance ??
+        res.data?.credits?.balance ??
+        0;
+      
+      // Extract currency code
+      const currency = res.data?.currency_code ?? 'NGN';
+      
+      setCreditBalance(Number(b) || 0);
+      setCreditCurrency(currency);
+    } catch (error) {
+      console.error('Failed to fetch call credit balance:', error);
+    }
+  };
 
   const fetchUserProfile = async () => {
     setLoading(true);
@@ -42,7 +75,7 @@ const More = ({ navigation }) => {
       const data = res.data.user;
       console.log('Fetched user data:',data)
       setUser(data);
-      console.log;('User profile fetched:',data)
+      console.log('User profile fetched:',data)
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
       
@@ -79,6 +112,7 @@ const More = ({ navigation }) => {
       await Promise.all([
         fetchUserProfile(),
         fetchWalletBalance(),
+        fetchCreditBalance(),
         fetchDids()
       ]);
     } finally {
@@ -111,22 +145,6 @@ const More = ({ navigation }) => {
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('SubscriptionAndPricing'),
     },
-    // {
-    //   id: 'native-number',
-    //   title: 'My Nativetalk Number',
-    //   icon: require('../../../assets/ic_manage.png'),
-    //   iconColor: '#22C55E',
-    //   backgroundColor: '#DCFCE7',
-    //   onPress: () => navigation.navigate('NativetalkNumber'),
-    // },
-    // {
-    //   id: 'settings',
-    //   title: 'Settings',
-    //   icon: require('../../../assets/ic_lock.png'),
-    //   iconColor: '#22C55E',
-    //   backgroundColor: '#DCFCE7',
-    //   onPress: () => navigation.navigate('Settings'),
-    // },
     {
       id: 'help',
       title: 'Help & Support',
@@ -176,6 +194,10 @@ const More = ({ navigation }) => {
 
   const handleAddFunds = () => {
     navigation.navigate('AddFunds');
+  };
+
+  const handleBuyCredit = () => {
+    navigation.navigate('BuyCallCredit');
   };
 
   const renderMenuItem = (item) => (
@@ -258,7 +280,7 @@ const More = ({ navigation }) => {
               <Text style={styles.phoneLabel}>
                 MY HOTLINE{dids.length > 1 ? 'S' : ''}
               </Text>
-              
+
               {dids.length === 0 ? (
                 <TouchableOpacity 
                   style={styles.phoneNumberContainer}
@@ -319,13 +341,31 @@ const More = ({ navigation }) => {
         <View style={styles.balanceContent}>
           <View>
             <Text style={styles.balanceLabel}>Acct. Balance</Text>
-            <Text style={[typography.heading2, {fontWeight: 'bold'}]}>{`₦${balance}`}</Text>
+            <Text style={[typography.heading3, {fontWeight: 'bold'}]}>{`₦${balance}`}</Text>
           </View>
           <TouchableOpacity 
             style={styles.addFundsButton}
             onPress={handleAddFunds}
           >
             <Text style={styles.addFundsText}>Add funds</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Call Credit Balance Card */}
+      <View style={[styles.balanceCard, styles.creditCard]}>
+        <View style={styles.balanceContent}>
+          <View>
+            <Text style={styles.balanceLabel}>Call Credit Balance</Text>
+            <Text style={[typography.heading3, { fontWeight: 'bold' }]}>
+              {`${getCurrencySymbol(creditCurrency)}${creditBalance.toLocaleString()}`}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addFundsButton}
+            onPress={handleBuyCredit}
+          >
+            <Text style={styles.addFundsText}>Buy credit</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -361,7 +401,7 @@ const styles = StyleSheet.create({
   },
   header: {
     width: '100%',
-    paddingTop: 20,
+    paddingTop: 10,
     paddingBottom: 40,
     paddingHorizontal: 0,
     borderBottomLeftRadius: 30,
@@ -376,7 +416,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   headerTitle: {
     fontSize: typography.heading3.fontSize,
@@ -402,7 +442,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     borderWidth: 3,
     borderColor: 'white',
-    marginBottom: 13,
+    marginBottom: 8,
     overflow: 'hidden',
   },
   profileImage: {
@@ -413,7 +453,7 @@ const styles = StyleSheet.create({
     fontSize: typography.heading3.fontSize,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 13,
+    marginBottom: 8,
   },
   phoneContainer: {
     alignItems: 'center',
@@ -464,7 +504,7 @@ const styles = StyleSheet.create({
     marginTop: -32,
     backgroundColor: '#E7F7E1',
     borderRadius: 15,
-    paddingVertical: 15,
+    paddingVertical: 7,
     paddingHorizontal: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -472,6 +512,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     zIndex: 1,
+  },
+  creditCard: {
+    marginTop: 12,
+    backgroundColor: '#EAF3FF',
   },
   balanceContent: {
     flexDirection: 'row',
@@ -501,7 +545,7 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     flex: 1,
-    marginTop: 20,
+    marginTop: 10,
   },
   menuContent: {
     paddingHorizontal: 20,
@@ -511,9 +555,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    paddingVertical: 16,
+    paddingVertical: 13,
     paddingHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 8,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -522,8 +566,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   menuIcon: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
@@ -535,7 +579,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
-   avatarContainer: {
+  avatarContainer: {
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 10,
@@ -546,12 +590,11 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   avatarFallback: {
-  flex: 1,
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#E7F7E1',
-},
-
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E7F7E1',
+  },
 });
 
 export default More;

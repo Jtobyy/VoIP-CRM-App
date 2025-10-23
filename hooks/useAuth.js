@@ -70,6 +70,16 @@ export const AuthProvider = ({ children }) => {
 
   const fetchSipConfig = async (accessToken) => {
     try {
+      const storedUser = await AsyncStorage.getItem('user');
+
+      if (!accessToken && storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+
+        if (parsedUser?.access) {
+          fetchSipConfig(parsedUser.access);
+        }
+      }
+
       const res = await axios.get(`https://staging.core.nativetalkcrm.com/api/call-center/pbx/credentials/`, {
         headers: {
           Authorization: `Bearer ${accessToken || user.access}`
