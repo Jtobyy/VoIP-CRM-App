@@ -614,7 +614,7 @@ const AdminDashboard = ({ navigation }) => {
           {/* Add User Button */}
           <View style={styles.usersCard}>
             <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
-              <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
+              <Text style={styles.statTitle}>TOTAL NUMBER OF TEAM MEMBERS</Text>
               <Text style={styles.statValue}>{stats?.total_users}</Text>
             </TouchableOpacity>
             {

@@ -80,6 +80,13 @@ const UsersList = ({ navigation }) => {
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'N/A'}</Text>
               <Text style={styles.userPhone}>{user.phone_number || 'N/A'}</Text>
+                <View style={styles.rolesContainer}>
+                {(user.roles || []).map((role) => (
+                  <View key={role.id} style={styles.roleTag}>
+                    <Text style={styles.roleTagText}>{role.name}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
             <TouchableOpacity style={styles.menuButton}>
               <FontAwesome6 name="ellipsis-vertical" iconStyle='solid' size={20} color="#666" />
@@ -177,12 +184,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   emptyText: {
-  textAlign: 'center',
-  marginTop: 20,
-  color: '#888',
-  fontSize: 16,
-  fontStyle: 'italic',
-}
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#888',
+    fontSize: 16,
+    fontStyle: 'italic',
+  },
+  rolesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  roleTag: {
+    backgroundColor: '#e0e7ff', // Light blue, adjust as needed
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  roleTagText: {
+    fontSize: 12,
+    color: '#2743fd', // Match your primary brand color
+    fontWeight: '500',
+  },
+
 
 });
 

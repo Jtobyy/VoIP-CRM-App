@@ -1,5 +1,8 @@
-import React,{useState,useEffect,useMemo} from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Image,Modal, } from 'react-native';
+import React,{useState,useEffect,useMemo, useCallback, useRef} from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, 
+  FlatList, ScrollView, Image,
+  Modal, RefreshControl, 
+  ImageBackground, AppState} from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import Avatar from '../../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -12,31 +15,23 @@ import { useUnread } from '../../shared/notifications/UnreadProvider';
 import { BellButton } from '../../../components/Bell';
 import ActivityBreakdownChart from '../../../components/GroupedBarCharts';
 import ChannelsDonutCard from '../../../components/ChannelsDonut';
+import EnableNotificationsBanner from '../../../components/EnableNotificationsBanner';
+import useCall from '../../../hooks/useCall';
+import messaging from '@react-native-firebase/messaging';
 
 
 const PREVIEW_LEN = 80;
 const cleanPreview = (s = '') =>
   String(s)
-    .replace(/\*\*(.*?)\*\*/g, '$1')      // drop **markdown**
-    .replace(/[_`>#*-]/g, '')             // drop leftover md chars
-    .replace(/\s+/g, ' ')                  // collapse whitespace/newlines
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/[_`>#*-]/g, '')
+    .replace(/\s+/g, ' ')
     .trim()
     .slice(0, PREVIEW_LEN) + (s && s.length > PREVIEW_LEN ? '…' : '');
 
 // ---- date helpers ----
 const pad2 = n => (n < 10 ? `0${n}` : `${n}`);
 const toYMD = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-
-const channelStats = [
-  { name: 'WhatsApp', value: 69 },
-  { name: 'Facebook', value: 11 },
-  { name: 'Instagram', value: 11 },
-  { name: 'Live Chat', value: 7 },
-  { name: 'SMS', value: 4 },
-  // { name: 'Telegram', value: 3 },
-  // { name: 'Email', value: 2 },
-  // { name: 'Call Center', value: 1 },
-];
 
 // returns { label, start_date, end_date }
 const buildRange = (key) => {
@@ -60,9 +55,6 @@ const buildRange = (key) => {
     case '30d':
       start.setDate(start.getDate() - 30);
       return { label: 'Last 30 days', start_date: toYMD(start), end_date: toYMD(end) };
-    case 'thisMonth':
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { label: 'This month', start_date: toYMD(start), end_date: toYMD(end) };
     default:
       start.setDate(start.getDate() - 1);
       return { label: 'Last 24 hrs', start_date: toYMD(start), end_date: toYMD(end) };
@@ -71,15 +63,12 @@ const buildRange = (key) => {
 
 const RANGE_OPTIONS = [
   { key: '24h', label: 'Last 24 hrs' },
-  { key: '48h', label: 'Last 48 hrs' },   // NEW
+  { key: '48h', label: 'Last 48 hrs' },
   { key: '3d',  label: 'Last 3 days' }, 
   { key: '7d',  label: 'Last 7 days' },
   { key: '30d', label: 'Last 30 days' },
-  { key: 'thisMonth', label: 'This month' },
-  // { key: 'custom', label: 'Custom range' }, // wire up later if needed
 ];
 
-// helpers stay the same
 const pctArrow = (v) => (v > 0 ? '▲' : v < 0 ? '▼' : '•');
 const pctNumber = (v) => `${Math.abs(v).toFixed(1)}%`;
 const pctColor = (v) => (v > 0 ? '#16A34A' : v < 0 ? '#DC2626' : '#6B7280');
@@ -115,171 +104,434 @@ const AvatarGroup = ({ items = [], max = 5, size = 32, onOverflowPress }) => {
   );
 };
 
+const extractPhoneNumber = (callLog) => {
+  let phoneNumber = callLog.customer_name;
 
+  const callerId = phoneNumber;
+  
+  // Remove quotes and backslashes
+  let cleaned = callerId.replace(/["\\/]/g, '');
+  
+  // Try to extract number from "Name <number>" or "<number>" format
+  const angleMatch = cleaned.match(/<([^>]+)>/);
+  if (angleMatch) {
+    phoneNumber = angleMatch[1];
+  } else {
+    // Just use the cleaned string
+    phoneNumber = cleaned;
+  }
+  
+  // remove any remaining special characters except + and digits
+  phoneNumber = phoneNumber.replace(/[^\d+]/g, '');
+  
+  return phoneNumber;
+};
+
+const transformHourlyActivity = (hourlyActivity) => {
+  if (!hourlyActivity || hourlyActivity.length === 0) {
+    return {
+      hours: [],
+      calls: [],
+      messages: [],
+      maxY: 10
+    };
+  }
+
+  // Extract and format the data
+  const hours = hourlyActivity.map(item => {
+    // Convert "13:00" to "1PM" format
+    const hour = parseInt(item.hour.split(':')[0]);
+    if (hour === 0) return '12AM';
+    if (hour < 12) return `${hour}AM`;
+    if (hour === 12) return '12PM';
+    return `${hour - 12}PM`;
+  });
+
+  const calls = hourlyActivity.map(item => item.call_count);
+  const messages = hourlyActivity.map(item => item.message_count);
+
+  // Calculate appropriate maxY (round up to nearest 10, minimum 10)
+  const maxValue = Math.max(...calls, ...messages);
+  const maxY = maxValue === 0 ? 10 : Math.ceil(maxValue / 10) * 10;
+
+  return { hours, calls, messages, maxY };
+};
+
+const getBusiestChannelInsight = (busiestChannel) => {
+  if (!busiestChannel || !busiestChannel.total_messages) {
+    return {
+      message: 'No activity recorded today',
+      hasIcon: false
+    };
+  }
+
+  const { name, total_messages, icon } = busiestChannel;
+  
+  return {
+    icon: icon,
+    hasIcon: !!icon
+  };
+};
+
+const normReg = (s) => String(s || '').toLowerCase(); // 'Ok' | 'ok' → 'ok'
+const REG_COLORS = {
+  ok:    { bg: '#E8FFF1', border: '#34C759', dot: '#34C759', text: '#0B3D23', label: 'Connected' },
+  progress: { bg: '#FFF9E6', border: '#F59E0B', dot: '#F59E0B', text: '#5A3B00', label: 'Connecting…' },
+  failed:   { bg: '#FFECEC', border: '#EF4444', dot: '#EF4444', text: '#6A0B0B', label: 'Failed' },
+  cleared:  { bg: '#FFECEC', border: '#EF4444', dot: '#EF4444', text: '#6A0B0B', label: 'Signed out' },
+  none:     { bg: '#F3F4F6', border: '#D1D5DB', dot: '#9CA3AF', text: '#374151', label: 'Not registered' },
+  unknown:  { bg: '#F3F4F6', border: '#D1D5DB', dot: '#9CA3AF', text: '#374151', label: 'Not connected' },
+};
 
 const AgentDashboard = ({ navigation }) => {
-  const {company} = useAuth()
+  const { fetchCompanyDetails, company } = useAuth();
   const { canInviteUsers } = useAuth();
-  console.log('company:',company)
+  const { register, dial, registrationStatus } = useCall();
 
   const goToCustomers = () => {
-  navigation.navigate('Main', { screen: 'Customers' });  // Tab screen name
-};
+    navigation.navigate('Main', { screen: 'Customers' }); 
+  };
  
-  const [deltas, setDeltas] = useState({ calls_pct: 10.5, msgs_pct: 10.5 });
+  const [deltas, setDeltas] = useState({ calls_pct: 0, msgs_pct: 0 });
 
   const [rangeKey, setRangeKey] = useState('24h');
-const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
+  const [rangeMenuOpen, setRangeMenuOpen] = useState(false);
 
   const {api} = useApi()
   const { loading,setLoading } = useLoading();
   const { handleApiError } = useError();
   const [stats, setStats] = useState({
-  total_calls: 0, total_messages: 0, total_users: 0
-});
-const [activeChannels, setActiveChannels] = useState([]);     // array of {id,name,icon,...}
-const [newLeads, setNewLeads] = useState([]);                 // array of leads
-const [returningLeads, setReturningLeads] = useState([]);     // array of leads
-const [recentConversations, setRecentConversations] = useState([]);
-const recentActivities = useMemo(() => {
-  return (recentConversations || []).map(c => ({
-    id: String(c.conversation_id),
-    conversation_id: c.conversation_id,          // 👈 keep for convenience
-    lead_id: c.lead_id,                           // 👈 needed for contactId
-    name: c.lead_name || `Lead #${c.lead_id}`,
-    type: 'message',
-    text: cleanPreview(c?.latest_message?.content || ''),
-    time: formatChatTime(c?.latest_message?.created_at),
-    rawTimestamp: c?.latest_message?.created_at,  // optional
-    profile_pic: undefined,                       // add when you have it
-    channel_icon: c?.channel?.icon ? { uri: c.channel.icon } : undefined,
-    channel: { image: c?.channel?.icon ? { uri: c.channel.icon } : undefined }, // 👈 matches MessageList shape
-  }));
-}, [recentConversations]);
-
-
-useEffect(() => {
-  const { start_date, end_date } = buildRange(rangeKey);
-  fetchDashboard({ start_date, end_date });
-}, [rangeKey]);
-
-
-const fetchDashboard = async ({ start_date, end_date }) => {
-  try {
-    setLoading(true);
-    // 🔁 call your API. adjust URL/params to match your backend.
-    const res = await api.get('analytics/summary/mobile/', {
-      params: { start_date, end_date },
-    });
-     const d = res?.data?.data || {};
-    setStats({
-      total_calls: d.total_calls ?? 0,
-      total_messages: d.total_messages ?? 0,
-      total_users: d.total_users ?? 0,
-    });
-    setActiveChannels(Array.isArray(d.active_channels) ? d.active_channels : []);
-    setNewLeads(Array.isArray(d.new_leads) ? d.new_leads : []);
-    setReturningLeads(Array.isArray(d.returning_leads) ? d.returning_leads : []);
-    setRecentConversations(Array.isArray(d.recent_conversations) ? d.recent_conversations: []);
-    console.log('stats:',stats)
-  } catch (e) {
-    handleApiError?.(e);
-  } finally {
-    setLoading(false);
-  }
-};
-
-const hasNew = (newLeads || []).length > 0;
-const hasReturning = (returningLeads|| []).length > 0;
-
-// choose card width based on data presence
-const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
-
-const handleActivityPress = (item) => {
-  if (item.type !== 'message') return;  // only for messages (as requested)
-
-  navigation.navigate('ConversationScreen', {
-    contactId: item.lead_id,   // 👈 same key name your MessageList uses
-    contact: {
-      id: item.lead_id,
-      name: item.name,
-      image: item.profile_pic,
-      channel: item.channel,                 // { image: { uri: ... } }
-      lastMessageData: { content: item.text },
-      last_message_at: item.rawTimestamp,
-    },
-    // optional if ConversationScreen supports it:
-    conversationId: item.conversation_id,
+    total_calls: 0, total_messages: 0, total_users: 0
   });
-};
+  const [activeChannels, setActiveChannels] = useState([]);     // array of {id,name,icon,...}
+  const [newLeads, setNewLeads] = useState([]);                 // array of leads
+  const [returningLeads, setReturningLeads] = useState([]);     // array of leads
+  const [recentConversations, setRecentConversations] = useState([]);
+  const [channelsStats, setChannelsStats] = useState([]);
+  const [insight, setInsight] = useState();
+  const [refreshing, setRefreshing] = useState(false);
+  const [insightRemark, setInsightRemark] = useState();
 
+  const [checkingReg, setCheckingReg] = useState(false);
+  const [regState, setRegState] = useState(normReg(registrationStatus['_j']?.state))
+  const color = REG_COLORS[regState] || REG_COLORS.unknown;
+
+  const [regUser, setRegUser] = useState(registrationStatus['_j']?.username || '');
+  const [regDomain, setRegDomain] = useState(registrationStatus['_j']?.domain || '');
+  
+  const regLine = regState === 'ok'
+    ? (regUser && regDomain ? `${regUser}@${regDomain}` : color.label)
+    : (color.label);
+  
+  const onPressRegistration = async () => {
+    try {
+      setCheckingReg(true);
+
+      await register();
+    } catch (e) {
+      // no-op; pill will still show current status
+    } finally {
+      setCheckingReg(false);
+    }
+  };
+
+  useEffect(() => {
+    setRegState(normReg(registrationStatus['_j']?.state))
+    setRegUser(registrationStatus['_j']?.username || '')
+    setRegDomain(registrationStatus['_j']?.domain || '')
+    console.log('registration status is ', registrationStatus)
+  }, [registrationStatus])
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const { start_date, end_date } = buildRange(rangeKey);
+      await fetchDashboard({ start_date, end_date });
+      await register();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const [hourlyActivity, setHourlyActivity] = useState({
+    hours: [],
+    calls: [],
+    messages: [],
+    maxY: 10
+  });
+
+  useEffect(() => {
+    const { start_date, end_date } = buildRange(rangeKey);
+    fetchDashboard({ start_date, end_date });
+
+    messaging().onMessage(async (remoteMessage) => {
+      quietRefresh()
+    });
+  }, [rangeKey]);
+
+  const transformRecentActivity = (item) => {
+    const isCallLog = item.last_message.type == 'call';
+    
+    if (isCallLog) {
+      // Handle call log
+      const callLog = item;
+      const metadata = callLog.metadata || {};
+      const direction = (callLog.last_message.metadata.call_direction || '').toLowerCase();
+      const duration = callLog.last_message.metadata.duration || 0;
+      
+      let callType = 'incoming';
+      let callText = 'Incoming call';
+      
+      if (direction === 'outbound') {
+        callType = 'outgoing';
+        callText = 'Outgoing call';
+      } else if (direction === 'inbound' && duration === 0) {
+        callType = 'missed';
+        callText = 'Missed call';
+      }
+
+      const phoneNumber = extractPhoneNumber(callLog);
+
+      return {
+        id: `call_${callLog.id}_${item.id}`,
+        conversation_id: null,
+        lead_id: item.id,
+        name: item.customer_name || item.unique_identifier || 'Unknown',
+        type: 'call',
+        text: callText,
+        time: formatChatTime(callLog.created_at),
+        rawTimestamp: callLog.created_at,
+        profile_pic: item.profileImage || undefined,
+        channel_icon: item.channel?.image ? { uri: item.channel.image } : undefined,
+        channel: item.channel ? { image: item.channel?.image ? { uri: item.channel.image } : undefined } : undefined,
+        callDirection: direction,
+        callDuration: duration,
+        callStatus: callType,
+        phoneNumber: phoneNumber,
+      };
+    } else {
+      // Handle message
+      if (!item.last_message) return null;
+
+      return {
+        id: String(item.id),
+        conversation_id: item.last_message?.conversation || null,
+        lead_id: item.lead?.id,
+        name: item?.customer_name || item.lead?.name || 'Unknown',
+        type: 'message',
+        text: cleanPreview(item.last_message.content || ''),
+        time: formatChatTime(item?.last_message?.updated_at),
+        rawTimestamp: item?.last_message?.updated_at,
+        profile_pic: item?.customer?.image || item?.last_message?.lead_receiver_details?.image || item?.last_message?.user_sender_details?.image || undefined,
+        channel_icon: item?.last_message?.channel?.image ? { uri: item.last_message.channel.image } : undefined,
+        channel: item.last_message?.channel ? { image: item.last_message?.channel?.image ? { uri: item.last_message?.channel.image } : undefined } : undefined,
+        unreadCount: item.unreadCount || 0,
+      };
+    }
+  };
+
+  const recentActivities = useMemo(() => {
+    return (recentConversations || [])
+      .map(transformRecentActivity)
+      .filter(item => item !== null);
+  }, [recentConversations]);
+
+  const fetchDashboard = useCallback(async ({ start_date, end_date }, opts = {}) => {
+    const { silent = false } = opts;
+    console.log('[Dashboard] fetching data for range');
+
+    try {
+      console.log('[Dashboard] fetching data for range', start_date, end_date, 'silent:', silent);
+      if (!silent) setLoading(true);
+
+      // Fetch analytics data
+      const res = await api.get('analytics/summary/mobile/dashboard/', {
+        params: { start_date, end_date },
+      });
+      const d = res?.data?.data || {};
+      
+      setStats({
+        total_calls: d.total_calls?.count ?? 0,
+        total_messages: d.total_messages?.count ?? 0,
+        total_users: d.total_users ?? 0,
+        total_new_leads: d.new_leads?.count,
+        total_returning_leads: d.returning_leads?.count
+      });
+      
+      setDeltas({
+        calls_pct: d.total_calls.percent_change,
+        msgs_pct: d.total_messages.percent_change
+      });
+      
+      setChannelsStats(Array.isArray(d.messages_per_channel) ? d.messages_per_channel.map(c => ({
+        name: c.name,
+        value: c.total_messages,
+        icon: c.icon,
+      })) : []);
+      
+      setActiveChannels(Array.isArray(d.messages_per_channel) ? d.messages_per_channel : []);
+      setNewLeads(d.new_leads.data);
+      setReturningLeads(d.returning_leads.data);
+      
+      setInsight(getBusiestChannelInsight(d.busiest_channel));
+      setInsightRemark(d.remark);
+      
+      setHourlyActivity(
+        d.hourly_activity ? transformHourlyActivity(d.hourly_activity) : {
+          hours: [],
+          calls: [],
+          messages: [],
+          maxY: 10
+        }
+      );
+  
+      // Fetch recent activities from contacts endpoint
+      const contactsRes = await api.get('/communication/recent/', {
+        params: {
+          page_size: 5,
+          page: 1
+        },
+      });
+      
+      const contactResults = Array.isArray(contactsRes?.data?.results) ? contactsRes.data.results : [];
+      setRecentConversations(contactResults);
+      
+      console.log('[Dashboard] fetch complete, silent:', silent);
+    } catch (e) {
+      console.log('[Dashboard] fetch error:', e?.message);
+      if (!silent) handleApiError?.(e);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [api, setLoading, handleApiError]);
+
+  // choose card width based on data presence
+  const halfOrFull = (isHalf) => [styles.statCard, isHalf ? styles.cardHalf : styles.cardFull];
+
+  const handleActivityPress = (item) => {
+    if (item.type === 'call') {
+      // For calls, dial the number
+      if (item.phoneNumber) {
+        dial(item.phoneNumber);
+      } else {
+        console.warn('No phone number available for this call');
+      }
+      return;
+    }
+  
+    // For messages
+    navigation.navigate('ConversationScreen', {
+      contactId: item.lead_id || item.customer_id,
+      contact: {
+        id: item.lead_id || item.customer_id,
+        name: item.name,
+        image: item.profile_pic,
+        channel: item.channel,
+        lastMessageData: { content: item.text },
+        last_message_at: item.rawTimestamp,
+      },
+      conversationId: item.conversation_id,
+    });
+  };
 
   const handleSeeAllPress = () => {
     navigation.navigate('RecentActivities');
-  };  
+  }; 
 
   const handleDialerPress = () => {
     navigation.navigate('Dialer');
   };
 
- const RecentEmpty = ({ onPress }) => (
-  <View style={styles.emptyWrap}>
-    <Text style={styles.emptyEmoji}>💬</Text>
-    <Text style={styles.emptyTitle}>No recent activity</Text>
-    <Text style={styles.emptySub}>
-      New messages and calls will show up here.
-    </Text>
-{/* 
-    <TouchableOpacity style={styles.emptyBtn} onPress={onPress}>
-      <Text style={styles.emptyBtnText}>View messages</Text>
-    </TouchableOpacity> */}
-  </View>
-);
+  const RecentEmpty = ({ onPress }) => (
+    <View style={styles.emptyWrap}>
+      <Text style={styles.emptyEmoji}>💬</Text>
+      <Text style={styles.emptyTitle}>No recent activity</Text>
+      <Text style={styles.emptySub}>
+        New messages and calls will show up here.
+      </Text>
+    </View>
+  );
+
+  // ---- silent/queued refresh helpers ----
+  const quietRefresh = useCallback(async () => {
+    const { start_date, end_date } = buildRange(rangeKey);
+    await fetchDashboard({ start_date, end_date }, { silent: true });
+  }, [rangeKey, fetchDashboard]);
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-         <View style={styles.headerRow}>
-            <Text
-              style={styles.greeting}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              Hi, {company?.name} 😊
+      <EnableNotificationsBanner />
+      {/* SIP registration pill */}
+      <TouchableOpacity
+          onPress={onPressRegistration}
+          activeOpacity={0.85}
+          style={[
+            styles.regBadge,
+            { backgroundColor: color.bg, borderColor: color.border }
+          ]}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Text style={[styles.regDot, { color: color.dot }]}>•</Text>
+          <Text
+            style={[styles.regText, { color: color.text }]}
+            numberOfLines={1}
+          >
+            {checkingReg
+              ? 'Checking…'
+              : regLine}
           </Text>
+      </TouchableOpacity>
 
-         <View style={styles.headerActions}>
-             {/* Range dropdown trigger */}
-             <TouchableOpacity
-                onPress={() => setRangeMenuOpen(true)}
-                style={styles.rangePill}
-                 activeOpacity={0.85}
-               >
-              <Text style={styles.rangePillText}>
-                   {RANGE_OPTIONS.find(o => o.key === rangeKey)?.label}
-              </Text>
-               {/* caret without needing an asset */}
-                   <Text style={styles.caretText}>▾</Text>
-            </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <Text
+          style={styles.greeting}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          Hi, {company?.name} 😊
+        </Text>
 
-              {/* Bell (your bell.png already has the red dot) */}
-            <BellButton style={styles.BellButton} hitSlop={{top:10,left:10,bottom:10,right:10}} navigation={navigation}/>
-           </View>
+        <View style={styles.headerActions}>
+          {/* Range dropdown trigger */}
+          <TouchableOpacity
+            onPress={() => setRangeMenuOpen(true)}
+            style={styles.rangePill}
+              activeOpacity={0.85}
+            >
+            <Text style={styles.rangePillText}>
+                  {RANGE_OPTIONS.find(o => o.key === rangeKey)?.label}
+            </Text>
+              {/* caret without needing an asset */}
+                  <Text style={styles.caretText}>▾</Text>
+          </TouchableOpacity>
+
+          {/* Bell (your bell.png already has the red dot) */}
+          <BellButton style={styles.BellButton} hitSlop={{top:10,left:10,bottom:10,right:10}} navigation={navigation}/>
         </View>
+      </View>
 
-
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Stats Grid */}
         <View style={styles.statsContainer}>
           <TouchableOpacity style={[styles.statCard, {backgroundColor: '#E0EDFF'}]}>
-             <Text style={styles.statTitle}>TOTAL CALLS</Text>
+            <Text style={styles.statTitle}>TOTAL CALLS</Text>
             <Text style={styles.statValue}>{stats?.total_calls}</Text>
-          <View style={styles.deltaRow}>
-             <Text style={[styles.deltaNumber, { color: pctColor(deltas.calls_pct) }]}>
-                {pctArrow(deltas.calls_pct)} {pctNumber(deltas.calls_pct)}
-            </Text>
-            <Text style={styles.deltaSuffix}> vs yesterday</Text>
-          </View>
+            <View style={styles.deltaRow}>
+              <Text style={[styles.deltaNumber, { color: pctColor(deltas.calls_pct) }]}>
+                  {pctArrow(deltas.calls_pct)} {pctNumber(deltas.calls_pct)}
+              </Text>
+              {/* <Text style={styles.deltaSuffix}> vs yesterday</Text> */}
+            </View>
           </TouchableOpacity>
 
           <View style={[styles.statCard, {backgroundColor: '#EAF8E5'}]}>
@@ -289,152 +541,120 @@ const handleActivityPress = (item) => {
              <Text style={[styles.deltaNumber, { color: pctColor(deltas.msgs_pct) }]}>
                 {pctArrow(deltas.msgs_pct)} {pctNumber(deltas.msgs_pct)}
              </Text>
-              <Text style={styles.deltaSuffix}> vs yesterday</Text>
+              {/* <Text style={styles.deltaSuffix}> vs yesterday</Text> */}
           </View>
+        </View>
+
+        {stats.total_new_leads > 0 ? (
+        <View style={halfOrFull(stats.total_returning_leads > 0)}>
+          <Text style={styles.statTitleCompact} numberOfLines={1}>NEW CUSTOMERS</Text>
+          <Text style={styles.bigCount}>{stats.total_new_leads}</Text>
+          <AvatarGroup items={newLeads} max={(stats.total_returning_leads ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
+        </View>
+        ): null}
+
+        {stats.total_returning_leads > 0 ? (
+          <View style={halfOrFull(stats.total_new_leads)}>
+            <Text style={styles.statTitleCompact} numberOfLines={1}>RETURNING CUSTOMERS</Text>
+            <Text style={styles.bigCount}>{stats.total_returning_leads}</Text>
+            <AvatarGroup items={returningLeads} max={(stats.total_new_leads > 0 ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
           </View>
-
-                  {/* {activeChannels.length > 0 && (
-  <View style={[styles.statCard, { backgroundColor: '#F2F2F2' }]}>
-    <Text style={styles.statTitle}>MOST ACTIVE CHANNELS</Text>
-    <Text style={styles.bigCount}>{activeChannels.length}</Text>
-    <AvatarGroup items={activeChannels} max={5} size={32}  onOverflowPress={goToCustomers}/>
-  </View>
-)} */}
-
-  {hasNew && (
-  <View style={halfOrFull(hasReturning)}>
-    <Text style={styles.statTitleCompact} numberOfLines={1}>NEW CUSTOMERS</Text>
-    <Text style={styles.bigCount}>{newLeads.length}</Text>
-    <AvatarGroup items={newLeads} max={(hasReturning ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
-  </View>
-)}
-
-{hasReturning && (
-  <View style={halfOrFull(hasNew)}>
-    <Text style={styles.statTitleCompact} numberOfLines={1}>RETURNING CUSTOMERS</Text>
-    <Text style={styles.bigCount}>{returningLeads.length}</Text>
-    <AvatarGroup items={returningLeads} max={(hasNew ? 5 : 10)} size={32} onOverflowPress={goToCustomers} />
-  </View>
-)}
-
+        ): null}
+        
         </View>
-
-        {/* Channels Donut */ }
-        <View style={{ marginTop:8, marginBottom:20}} >
-          <ChannelsDonutCard channels={channelStats} />
-        </View>
-
-       {/* Activity chart */}
-        <View style={{ marginTop: 8, marginBottom: 20 }}>
-             <ActivityBreakdownChart 
-             hours={['8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM',]}
-             calls={[18,35,30,55,40,22,18,25,44,30,]}
-             messages={[30,28,40,80,60,48,32,55,60,52]}
-             maxY={100}
-             />
-         </View>
-          
-        {/* Insights  */}
-<View style={styles.insightsCard}>
-  <Text style={styles.insightsHeading}>Insights</Text>
-  <View style={styles.insightsContent}>
-    <View style={styles.insightsIconWrap}>
-      <Image source={require('../../../assets/instagram.png')} style={{ width: 18, height: 18 }} />
-    </View>
-    <Text style={styles.insightsMessage}>Instagram is your busiest channel today</Text>
-  </View>
-</View>
-
-  
-
-        {/* Add User Button */}
-        <View style={styles.usersCard}>
-          <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
-            <Text style={styles.statTitle}>TOTAL NUMBER OF USERS</Text>
-            <Text style={styles.statValue}>{stats?.total_users}</Text>
-          </TouchableOpacity>
-          {
-            canInviteUsers && (
-          <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
-            <Text style={styles.addUserText}>Invite users</Text>
-          </TouchableOpacity>
-            )
-          }
-        </View>
-
-        {/* Recent Activities */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={typography.heading2}>Recent Activities</Text>
-            <TouchableOpacity 
-              style={styles.seeAllButton}
-              onPress={handleSeeAllPress}>
-              <Text style={styles.seeAllText}>See all</Text>
+          {/* Add User Button */}
+          <View style={styles.usersCard}>
+            <TouchableOpacity onPress={() => navigation.navigate('Users')} style={{width: '40%'}}>
+              <Text style={styles.statTitle}>TEAM MEMBERS</Text>
+              <Text style={styles.statValue}>{stats?.total_users}</Text>
             </TouchableOpacity>
+            {
+              canInviteUsers && (
+            <TouchableOpacity style={styles.addUserButton} onPress={() => navigation.navigate('AddUser')}>
+              <Text style={styles.addUserText}>Invite users</Text>
+            </TouchableOpacity>
+              )
+            }
           </View>
-        {recentActivities.length > 0 ? (
-   <FlatList
-            data={recentActivities}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-            <TouchableOpacity
-                   style={styles.activityItem}
-                   onPress={() => handleActivityPress(item)}
-                  activeOpacity={0.8}
-                >
-              <View style={styles.activityItem}>
-                <Avatar 
-                  name={item.name} 
-                  size={50} 
-                  style={{ marginRight: 10 }}
-                  image={item?.profile_pic}
-                  badge={item?.channel_icon}
-                />
+          {/* Recent Activities */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={typography.heading2}>Recent Activities</Text>
+              <TouchableOpacity 
+                style={styles.seeAllButton}
+                onPress={handleSeeAllPress}>
+                <Text style={styles.seeAllText}>See all</Text>
+              </TouchableOpacity>
+            </View>
+            {recentActivities.length > 0 ? (
+              <FlatList
+                  data={recentActivities}
+                  keyExtractor={item => item.id}
+                  renderItem={({ item }) => (
+                  <TouchableOpacity
+                        style={styles.activityItem}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleActivityPress(item)
+                        }}
+                        activeOpacity={0.8}
+                      >
+                    <View style={styles.activityItem}>
+                      <Avatar 
+                        name={item.name} 
+                        size={50} 
+                        style={{ marginRight: 10 }}
+                        image={item?.profile_pic}
+                        badge={item?.channel_icon}
+                      />
 
-                <View style={styles.activityContent}>
-                  <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                    <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
-                     {item.name}
-                </Text>
-                    {item.type == 'call' &&
-                      <View style={{flexDirection: 'row', gap: 8}}>
-                        <Text style={styles.activityTime}>{item.time}</Text>
-                        <Image
-                          source={require('../../../assets/info.png')} 
-                          style={styles.infoIcon}
-                          resizeMode="contain"
-                        />
+                      <View style={styles.activityContent}>
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                          <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
+                            {item.name}
+                          </Text>
+                          {item.type == 'call' &&
+                            <View style={{flexDirection: 'row', gap: 8}}>
+                              <Text style={styles.activityTime}>{item.time}</Text>
+                              <Image
+                                source={require('../../../assets/call_ic.png')} 
+                                style={styles.makeCallIcon}
+                                resizeMode="contain"
+                              />
+                            </View>
+                          }
+                        </View>
+
+                        <View style={styles.activitySnippetRow}>
+                            {item.type === 'call' && item.text === 'Missed call' && (
+                          <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
+                          )}
+                            {item.type === 'call' && item.text === 'Outgoing call' && (
+                          <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
+                          )}
+                            {item.type === 'call' && item.text === 'Incoming call' && (
+                            <Image source={require('../../../assets/incoming.png')} style={styles.infoIcon} resizeMode="contain" />
+                        )}
+
+                      <Text
+                        style={styles.activitySnippet}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                          {item.text}
+                      </Text>
+                    </View>
+
                       </View>
-                    }
-                  </View>
-
-                  <View style={styles.activitySnippetRow}>
-                      {item.type === 'call' && item.text === 'Missed call' && (
-                     <Image source={require('../../../assets/missed.png')} style={styles.infoIcon} resizeMode="contain" />
-                    )}
-                      {item.type === 'call' && item.text === 'Outgoing call' && (
-                    <Image source={require('../../../assets/outgoing.png')} style={styles.infoIcon} resizeMode="contain" />
+                    </View>
+                  </TouchableOpacity>
                   )}
-
-                 <Text
-                  style={styles.activitySnippet}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                     {item.text}
-                </Text>
-              </View>
-
-                </View>
-              </View>
-            </TouchableOpacity>
-            )}
-            scrollEnabled={false}
-          />
-         ) : (
-              !loading && <RecentEmpty onPress={handleSeeAllPress} />
-         )}
-        </View>
+                  scrollEnabled={false}
+                />
+              ) : (
+                    !loading && <RecentEmpty onPress={handleSeeAllPress} />
+              )}
+          </View>
       </ScrollView>
       
       <TouchableOpacity
@@ -455,40 +675,48 @@ const handleActivityPress = (item) => {
           resizeMode="contain"
         />
       </TouchableOpacity>
+
       <Modal
-  visible={rangeMenuOpen}
-  transparent
-  animationType="fade"
-  onRequestClose={() => setRangeMenuOpen(false)}
->
-  <TouchableOpacity
-    style={styles.modalBackdrop}
-    activeOpacity={1}
-    onPress={() => setRangeMenuOpen(false)}
-  >
-    <View style={styles.menuCard}>
-      {RANGE_OPTIONS.map(opt => (
+        visible={rangeMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRangeMenuOpen(false)}
+      >
         <TouchableOpacity
-          key={opt.key}
-          style={[styles.menuItem, opt.key === rangeKey && styles.menuItemActive]}
-          onPress={() => { setRangeKey(opt.key); setRangeMenuOpen(false); }}
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setRangeMenuOpen(false)}
         >
-          <Text
-            style={[styles.menuItemText, opt.key === rangeKey && styles.menuItemTextActive]}
-          >
-            {opt.label}
-          </Text>
+          <View style={styles.menuCard}>
+            {RANGE_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.menuItem, opt.key === rangeKey && styles.menuItemActive]}
+                onPress={() => { setRangeKey(opt.key); setRangeMenuOpen(false); }}
+              >
+                <Text
+                  style={[styles.menuItemText, opt.key === rangeKey && styles.menuItemTextActive]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </TouchableOpacity>
-      ))}
-    </View>
-  </TouchableOpacity>
-</Modal>
+        </Modal>
 
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  hotlineContainer: {
+    width: '100%',
+    paddingTop: 15, 
+    paddingBottom: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -507,7 +735,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 0,
     paddingBottom: 20,
   },
   statsContainer: {
@@ -519,6 +747,7 @@ const styles = StyleSheet.create({
   statCard: {
     width: '48%',
     borderRadius: 10,
+    borderColor: '#DFE1E6',
     padding: 15,
     marginTop: 15,
   },
@@ -543,6 +772,10 @@ const styles = StyleSheet.create({
   infoIcon: {
     width: 18,
     height: 18
+  },
+  makeCallIcon: {
+    width: 25,
+    height: 25
   },
   statValue: {
     fontSize: typography.heading1.fontSize,
@@ -621,7 +854,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
   paddingHorizontal: 20,
-  paddingTop: 80,
+  paddingTop: 10,
   paddingBottom: 20,
   backgroundColor: '#F7F7F7',
   flexDirection: 'row',
@@ -778,12 +1011,13 @@ insightsContent: {
   justifyContent: 'center',    // center the whole row like the Figma
   gap: 10,
   paddingVertical: 4,
+  paddingHorizontal: 16,
 },
 
 insightsIconWrap: {
-  width: 34,
-  height: 34,
-  borderRadius: 17,
+  width: 25,
+  height: 25,
+  borderRadius: 12,
   backgroundColor: '#F6F7FB',  // subtle oval/pill background
   alignItems: 'center',
   justifyContent: 'center',
@@ -802,6 +1036,34 @@ statTitleCompact: {
   marginBottom: 6,
   letterSpacing: 0.2,
 },
+unreadBadge: {
+  backgroundColor: colors.primary,
+  borderRadius: 10,
+  minWidth: 20,
+  height: 20,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingHorizontal: 6,
+  marginTop: 4,
+},
+unreadText: {
+  color: '#ffffff',
+  fontSize: 12,
+  fontWeight: 'bold',
+},
+missedText: {
+  color: '#F44336',
+},
+regBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  paddingHorizontal: 10,
+  paddingVertical: 3,
+  gap: 3,
+},
+regDot: { fontSize: 30, lineHeight: 10 },
+regText: { fontSize: 12, fontWeight: '700' },
 
 });
 

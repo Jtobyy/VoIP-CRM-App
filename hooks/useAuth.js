@@ -115,33 +115,55 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password, navigation) => {
-    try {
-      const formattedPhone = formatPhoneNumber(username);
+    // Helper for actual API call
+    const tryLogin = async (phone, useFormatted) => {
+      const formattedPhone = useFormatted ? formatPhoneNumber(phone) : phone;
       const { token: fcmToken, platform } = await getFcmTokenForLogin({ timeoutMs: 1500 });
 
-      console.log(
-        'fcmToken', fcmToken,
-        'platform', platform
-      )
-      const res = await axios.post('https://staging.core.nativetalkcrm.com/api/auth/mobile/signin/', {
+      console.log('fcmToken', fcmToken, 'platform', platform);
+
+      return axios.post('https://staging.core.nativetalkcrm.com/api/auth/mobile/signin/', {
         phone_number: formattedPhone,
         password,
         fcm_token: fcmToken || "",
       });
+    };
 
-      const data = res.data;
-    
+    try {
+      // First attempt: with formatting
+      let response, data;
+      try {
+        response = await tryLogin(username, true);
+        data = response.data;
+      } catch (err) {
+        // Retry, but only if formatting changed the username
+        let cleaned = username.replace(/\s+/g, '')
+        console.log('formatPhoneNumber(username)', formatPhoneNumber(username), 'username', cleaned)
+        if (formatPhoneNumber(username) !== cleaned) {
+          try {
+            response = await tryLogin(cleaned, false);
+            data = response.data;
+          } catch (err2) {
+            console.error('Login error (no formatting):', err2);
+            showSnackbar(err2?.response?.data?.detail || 'Login failed', 'error');
+            return { success: false, error: err2 };
+          }
+        } else {
+          console.error('Login error:',err);
+          showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
+          return { success: false, error: err };
+        }
+      }
+
       // === Case A: user is not yet verified ===
       if (data?.verified === false && !data?.access) {
         showSnackbar(data?.message || 'OTP sent to your phone number.', 'info');
-
         navigation.navigate('OTPVerification', {
-          phoneNumber: formattedPhone,
+          phoneNumber: formatPhoneNumber(username),
           password,         
           companyName: '',
           flowType: 'login',
         });
-
         return { needsVerification: true };
       }
 
@@ -150,32 +172,27 @@ export const AuthProvider = ({ children }) => {
         const invitePerm = await fetchInvitePermission(data.user_id, data.access);
         const userPayload = {
           ...data,
-          permissions: {
-            inviteUsers: invitePerm,
-          },
+          permissions: { inviteUsers: invitePerm }
         };
         setUser(userPayload);
         setIsAuthenticated(true);
         await AsyncStorage.setItem('user', JSON.stringify(userPayload));
         try { LinphoneModule.startNativeServices(); } catch {}
-
         fetchCompanyDetails(data.access);
         fetchSipConfig(data.access);
-
         showSnackbar('Login successful!', 'success');
         return { success: true };
       }
 
-      // Unexpected response shape
       showSnackbar(data?.message || 'Unexpected login response', 'error');
       return { success: false };
     } catch (err) {
-      console.error('Login error:',err)
-      console.log('response:', err?.response?.status, err?.response?.data);
+      console.error('Login error:',err);
       showSnackbar(err?.response?.data?.detail || 'Login failed', 'error');
       return { success: false, error: err };
     }
   };
+
 
   const logout = async () => {
     try {

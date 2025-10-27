@@ -63,7 +63,7 @@
 	<array>
 		<string>audio</string>
 		<string>remote-notification</string>
-		<string>push-to-talk</string>
+		<!-- <string>push-to-talk</string> -->
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
@@ -85,5 +85,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+  	<string>Allow camera to take photos/videos for chats and profile updates.</string>
 </dict>
 </plist>

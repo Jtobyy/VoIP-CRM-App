@@ -122,30 +122,6 @@ const More = ({ navigation }) => {
 
   const menuItems = [
     {
-      id: 'link-social',
-      title: 'Link Social Media',
-      icon: require('../../../assets/ic_link.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('ConnectChannels'),
-    },
-    {
-      id: 'users',
-      title: 'Users',
-      icon: require('../../../assets/ic_customers.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('Users'),
-    },
-    {
-      id: 'subscription',
-      title: 'Subscription and Pricing',
-      icon: require('../../../assets/ic_subscription.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('SubscriptionAndPricing'),
-    },
-    {
       id: 'help',
       title: 'Help & Support',
       icon: require('../../../assets/ic_help.png'),
@@ -343,12 +319,6 @@ const More = ({ navigation }) => {
             <Text style={styles.balanceLabel}>Acct. Balance</Text>
             <Text style={[typography.heading3, {fontWeight: 'bold'}]}>{`₦${balance}`}</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.addFundsButton}
-            onPress={handleAddFunds}
-          >
-            <Text style={styles.addFundsText}>Add funds</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -504,7 +474,7 @@ const styles = StyleSheet.create({
     marginTop: -32,
     backgroundColor: '#E7F7E1',
     borderRadius: 15,
-    paddingVertical: 7,
+    paddingVertical: 15,
     paddingHorizontal: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

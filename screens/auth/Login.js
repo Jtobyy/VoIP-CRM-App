@@ -18,7 +18,6 @@ import { useSnackbar } from '../../hooks/useSnackbar';
 import { useLoading } from '../../hooks/useLoading';
 import axios from 'axios';
 import { useError } from '../../hooks/useError'
-import {formatPhoneNumber} from '../../utils/phone'
 
 
 const { width } = Dimensions.get('window');
@@ -75,7 +74,7 @@ const Login = ({ navigation }) => {
   const handleLogin = async () => {
     try {
       setLoading(true);
-      await login(formatPhoneNumber(username), password, navigation);
+      await login(username, password, navigation);
     } finally {
       setLoading(false);
     }
@@ -89,7 +88,7 @@ const Login = ({ navigation }) => {
 
   try {
     setLoading(true);
-    const formattedPhone = formatPhoneNumber(username);
+    const formattedPhone = username;
 
     const res = await axios.post(
       'https://staging.core.nativetalkcrm.com/api/auth/mobile/forgot-password/send-otp/',

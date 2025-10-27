@@ -36,7 +36,7 @@ useEffect(() => {
 const fetchUserProfile = async () => {
   setLoading(true);
   try {
-    const res = await api.get(`/users/me`);
+    const res = await api.get(`/users/me/`);
     const data = res.data.user;
 
     setUser(data);
@@ -47,7 +47,7 @@ const fetchUserProfile = async () => {
       lastName: data.last_name || '',
       phone: data.phone_number || '',
       email: data.email || '',
-      gender: data.gender || '',
+      gender: data.gender || 'male',
       created_at:formatDateTime(data.created_at) || '',
     });
 
@@ -187,23 +187,68 @@ const handleEditProfile = async () => {
           />
 
           <Text style={styles.label}>Gender</Text>
-          <View style={styles.input}>
+          <View style={styles.pickerContainer}>
             <RNPickerSelect
-                onValueChange={(value) => handleChange('gender', value)}
-                items={[
-                      { label: 'Male', value: 'male' },
-                      { label: 'Female', value: 'female' },
-                    ]}
-                value={form.gender}
-                
-                placeholder={{ label: 'Select gender', value: null }}
-                style={{
-                    inputIOS: { color: '#000' },
-                    inputAndroid: { color: '#000' },
-                    placeholder: { color: '#999' }
+              onValueChange={(value) => {
+                console.log('Gender selected:', value);
+                handleChange('gender', value);
+              }}
+              items={[
+                { label: 'Male', value: 'male' },
+                { label: 'Female', value: 'female' },
+              ]}
+              value={form.gender}
+              placeholder={{ label: 'Select gender', value: null }}
+              useNativeAndroidPickerStyle={false}
+              touchableWrapperProps={{
+                activeOpacity: 0.7,
+              }}
+              pickerProps={{
+                style: { color: '#000' }
+              }}
+              style={{
+                inputIOS: {
+                  backgroundColor: '#F8F8F8',
+                  borderRadius: 8,
+                  paddingHorizontal: 15,
+                  paddingVertical: 12,
+                  paddingRight: 40, // Make room for icon
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  fontSize: 16,
+                  color: '#000',
+                },
+                inputAndroid: {
+                  backgroundColor: '#F8F8F8',
+                  borderRadius: 8,
+                  paddingHorizontal: 15,
+                  paddingVertical: 12,
+                  paddingRight: 40,
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  fontSize: 16,
+                  color: '#000',
+                },
+                placeholder: { 
+                  color: '#999',
+                  fontSize: 16,
+                },
+                iconContainer: {
+                  top: 15,
+                  right: 15,
+                },
+              }}
+              Icon={() => {
+                return <FontAwesome6 
+                  name="chevron-down" 
+                  iconStyle='solid' 
+                  size={16} 
+                  color="#999" 
+                  style={styles.icon}
+              />
               }}
             />
-        </View>
+          </View>
 
         <Text style={styles.label}>Username (Phone number)</Text>
         <TextInput
@@ -380,6 +425,8 @@ const styles = StyleSheet.create({
 disabledInput: {
   backgroundColor: '#f3f4f6', // light gray
   color: '#9ca3af', // darker gray text
-}
+},  pickerContainer: {
+    marginBottom: 15,
+  },
 
 });

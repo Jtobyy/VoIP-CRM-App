@@ -3,12 +3,12 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
 import { SafeAreaView } from 'react-native'; 
-import AdminDashboard from '../screens/admin/home/Dashboard';
+import AgentDashboard from '../screens/agent/home/Dashboard';
 import CustomersList from '../screens/shared/customers/CustomersList';
 import MessagesList from '../screens/shared/messages/MessagesList';
 import { colors } from '../styles/global';
 import CallLogs from '../screens/shared/calls/CallLogs';
-import More from '../screens/shared/more/More';
+import More from '../screens/agent/more/More';
 
 
 const Tab = createBottomTabNavigator();
@@ -40,7 +40,7 @@ const AgentTabNavigator = () => {
     >
       <Tab.Screen 
         name="Home" 
-        component={AdminDashboard}
+        component={AgentDashboard}
         options={{
           tabBarIcon: ({ color }) => (
             <FontAwesome6 name="house" iconStyle='solid' size={TAB_ICON_SIZE} color={color} />

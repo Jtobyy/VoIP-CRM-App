@@ -49,7 +49,7 @@ const UserDetails = ({ route,navigation }) => {
   const fetchUserDetails = async () => {
     setLoading(true);
     try {
-      const {data} = await api.get(`/users/${userId}`)
+      const {data} = await api.get(`/users/${userId}/`)
       console.log('data.user',data.user)
       setUser(data?.user);
     } catch (err) {
@@ -135,17 +135,24 @@ const deleteUser = async()=>{
 
       {/* Avatar */}
      <View style={styles.avatarContainer}>
-  {user?.image ? (
-    <Image source={{ uri: user.image }} style={styles.avatarImage} />
-  ) : (
-    <View style={styles.avatarCircle}>
-      <Text style={styles.avatarText}>
-        {`${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}`.toUpperCase()}
-      </Text>
-    </View>
-  )}
-  <Text style={styles.customerName}>{`${user?.first_name || ''} ${user?.last_name || ''}`.trim()}</Text>
-</View>
+        {user?.image ? (
+          <Image source={{ uri: user.image }} style={styles.avatarImage} />
+        ) : (
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>
+              {`${user?.first_name?.[0] || ''}${user?.last_name?.[0] || ''}`.toUpperCase()}
+            </Text>
+          </View>
+        )}
+        <Text style={styles.customerName}>{`${user?.first_name || ''} ${user?.last_name || ''}`.trim()}</Text>
+        <View style={styles.rolesContainer}>
+        {(user?.roles || []).map((role) => (
+          <View key={role.id} style={styles.roleTag}>
+            <Text style={styles.roleTagText}>{role.name}</Text>
+          </View>
+        ))}
+      </View>
+      </View>
 
       {/* Info */}
       <View style={styles.infoRow}>
@@ -570,4 +577,23 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     tintColor: 'gray',
   },  
+  rolesContainer: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  marginTop: 6,
+},
+roleTag: {
+  backgroundColor: '#e0e7ff', // or match your brand color
+  paddingHorizontal: 8,
+  paddingVertical: 3,
+  borderRadius: 9,
+  marginRight: 6,
+  marginBottom: 4,
+},
+roleTagText: {
+  fontSize: 12,
+  color: '#2743fd', // adjust as needed
+  fontWeight: '500',
+},
+
 });
