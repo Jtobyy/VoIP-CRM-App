@@ -25,7 +25,11 @@ const PaystackCheckout = ({ route, navigation }) => {
     subscriptionId,
     totalAmount,
     isWalletTopUp = false, // wallet top-up flag
-    isCallCredit = false // call credit flag
+    isCallCredit = false, // call credit flag
+    isDidPurchase = false, // DID purchase flag
+    monthlyRecurring,
+    didCount,
+    selectedDids,
   } = route.params || {};
   
   const { api } = useApi();
@@ -75,7 +79,7 @@ const PaystackCheckout = ({ route, navigation }) => {
         }
       } 
       else if (isCallCredit) {
-        // Call credit payment verification - FIXED ENDPOINT
+        // Call credit payment verification
         const response = await api.post('/billings/pbx-credits/verify/', {
           reference: ref
         });
@@ -90,8 +94,32 @@ const PaystackCheckout = ({ route, navigation }) => {
           handleApiError(new Error('Verification failed'));
           navigation.goBack();
         }
-      } else {
-        // Subscription payment verification - FIXED ENDPOINT
+      }
+      else if (isDidPurchase) {
+        // DID purchase payment verification
+        const response = await api.post('/billings/dids/purchase/verify/', {
+          reference: ref
+        });
+        
+        if (response.data?.success) {
+          navigation.navigate('DidPurchaseSuccess', {
+            reference: ref,
+            amount: totalAmount,
+            monthlyRecurring: monthlyRecurring,
+            didCount: didCount,
+            paymentMethod: 'paystack',
+            dids: selectedDids,
+          });
+        } else {
+          Alert.alert(
+            'Verification Failed',
+            response.data?.message || 'Unable to verify payment. Please contact support.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        }
+      } 
+      else {
+        // Subscription payment verification
         const response = await api.post('/billings/subscriptions/select-plan/verify/', {
           reference: ref
         });
@@ -121,7 +149,7 @@ const PaystackCheckout = ({ route, navigation }) => {
       setLoading(false);
       verifying.current = false;
     }
-  }, [api, navigation, setLoading, handleApiError, isWalletTopUp, isCallCredit, totalAmount, subscriptionId]);
+  }, [api, navigation, setLoading, handleApiError, isWalletTopUp, isCallCredit, isDidPurchase, totalAmount, subscriptionId, monthlyRecurring, didCount, selectedDids]);
 
   // Intercept BEFORE loading the page
   const onShouldStart = useCallback((request) => {

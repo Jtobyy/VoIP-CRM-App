@@ -154,6 +154,14 @@ const More = ({ navigation }) => {
       onPress: () => navigation.navigate('HelpSupport'),
     },
     {
+      id: 'manage',
+      title: 'Manage Account',
+      icon: require('../../../assets/ic_manage_account.png'),
+      iconColor: '#22C55E',
+      backgroundColor: '#DCFCE7',
+      onPress: () => navigation.navigate('ManageAccount'),
+    },
+    {
       id: 'logout',
       title: 'Log out',
       icon: require('../../../assets/ic_logout.png'),

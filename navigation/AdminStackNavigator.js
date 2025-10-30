@@ -24,7 +24,8 @@ import SubscriptionAndPricing from '../screens/shared/more/SubscriptionAndPricin
 import SubscriptionMakePayment from '../screens/shared/more/SubscriptionMakePayment';
 import PaymentSuccess from '../screens/shared/more/PaymentSuccess';
 import BuyCallCredit from '../screens/shared/more/BuyCallCredit';
-
+import DidPurchaseSuccess from '../screens/shared/more/DidPurchase';
+import ManageAccount from '../screens/shared/more/ManageAccount';
 
 const Stack = createNativeStackNavigator();
 
@@ -47,9 +48,11 @@ const AdminStackNavigator = () => {
       <Stack.Screen name="OutgoingCall" component={OutgoingCallScreen} />
       <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
       <Stack.Screen name="HotLinesList" component={HotLinesList} />
+      <Stack.Screen name="DidPurchase" component={DidPurchaseSuccess} />
 
       <Stack.Screen name="EditProfile" component={EditProfile} />
       <Stack.Screen name="EditUser" component={EditUser} />
+      <Stack.Screen name="ManageAccount" component={ManageAccount} />
 
       <Stack.Screen name="Notifications" component={Notifications} />
 
