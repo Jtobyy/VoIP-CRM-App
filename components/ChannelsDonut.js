@@ -10,7 +10,6 @@ const BRAND_COLORS = {
   sms: '#0EA5E9',
   telegram: '#26A5E4',
   email: '#F59E0B',
-  'call center': '#FF8A00',
 };
 
 const FALLBACK = ['#115BC7', '#8B5CF6', '#06B6D4', '#EF4444', '#10B981', '#A3A3A3'];

@@ -22,10 +22,16 @@ const HotlinesList = ({ navigation }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [activeSubscription, setActiveSubscription] = useState(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [plans, setPlans] = useState([]);
   
   const { api } = useApi();
   const { setLoading } = useLoading();
   const { handleApiError } = useError();
+
+  const FREE_PLAN_ID = 3;
+  const PRICE_PER_DID = 2500;
 
   // Image mapping
   const imageMap = {
@@ -44,13 +50,49 @@ const HotlinesList = ({ navigation }) => {
     { bg: '#FF8A65', icon: '#E64A19', headerBg: '#FFAB91', image: 'lightorangect' },
   ];
 
-  // Price per DID (monthly recurring)
-  const PRICE_PER_DID = 2500;
+  const fetchCurrentSubscription = async () => {
+    try {
+      const res = await api.get('/billings/subscriptions/current/');
+      
+      if (res.data?.success && res.data?.subscription?.is_active) {
+        const subscription = res.data.subscription;
+        setActiveSubscription(subscription);
+        // Check if it's a premium (non-free) subscription
+        setHasActiveSubscription(subscription.plan?.id !== FREE_PLAN_ID);
+      } else {
+        setHasActiveSubscription(false);
+        setActiveSubscription(null);
+      }
+    } catch (error) {
+      console.error('No active subscription found');
+      setHasActiveSubscription(false);
+      setActiveSubscription(null);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const res = await api.get('/billings/plans/mobile/');
+      
+      if (res.data?.success && res.data?.plans) {
+        // Find the first premium (non-free) plan
+        const premiumPlan = res.data.plans.find(plan => parseFloat(plan.price) > 0);
+        setPlans(res.data.plans);
+        
+        // Store the premium plan for subscription purchase
+        if (premiumPlan) {
+          setPlans(prev => [...prev, { premiumPlan }]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch plans:', error);
+    }
+  };
 
   const fetchDids = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/call-center/pbx/available-dids/`);
+      const res = await api.get('/call-center/pbx/available-dids/');
       setDids(res.data?.data || []);
     } catch (error) {
       console.error('Failed to fetch DIDs:', error);
@@ -72,14 +114,16 @@ const HotlinesList = ({ navigation }) => {
   };
 
   useEffect(() => {
+    fetchCurrentSubscription();
+    fetchPlans();
     fetchDids();
     fetchWalletBalance();
   }, []);
 
   const handleDidSelect = (did) => {
     setSelectedDids(prev => {
-      const exists = prev.find(d => d.id === did.id);
-      if (exists) {
+      const isSelected = prev.some(d => d.id === did.id);
+      if (isSelected) {
         return prev.filter(d => d.id !== did.id);
       } else {
         return [...prev, did];
@@ -87,7 +131,19 @@ const HotlinesList = ({ navigation }) => {
     });
   };
 
-  const totalAmount = selectedDids.length * PRICE_PER_DID;
+  // Calculate total based on scenario
+  const calculateTotal = () => {
+    if (hasActiveSubscription) {
+      // Scenario 2: Active premium subscription - buying additional DIDs
+      return selectedDids.length * PRICE_PER_DID;
+    } else {
+      // Scenario 1: No subscription or free plan - subscription cost
+      const premiumPlan = plans.find(plan => parseFloat(plan.price) > 0);
+      return premiumPlan ? parseFloat(premiumPlan.price) : 0;
+    }
+  };
+
+  const totalAmount = calculateTotal();
 
   const paymentMethods = [
     {
@@ -116,29 +172,109 @@ const HotlinesList = ({ navigation }) => {
     setSelectedPaymentMethod(method.id);
   };
 
-  const handleWalletPayment = async (payload) => {
+  // Handle subscription payment (Scenario 1)
+  const handleSubscriptionPayment = async (paymentMethod) => {
     try {
-      const res = await api.post('/billings/dids/purchase/', payload);
+      const premiumPlan = plans.find(plan => parseFloat(plan.price) > 0);
+      
+      if (!premiumPlan) {
+        Alert.alert('Error', 'No premium plan available');
+        return;
+      }
 
-      if (res.data?.success) {
-        Alert.alert(
-          'Payment Successful',
-          `DIDs purchased successfully!\nAmount charged: ₦${res.data.total_amount?.toLocaleString()}\nMonthly recurring: ₦${res.data.monthly_recurring?.toLocaleString()}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                navigation.navigate('DidPurchaseSuccess', {
-                  paymentMethod: 'wallet',
-                  amount: res.data.total_amount,
-                  monthlyRecurring: res.data.monthly_recurring,
-                  didCount: res.data.did_count,
-                  dids: selectedDids,
-                });
+      const payload = {
+        plan_id: premiumPlan.id,
+        extensions: 2, // Default 2 extensions
+        payment_method: paymentMethod,
+        dids: selectedDids.map(did => ({ id: did.id })),
+      };
+
+      if (paymentMethod === 'wallet') {
+        const res = await api.post('/billings/subscriptions/purchase/', payload);
+        if (res.data?.success) {
+          Alert.alert(
+            'Subscription Successful',
+            `Your subscription has been activated!\nAmount charged: ₦${res.data.total_amount?.toLocaleString()}`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  navigation.navigate('SubscriptionSuccess', {
+                    paymentMethod: 'wallet',
+                    amount: res.data.total_amount,
+                    plan: premiumPlan,
+                    extensions: 2,
+                    dids: selectedDids,
+                  });
+                }
               }
-            }
-          ]
-        );
+            ]
+          );
+        }
+      } else {
+        // Paystack payment
+        const res = await api.post('/billings/subscriptions/purchase/', payload);
+        if (res.data?.success && res.data.authorization_url) {
+          navigation.navigate('PaystackCheckout', {
+            url: res.data.authorization_url,
+            reference: res.data.reference,
+            totalAmount: res.data.total_amount,
+            isSubscription: true,
+            plan: premiumPlan,
+            extensions: 2,
+            selectedDids: selectedDids,
+          });
+        }
+      }
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
+
+  // Handle DID purchase payment (Scenario 2)
+  const handleDidPurchasePayment = async (paymentMethod) => {
+    try {
+      const payload = {
+        dids: selectedDids.map(did => ({ id: did.id })),
+        payment_method: paymentMethod,
+      };
+
+      if (paymentMethod === 'wallet') {
+        const res = await api.post('/billings/dids/purchase/', payload);
+        if (res.data?.success) {
+          Alert.alert(
+            'Payment Successful',
+            `DIDs purchased successfully!\nAmount charged: ₦${res.data.total_amount?.toLocaleString()}\nMonthly recurring: ₦${res.data.monthly_recurring?.toLocaleString()}`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  navigation.navigate('DidPurchaseSuccess', {
+                    paymentMethod: 'wallet',
+                    amount: res.data.total_amount,
+                    monthlyRecurring: res.data.monthly_recurring,
+                    didCount: res.data.did_count,
+                    dids: selectedDids,
+                  });
+                }
+              }
+            ]
+          );
+        }
+      } else {
+        // Paystack payment
+        const res = await api.post('/billings/dids/purchase/', payload);
+        if (res.data?.success && res.data.authorization_url) {
+          navigation.navigate('PaystackCheckout', {
+            url: res.data.authorization_url,
+            reference: res.data.reference,
+            totalAmount: res.data.total_amount,
+            monthlyRecurring: res.data.monthly_recurring,
+            didCount: res.data.did_count,
+            isDidPurchase: true,
+            selectedDids: selectedDids,
+          });
+        }
       }
     } catch (error) {
       if (error.response?.data?.error === 'Insufficient wallet balance') {
@@ -163,27 +299,6 @@ const HotlinesList = ({ navigation }) => {
     }
   };
 
-  const handlePaystackPayment = async (payload) => {
-    try {
-      const res = await api.post('/billings/dids/purchase/', payload);
-
-      if (res.data?.success) {
-        const { authorization_url, reference, total_amount, monthly_recurring, did_count } = res.data;
-        navigation.navigate('PaystackCheckout', { 
-          url: authorization_url, 
-          reference,
-          totalAmount: total_amount,
-          monthlyRecurring: monthly_recurring,
-          didCount: did_count,
-          isDidPurchase: true,
-          selectedDids: selectedDids,
-        });
-      }
-    } catch (error) {
-      handleApiError(error);
-    }
-  };
-
   const handleProceed = () => {
     if (selectedDids.length === 0) {
       Alert.alert('Error', 'Please select at least one hotline');
@@ -202,30 +317,40 @@ const HotlinesList = ({ navigation }) => {
       setLoading(true);
       setShowPaymentModal(false);
 
-      const payload = {
-        dids: selectedDids.map(did => ({ id: did.id })),
-        payment_method: selectedPaymentMethod,
-      };
-
-      console.log('Initiating DID purchase:', payload);
-
-      if (selectedPaymentMethod === 'wallet') {
-        await handleWalletPayment(payload);
-      } else if (selectedPaymentMethod === 'paystack') {
-        await handlePaystackPayment(payload);
+      if (hasActiveSubscription) {
+        // Scenario 2: Active premium subscription - buy additional DIDs
+        await handleDidPurchasePayment(selectedPaymentMethod);
+      } else {
+        // Scenario 1: No subscription or free plan - create subscription
+        await handleSubscriptionPayment(selectedPaymentMethod);
       }
     } catch (error) {
-      console.error('Failed to initiate DID purchase:', error);
+      console.error('Payment failed:', error);
       handleApiError(error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Get the header title based on subscription status
+  const getHeaderTitle = () => {
+    return hasActiveSubscription ? 'Get an extra hotline' : 'Get a hotline now';
+  };
+
+  // Get the summary text based on subscription status
+  const getSummaryText = () => {
+    if (hasActiveSubscription) {
+      return `₦${totalAmount.toLocaleString()}/month`;
+    } else {
+      const premiumPlan = plans.find(plan => parseFloat(plan.price) > 0);
+      return premiumPlan ? `₦${parseFloat(premiumPlan.price).toLocaleString()}/month` : '';
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
-
+      
       {/* Header */}
       <ImageBackground
         source={require('../../../assets/header_bg.png')}
@@ -239,7 +364,7 @@ const HotlinesList = ({ navigation }) => {
             resizeMode="contain"
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Get a hotline now</Text>
+        <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
         <View style={styles.headerRight} />
       </ImageBackground>
 
@@ -256,7 +381,7 @@ const HotlinesList = ({ navigation }) => {
               {selectedDids.length} hotline{selectedDids.length > 1 ? 's' : ''} selected
             </Text>
             <Text style={styles.summaryAmount}>
-              ₦{totalAmount.toLocaleString()}/month
+              {getSummaryText()}
             </Text>
           </View>
         )}
@@ -270,7 +395,7 @@ const HotlinesList = ({ navigation }) => {
             {dids.map((did, index) => {
               const colorScheme = cardColors[index % cardColors.length];
               const isSelected = selectedDids.some(d => d.id === did.id);
-
+              
               return (
                 <TouchableOpacity
                   key={did.id}
@@ -279,7 +404,7 @@ const HotlinesList = ({ navigation }) => {
                     isSelected && styles.hotlineCardSelected
                   ]}
                   onPress={() => handleDidSelect(did)}
-                  activeOpacity={0.8}
+                  activeOpacity={0.7}
                 >
                   {/* Header with icon and title */}
                   <View style={[styles.cardHeader, { backgroundColor: colorScheme.headerBg }]}>
@@ -297,7 +422,10 @@ const HotlinesList = ({ navigation }) => {
                   <View style={styles.cardBody}>
                     <View style={styles.cardBodyContent}>
                       <Text style={styles.phoneNumber}>{did.number}</Text>
-                      <Text style={styles.priceText}>₦{PRICE_PER_DID.toLocaleString()}/mo</Text>
+                      {/* Only show price if user has active premium subscription */}
+                      {hasActiveSubscription && (
+                        <Text style={styles.priceText}>₦{PRICE_PER_DID.toLocaleString()}/mo</Text>
+                      )}
                     </View>
                     <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
                       {isSelected && (
@@ -323,7 +451,7 @@ const HotlinesList = ({ navigation }) => {
       >
         <Text style={styles.proceedText}>
           Proceed to Payment
-          {selectedDids.length > 0 && ` (₦${totalAmount.toLocaleString()})`}
+          {selectedDids.length > 0 && totalAmount > 0 && ` (₦${totalAmount.toLocaleString()})`}
         </Text>
       </TouchableOpacity>
 
@@ -334,84 +462,102 @@ const HotlinesList = ({ navigation }) => {
         animationType="slide"
         onRequestClose={() => setShowPaymentModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Payment Method</Text>
-              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPaymentModal(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalContainer}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Payment Method</Text>
+                <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Payment Summary */}
+              <View style={styles.modalSummary}>
+                <View style={styles.modalSummaryRow}>
+                  <Text style={styles.modalSummaryLabel}>Selected Hotlines:</Text>
+                  <Text style={styles.modalSummaryValue}>{selectedDids.length}</Text>
+                </View>
+                {hasActiveSubscription && (
+                  <View style={styles.modalSummaryRow}>
+                    <Text style={styles.modalSummaryLabel}>Price per hotline:</Text>
+                    <Text style={styles.modalSummaryValue}>₦{PRICE_PER_DID.toLocaleString()}</Text>
+                  </View>
+                )}
+                <View style={styles.modalSummaryDivider} />
+                <View style={styles.modalSummaryRow}>
+                  <Text style={styles.modalSummaryLabelBold}>
+                    {hasActiveSubscription ? 'Monthly Total:' : 'Subscription Cost:'}
+                  </Text>
+                  <Text style={styles.modalSummaryValueBold}>₦{totalAmount.toLocaleString()}</Text>
+                </View>
+                {!hasActiveSubscription && (
+                  <Text style={styles.modalNote}>
+                    Includes 2 extensions with your selected hotline(s)
+                  </Text>
+                )}
+              </View>
+
+              {/* Payment Methods */}
+              <View style={styles.paymentMethodsContainer}>
+                {paymentMethods.map((method) => (
+                  <TouchableOpacity
+                    key={method.id}
+                    style={[
+                      styles.paymentMethodCard,
+                      method.disabled && styles.paymentMethodCardDisabled
+                    ]}
+                    onPress={() => handlePaymentMethodSelect(method)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.paymentMethodContent}>
+                      <Text style={[
+                        styles.paymentMethodLabel,
+                        method.disabled && styles.paymentMethodLabelDisabled
+                      ]}>
+                        {method.label}
+                      </Text>
+                      {method.disabled && (
+                        <Text style={styles.insufficientText}>Insufficient balance</Text>
+                      )}
+                    </View>
+                    <View style={[
+                      styles.radioButton,
+                      selectedPaymentMethod === method.id && styles.radioButtonSelected,
+                      method.disabled && styles.radioButtonDisabled
+                    ]}>
+                      {selectedPaymentMethod === method.id && (
+                        <View style={styles.radioButtonInner} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Pay Button */}
+              <TouchableOpacity
+                style={[
+                  styles.modalPayButton,
+                  !selectedPaymentMethod && styles.modalPayButtonDisabled
+                ]}
+                onPress={handlePay}
+                disabled={!selectedPaymentMethod}
+              >
+                <Text style={styles.modalPayButtonText}>
+                  Pay ₦{totalAmount.toLocaleString()}
+                </Text>
               </TouchableOpacity>
             </View>
-
-            {/* Payment Summary */}
-            <View style={styles.modalSummary}>
-              <View style={styles.modalSummaryRow}>
-                <Text style={styles.modalSummaryLabel}>Selected Hotlines:</Text>
-                <Text style={styles.modalSummaryValue}>{selectedDids.length}</Text>
-              </View>
-              <View style={styles.modalSummaryRow}>
-                <Text style={styles.modalSummaryLabel}>Price per hotline:</Text>
-                <Text style={styles.modalSummaryValue}>₦{PRICE_PER_DID.toLocaleString()}</Text>
-              </View>
-              <View style={styles.modalSummaryDivider} />
-              <View style={styles.modalSummaryRow}>
-                <Text style={styles.modalSummaryLabelBold}>Monthly Total:</Text>
-                <Text style={styles.modalSummaryValueBold}>₦{totalAmount.toLocaleString()}</Text>
-              </View>
-            </View>
-
-            {/* Payment Methods */}
-            <View style={styles.paymentMethodsContainer}>
-              {paymentMethods.map((method) => (
-                <TouchableOpacity
-                  key={method.id}
-                  style={[
-                    styles.paymentMethodCard,
-                    method.disabled && styles.paymentMethodCardDisabled
-                  ]}
-                  onPress={() => handlePaymentMethodSelect(method)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.paymentMethodContent}>
-                    <Text style={[
-                      styles.paymentMethodLabel,
-                      method.disabled && styles.paymentMethodLabelDisabled
-                    ]}>
-                      {method.label}
-                    </Text>
-                    {method.disabled && (
-                      <Text style={styles.insufficientText}>Insufficient balance</Text>
-                    )}
-                  </View>
-                  <View style={[
-                    styles.radioButton,
-                    selectedPaymentMethod === method.id && styles.radioButtonSelected,
-                    method.disabled && styles.radioButtonDisabled
-                  ]}>
-                    {selectedPaymentMethod === method.id && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Pay Button */}
-            <TouchableOpacity
-              style={[
-                styles.modalPayButton,
-                !selectedPaymentMethod && styles.modalPayButtonDisabled
-              ]}
-              onPress={handlePay}
-              disabled={!selectedPaymentMethod}
-            >
-              <Text style={styles.modalPayButtonText}>
-                Pay ₦{totalAmount.toLocaleString()}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -422,7 +568,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
-
   header: {
     paddingTop: 80,
     paddingBottom: 20,
@@ -448,7 +593,6 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 34,
   },
-
   scrollView: {
     flex: 1,
   },
@@ -457,7 +601,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 100,
   },
-
   selectionSummary: {
     backgroundColor: '#E7F7E1',
     borderRadius: 12,
@@ -467,25 +610,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   summaryText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
   },
-
   summaryAmount: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.primary,
   },
-
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-
   hotlineCard: {
     width: '48%',
     marginBottom: 16,
@@ -498,12 +637,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-
   hotlineCardSelected: {
     borderWidth: 2,
     borderColor: colors.primary,
   },
-
   cardHeader: {
     paddingTop: 10,
     paddingBottom: 5,
@@ -512,7 +649,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative'
   },
-
   phoneIcon: {
     width: 250,
     height: 100,
@@ -521,13 +657,11 @@ const styles = StyleSheet.create({
     tintColor: '#FFFFFF',
     position: 'absolute'
   },
-
   hotlineTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-
   cardBody: {
     backgroundColor: '#F8F8F8',
     paddingVertical: 16,
@@ -536,23 +670,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
   cardBodyContent: {
     flex: 1,
   },
-
   phoneNumber: {
     fontSize: 15,
     fontWeight: '600',
     color: '#000000',
     marginBottom: 4,
   },
-
   priceText: {
     fontSize: 13,
     color: '#666',
   },
-
   checkbox: {
     width: 24,
     height: 24,
@@ -563,32 +693,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-
   checkboxSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primary,
   },
-
   checkmark: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
-
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
   },
-
   emptyText: {
     textAlign: 'center',
     color: '#888',
     fontSize: 16,
     fontStyle: 'italic',
   },
-
   proceedButton: {
     position: 'absolute',
     bottom: 20,
@@ -604,32 +729,27 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-
   proceedButtonDisabled: {
     backgroundColor: '#CCCCCC',
     opacity: 0.6,
   },
-
   proceedText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
   },
-
   // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-
   modalContainer: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 30,
   },
-
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -638,65 +758,60 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
-
   modalClose: {
     fontSize: 24,
     color: '#666',
     fontWeight: '300',
   },
-
   modalSummary: {
     backgroundColor: '#E7F7E1',
     margin: 20,
     padding: 16,
     borderRadius: 12,
   },
-
   modalSummaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-
   modalSummaryLabel: {
     fontSize: 14,
     color: '#666',
   },
-
   modalSummaryValue: {
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
   },
-
   modalSummaryDivider: {
     height: 1,
     backgroundColor: '#D0D0D0',
     marginVertical: 8,
   },
-
   modalSummaryLabelBold: {
     fontSize: 16,
     color: '#333',
     fontWeight: 'bold',
   },
-
   modalSummaryValueBold: {
     fontSize: 18,
     color: colors.primary,
     fontWeight: 'bold',
   },
-
+  modalNote: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   paymentMethodsContainer: {
     paddingHorizontal: 20,
   },
-
   paymentMethodCard: {
     backgroundColor: '#F8F8F8',
     borderRadius: 12,
@@ -708,31 +823,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-
   paymentMethodCardDisabled: {
     backgroundColor: '#F5F5F5',
     opacity: 0.7,
   },
-
   paymentMethodContent: {
     flex: 1,
   },
-
   paymentMethodLabel: {
     fontSize: 15,
     color: '#333',
   },
-
   paymentMethodLabelDisabled: {
     color: '#999',
   },
-
   insufficientText: {
     fontSize: 12,
     color: '#EF4444',
     marginTop: 4,
   },
-
   radioButton: {
     width: 24,
     height: 24,
@@ -742,23 +851,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   radioButtonSelected: {
     borderColor: colors.primary,
     backgroundColor: '#FFFFFF',
   },
-
   radioButtonDisabled: {
     borderColor: '#DDD',
   },
-
   radioButtonInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: colors.primary,
   },
-
   modalPayButton: {
     marginHorizontal: 20,
     marginTop: 10,
@@ -767,12 +872,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-
   modalPayButtonDisabled: {
     backgroundColor: '#CCCCCC',
     opacity: 0.6,
   },
-
   modalPayButtonText: {
     color: '#FFFFFF',
     fontSize: 18,

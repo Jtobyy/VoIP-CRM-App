@@ -19,6 +19,12 @@ import Notifications from '../screens/shared/notifications/Notification';
 import AddFunds from '../screens/shared/more/AddFunds';
 import PaystackCheckout from '../screens/shared/more/PaystackCheckout';
 import HelpSupport from '../screens/shared/more/HelpSupport';
+import OrderManagement from '../screens/shared/more/OrderManagement';
+import Products from '../screens/shared/more/Products';
+import Orders from '../screens/shared/more/Orders';
+import CreateOrder from '../screens/shared/more/CreateOrder';
+import OrderDetails from '../screens/shared/more/OrderDetails';
+import SalesAnalytics from '../screens/shared/more/SalesAnalytics';
 
 const Stack = createNativeStackNavigator();
 
@@ -35,21 +41,29 @@ const AgentStackNavigator = () => {
       <Stack.Screen name="CustomerDetails" component={CustomerDetails} />
 
       <Stack.Screen name="Users" component={UsersList} />
-       <Stack.Screen name="UserDetails" component={UserDetails} />
+      <Stack.Screen name="UserDetails" component={UserDetails} />
       <Stack.Screen name="AddUser" component={AddUser} />
       <Stack.Screen name="Dialer" component={DialerScreen} />
       <Stack.Screen name="OutgoingCall" component={OutgoingCallScreen} />
       <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
-      
+
       <Stack.Screen name="EditProfile" component={EditProfile} />
       <Stack.Screen name="EditUser" component={EditUser} />
 
       <Stack.Screen name="Notifications" component={Notifications} />
-      
+
       <Stack.Screen name="AddFunds" component={AddFunds} />
       <Stack.Screen name="PaystackCheckout" component={PaystackCheckout} options={{ headerShown: false }} />
-      
-      <Stack.Screen name="HelpSupport" component={HelpSupport}  />
+
+      <Stack.Screen name="HelpSupport" component={HelpSupport} />
+
+      {/* Order Management */}
+      <Stack.Screen name="OrderManagement" component={OrderManagement} />
+      <Stack.Screen name="CreateOrder" component={CreateOrder} />
+      <Stack.Screen name="OrderDetails" component={OrderDetails} />
+      <Stack.Screen name="Orders" component={Orders} />
+      <Stack.Screen name="Products" component={Products} />
+      <Stack.Screen name="SalesAnalytics" component={SalesAnalytics} />
     </Stack.Navigator>
   );
 };

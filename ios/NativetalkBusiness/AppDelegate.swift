@@ -60,18 +60,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate, PKPushRegistryDelegate, U
     }
 
   func pushRegistry(_ registry: PKPushRegistry,
-                      didUpdate pushCredentials: PKPushCredentials,
-                      for type: PKPushType) {
-      // Convert token to lowercase hex
-      let hex = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
-
-      print("VoIP token", (hex))
-
-      // Send to LinphoneModule via NotificationCenter
-      NotificationCenter.default.post(name: .linphoneRegisterVoipToken,
-                                      object: nil,
-                                      userInfo: ["token": hex])
-    
+                    didUpdate pushCredentials: PKPushCredentials,
+                    for type: PKPushType) {
+      
+      if type == .voIP {
+          let tokenData = pushCredentials.token
+          let token = tokenData.map { String(format: "%02.2hhx", $0) }.joined()
+          
+          print("========================================")
+          print("VoIP Token: \(token)")
+          print("========================================")
+          
+          // Copy this to your clipboard or save it
+          // For testing, you can also store it locally
+          UserDefaults.standard.set(token, forKey: "voip_token")
+          
+          // Send to backend (we'll implement this later)
+          // sendVoIPTokenToBackend(token: token, username: "e1")
+      }
   }
   
   func pushRegistry(_ registry: PKPushRegistry,

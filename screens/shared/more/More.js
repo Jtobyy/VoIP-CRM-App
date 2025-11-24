@@ -10,6 +10,8 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
+  Platform,
+  Linking,
 } from 'react-native';
 import { colors, typography } from '../../../styles/global';
 import { FontAwesome6 } from '@react-native-vector-icons/fontawesome6';
@@ -31,6 +33,9 @@ const More = ({ navigation }) => {
   const { api } = useApi();
   const { setLoading } = useLoading();
 
+  // IMPORTANT: Replace this with your actual website URL
+  const WEB_SUBSCRIPTION_URL = 'https://yourapp.com/subscription';
+
   useEffect(() => {
     fetchUserProfile();
     fetchWalletBalance();
@@ -40,9 +45,8 @@ const More = ({ navigation }) => {
 
   const getCurrencySymbol = (currencyCode) => {
     if (currencyCode === 'NGN') {
-      return '₦';
+      return 'â‚¦';
     }
-    // Default to dollar sign for all other currencies
     return '$';
   };
 
@@ -51,14 +55,12 @@ const More = ({ navigation }) => {
       const res = await api.get('/billings/pbx-credits/balance/');
       console.log('Credit balance response:', res);
       
-      // Extract balance
       const b =
         res.data?.balance ??
         res.data?.credit_balance ??
         res.data?.credits?.balance ??
         0;
       
-      // Extract currency code
       const currency = res.data?.currency_code ?? 'NGN';
       
       setCreditBalance(Number(b) || 0);
@@ -120,7 +122,44 @@ const More = ({ navigation }) => {
     }
   };
 
+  // NEW: Handle subscription navigation based on platform
+  const handleSubscriptionNavigation = () => {
+    if (Platform.OS === 'ios') {
+      // iOS: Open web browser for subscription management
+      Alert.alert(
+        'Manage Subscription',
+        'You will be redirected to our website to manage your subscription.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Continue',
+            onPress: () => {
+              Linking.openURL(WEB_SUBSCRIPTION_URL).catch(err => {
+                console.error('Failed to open URL:', err);
+                Alert.alert('Error', 'Unable to open subscription page');
+              });
+            },
+          },
+        ]
+      );
+    } else {
+      // Android: Use in-app navigation with Paystack
+      navigation.navigate('SubscriptionAndPricing');
+    }
+  };
+
   const menuItems = [
+    {
+      id: 'order-management',
+      title: 'Order Management',
+      icon: require('../../../assets/ic_orders.png'),
+      iconColor: '#22C55E',
+      backgroundColor: '#DCFCE7',
+      onPress: () => navigation.navigate('OrderManagement'),
+    },
     {
       id: 'link-social',
       title: 'Link Social Media',
@@ -137,14 +176,14 @@ const More = ({ navigation }) => {
       backgroundColor: '#DCFCE7',
       onPress: () => navigation.navigate('Users'),
     },
-    {
-      id: 'subscription',
-      title: 'Subscription and Pricing',
-      icon: require('../../../assets/ic_subscription.png'),
-      iconColor: '#22C55E',
-      backgroundColor: '#DCFCE7',
-      onPress: () => navigation.navigate('SubscriptionAndPricing'),
-    },
+    // {
+    //   id: 'subscription',
+    //   title: Platform.OS === 'ios' ? 'Manage Subscription' : 'Subscription and Pricing',
+    //   icon: require('../../../assets/ic_subscription.png'),
+    //   iconColor: '#22C55E',
+    //   backgroundColor: '#DCFCE7',
+    //   onPress: handleSubscriptionNavigation, // UPDATED: Platform-specific handler
+    // },
     {
       id: 'help',
       title: 'Help & Support',
@@ -200,10 +239,12 @@ const More = ({ navigation }) => {
     Alert.alert('Copied', 'Phone number copied to clipboard');
   };
 
+  // UNCHANGED: Add funds is allowed on all platforms
   const handleAddFunds = () => {
     navigation.navigate('AddFunds');
   };
 
+  // UNCHANGED: Buy credit is allowed on all platforms
   const handleBuyCredit = () => {
     navigation.navigate('BuyCallCredit');
   };
@@ -344,12 +385,12 @@ const More = ({ navigation }) => {
         </View>
       </ImageBackground>
 
-      {/* Balance Card */}
+      {/* Balance Card - UNCHANGED (Allowed on all platforms) */}
       <View style={styles.balanceCard}>
         <View style={styles.balanceContent}>
           <View>
             <Text style={styles.balanceLabel}>Acct. Balance</Text>
-            <Text style={[typography.heading3, {fontWeight: 'bold'}]}>{`₦${balance}`}</Text>
+            <Text style={[typography.heading3, {fontWeight: 'bold'}]}>{`${balance}`}</Text>
           </View>
           <TouchableOpacity 
             style={styles.addFundsButton}
@@ -360,7 +401,7 @@ const More = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Call Credit Balance Card */}
+      {/* Call Credit Balance Card - UNCHANGED (Allowed on all platforms) */}
       <View style={[styles.balanceCard, styles.creditCard, {'display': 'none'}]}>
         <View style={styles.balanceContent}>
           <View>
@@ -540,6 +581,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 15,
+    display: 'none'
   },
   addFundsText: {
     color: 'white',

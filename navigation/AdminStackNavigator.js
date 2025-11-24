@@ -26,6 +26,12 @@ import PaymentSuccess from '../screens/shared/more/PaymentSuccess';
 import BuyCallCredit from '../screens/shared/more/BuyCallCredit';
 import DidPurchaseSuccess from '../screens/shared/more/DidPurchase';
 import ManageAccount from '../screens/shared/more/ManageAccount';
+import OrderManagement from '../screens/shared/more/OrderManagement';
+import Products from '../screens/shared/more/Products';
+import Orders from '../screens/shared/more/Orders';
+import CreateOrder from '../screens/shared/more/CreateOrder';
+import OrderDetails from '../screens/shared/more/OrderDetails';
+import SalesAnalytics from '../screens/shared/more/SalesAnalytics';
 
 const Stack = createNativeStackNavigator();
 
@@ -64,7 +70,15 @@ const AdminStackNavigator = () => {
       <Stack.Screen name="SubscriptionAndPricing" component={SubscriptionAndPricing} />
       <Stack.Screen name="SubscriptionMakePayment" component={SubscriptionMakePayment} options={{ headerShown: false }} />
 
-      <Stack.Screen name="HelpSupport" component={HelpSupport}  />
+      <Stack.Screen name="HelpSupport" component={HelpSupport} />
+
+      {/* Order Management */}
+      <Stack.Screen name="OrderManagement" component={OrderManagement} />
+      <Stack.Screen name="Orders" component={Orders} />
+      <Stack.Screen name="CreateOrder" component={CreateOrder} />
+      <Stack.Screen name="OrderDetails" component={OrderDetails} />
+      <Stack.Screen name="Products" component={Products} />
+      <Stack.Screen name="SalesAnalytics" component={SalesAnalytics} />
     </Stack.Navigator>
   );
 };

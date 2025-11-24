@@ -1,6 +1,6 @@
 // components/EnableNotificationsBanner.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Linking, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Linking, Platform, Alert } from 'react-native';
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
 import { initFcm } from '../firebase/fcm';
 
@@ -10,65 +10,69 @@ export default function EnableNotificationsBanner() {
 
   useEffect(() => {
     (async () => {
-      // 1) Check current OS-level status to decide if we should show the banner
+      // Check current OS-level status
       const s = await notifee.getNotificationSettings();
-      const blocked =
-        s.authorizationStatus === AuthorizationStatus.DENIED ||
-        s.authorizationStatus === AuthorizationStatus.BLOCKED;
-
-      const granted = s.authorizationStatus === AuthorizationStatus.AUTHORIZED;
-      setVisible(!granted); // show banner only if not already granted
+      const granted = s.authorizationStatus === AuthorizationStatus.AUTHORIZED
+        || s.authorizationStatus === AuthorizationStatus.PROVISIONAL;
+      setVisible(!granted);      // show only if not granted
       setChecking(false);
     })();
   }, []);
 
   if (checking || !visible) return null;
 
-  const enable = async () => {
-    // 2) Try prompting once via our safe init (user gesture)
+  const requestNow = async () => {
+    // 1) Trigger system permission prompt immediately after the message
     await initFcm({ prompt: true });
 
-    // 3) Re-check; if still not authorized, offer to open settings
+    // 2) Re-check permission
     const s = await notifee.getNotificationSettings();
-    const granted = s.authorizationStatus === AuthorizationStatus.AUTHORIZED;
+    const granted = s.authorizationStatus === AuthorizationStatus.AUTHORIZED
+      || s.authorizationStatus === AuthorizationStatus.PROVISIONAL;
 
-    if (!granted) {
-      // iOS & Android: open app notification settings
-      try {
-        await notifee.openSettings();
-      } catch {
-        // Fallback: generic app settings
-        Linking.openSettings?.();
-      }
-    } else {
-      setVisible(false); // hide banner once enabled
+    if (granted) {
+      setVisible(false);
+      return;
     }
+
+    // 3) If still not granted, offer to open Settings (allowed by Apple)
+    Alert.alert(
+      'Turn On Notifications',
+      'Enable notifications in Settings to get real-time updates.',
+      [
+        { text: 'Open Settings', onPress: () => notifee.openSettings().catch(() => Linking.openSettings?.()) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
-    <View style={{
-      padding: 12, borderRadius: 10, margin: 12,
-      backgroundColor: 'rgba(0,0,0,0.05)'
-    }}>
-      <Text style={{ fontWeight: '600', marginBottom: 6 }}>
-        Stay in the loop
-      </Text>
+    <View style={{ padding: 12, borderRadius: 10, margin: 12, backgroundColor: 'rgba(0,0,0,0.05)' }}>
+      <Text style={{ fontWeight: '600', marginBottom: 6 }}>Stay in the loop</Text>
+
+      {/* Important: don't mention microphone here; this banner is for notifications only */}
       <Text style={{ opacity: 0.8, marginBottom: 12 }}>
-        Enable notifications and microphone to make and receive calls and get real-time updates on tasks and messages.
+        Turn on notifications to get real-time updates on calls, tasks and messages.
       </Text>
+
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <TouchableOpacity
-          onPress={enable}
+          onPress={requestNow}
           style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#1e90ff' }}
         >
-          <Text style={{ color: 'white', fontWeight: '600' }}>Enable</Text>
+          <Text style={{ color: 'white', fontWeight: '600' }}>Continue</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setVisible(false)}
-          style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
-        >
-          <Text>Not now</Text>
-        </TouchableOpacity>
+
+        {/* Apple asked not to provide an exit button before the prompt.
+           If you really want "Not now", keep it ONLY on Android. */}
+        {Platform.OS === 'android' && (
+          <TouchableOpacity
+            onPress={() => setVisible(false)}
+            style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' }}
+          >
+            <Text>Not now</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

@@ -766,6 +766,7 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     justifyContent: 'center',
     alignItems: 'center',
+    display: 'none'
   },
   container: {
     flex: 1,

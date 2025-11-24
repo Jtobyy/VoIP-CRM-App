@@ -15,6 +15,7 @@ import { colors } from '../../../styles/global';
 import { useApi } from '../../../hooks/useApi';
 import { useLoading } from '../../../hooks/useLoading';
 import { useError } from '../../../hooks/useError';
+import { useAuth } from '../../../hooks/useAuth';
 import { CommonActions } from '@react-navigation/native';
 import Avatar from '../../../components/Avatar';
 
@@ -29,6 +30,7 @@ const ManageAccount = ({ navigation }) => {
   const { api } = useApi();
   const { setLoading } = useLoading();
   const { handleApiError } = useError();
+  const { logout } = useAuth();
 
   const handleDisableAccount = () => {
     setShowDisableModal(true);
@@ -43,8 +45,7 @@ const ManageAccount = ({ navigation }) => {
       setLoading(true);
       setShowDisableModal(false);
 
-      // Update this endpoint to match your API
-      const response = await api.post('/auth/account/disable/');
+      const response = await api.post('/users/account/disable/');
 
       if (response.data?.success) {
         setActionType('disable');
@@ -73,8 +74,7 @@ const ManageAccount = ({ navigation }) => {
       setLoading(true);
       setShowDeleteConfirmModal(false);
 
-      // Update this endpoint to match your API
-      const response = await api.delete('/auth/account/delete/');
+      const response = await api.post('/users/account/delete/');
 
       if (response.data?.success) {
         setActionType('delete');
@@ -83,13 +83,22 @@ const ManageAccount = ({ navigation }) => {
     } catch (error) {
       console.error('Failed to delete account:', error);
       handleApiError(error);
+      setDeleteConfirmation('');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSuccessAction = () => {
+  const handleSuccessAction = async () => {
     setShowSuccessModal(false);
+    
+    // Logout user and clear all data
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
     // Clear all navigation and go to login screen
     navigation.dispatch(
       CommonActions.reset({
@@ -129,8 +138,8 @@ const ManageAccount = ({ navigation }) => {
         >
           <View style={[styles.iconCircle, styles.disableIconCircle]}>
             <Avatar
-              name={null} 
-              size={50} 
+              name={null}
+              size={50}
               image={require('../../../assets/ic_disable_account.png')}
               badge={null}
             />
@@ -149,8 +158,8 @@ const ManageAccount = ({ navigation }) => {
         >
           <View style={[styles.iconCircle, styles.deleteIconCircle]}>
             <Avatar
-              name={null} 
-              size={50} 
+              name={null}
+              size={50}
               image={require('../../../assets/ic_delete_account.png')}
               badge={null}
             />
@@ -177,15 +186,19 @@ const ManageAccount = ({ navigation }) => {
             >
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
-            <Avatar
-              name={null} 
-              size={70} 
-              image={require('../../../assets/ic_disable_account.png')}
-              badge={null}
-            />
+            <View style={styles.modalIconContainer}>
+              <Avatar
+                name={null}
+                size={70}
+                image={require('../../../assets/ic_disable_account.png')}
+                badge={null}
+              />
+            </View>
 
             <Text style={styles.modalTitle}>Disable your account?</Text>
-            <Text style={styles.modalSubtitle}>You can come back anytime</Text>
+            <Text style={styles.modalSubtitle}>
+              You won't be able to sign in until it is reactivated. You can come back anytime.
+            </Text>
 
             <TouchableOpacity
               style={styles.confirmButton}
@@ -221,16 +234,18 @@ const ManageAccount = ({ navigation }) => {
             >
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
-            <Avatar
-              name={null} 
-              size={70} 
-              image={require('../../../assets/ic_delete_account.png')}
-              badge={null}
-            />
+            <View style={styles.modalIconContainer}>
+              <Avatar
+                name={null}
+                size={70}
+                image={require('../../../assets/ic_delete_account.png')}
+                badge={null}
+              />
+            </View>
 
             <Text style={styles.modalTitle}>Delete forever?</Text>
             <Text style={styles.modalSubtitle}>
-              If you delete your account, you lose all of your data on NativeTalk Business
+              If you delete your account, you lose all of your data on NativeTalk Business. This action cannot be undone.
             </Text>
 
             <TouchableOpacity
@@ -257,7 +272,10 @@ const ManageAccount = ({ navigation }) => {
         visible={showDeleteConfirmModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowDeleteConfirmModal(false)}
+        onRequestClose={() => {
+          setShowDeleteConfirmModal(false);
+          setDeleteConfirmation('');
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -271,14 +289,19 @@ const ManageAccount = ({ navigation }) => {
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
 
-            <Avatar
-              name={null} 
-              size={70} 
-              image={require('../../../assets/ic_delete_account.png')}
-              badge={null}
-            />
+            <View style={styles.modalIconContainer}>
+              <Avatar
+                name={null}
+                size={70}
+                image={require('../../../assets/ic_delete_account.png')}
+                badge={null}
+              />
+            </View>
 
             <Text style={styles.modalTitle}>Final confirmation</Text>
+            <Text style={styles.modalSubtitle}>
+              Type "DELETE" to permanently delete your account
+            </Text>
 
             <View style={styles.confirmationInputContainer}>
               <TextInput
@@ -297,9 +320,13 @@ const ManageAccount = ({ navigation }) => {
             </View>
 
             <TouchableOpacity
-              style={styles.deleteForeverButton}
+              style={[
+                styles.deleteForeverButton,
+                deleteConfirmation.toUpperCase() !== 'DELETE' && styles.deleteForeverButtonDisabled
+              ]}
               onPress={confirmDeleteAccount}
               activeOpacity={0.8}
+              disabled={deleteConfirmation.toUpperCase() !== 'DELETE'}
             >
               <Text style={styles.deleteForeverButtonText}>Delete Forever</Text>
             </TouchableOpacity>
@@ -327,20 +354,20 @@ const ManageAccount = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.successModalContainer}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleSuccessAction}
-            >
-              <Text style={styles.closeIcon}>✕</Text>
-            </TouchableOpacity>
-
             <View style={styles.successIconContainer}>
               <View style={styles.successCircle}>
                 <Text style={styles.successCheckmark}>✓</Text>
               </View>
             </View>
 
-            <Text style={styles.successTitle}>Success!</Text>
+            <Text style={styles.successTitle}>
+              {actionType === 'disable' ? 'Account Disabled' : 'Account Deleted'}
+            </Text>
+            <Text style={styles.successMessage}>
+              {actionType === 'disable' 
+                ? 'Your account has been disabled successfully. You will not be able to sign in until it is reactivated.' 
+                : 'Your account has been deleted successfully. This action cannot be undone.'}
+            </Text>
 
             <TouchableOpacity
               style={styles.proceedButton}
@@ -427,14 +454,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFEBEE',
   },
 
-  pauseIcon: {
-    fontSize: 28,
-  },
-
-  trashIcon: {
-    fontSize: 28,
-  },
-
   cardContent: {
     flex: 1,
   },
@@ -488,31 +507,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  modalIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  disableModalIcon: {
-    backgroundColor: colors.primary,
-  },
-
-  deleteModalIcon: {
-    backgroundColor: '#EF4444',
-  },
-
-  modalPauseIcon: {
-    fontSize: 40,
-    color: '#FFFFFF',
-  },
-
-  modalTrashIcon: {
-    fontSize: 40,
-  },
-
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -523,10 +517,11 @@ const styles = StyleSheet.create({
 
   modalSubtitle: {
     fontSize: 16,
-    color: '#999',
+    color: '#666',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
+    paddingHorizontal: 10,
   },
 
   confirmButton: {
@@ -604,6 +599,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  deleteForeverButtonDisabled: {
+    backgroundColor: '#FFCDD2',
+    opacity: 0.6,
+  },
+
   deleteForeverButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
@@ -653,10 +653,20 @@ const styles = StyleSheet.create({
   },
 
   successTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+
+  successMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
     marginBottom: 32,
+    lineHeight: 22,
+    paddingHorizontal: 10,
   },
 
   proceedButton: {
